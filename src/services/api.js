@@ -20,12 +20,28 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('junglyst_token');
-    if (token && !config.url.includes('/auth/login')) {
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor to handle 401s
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (error.response && error.response.status === 401) {
+      // Clear session
+      localStorage.removeItem('junglyst_token');
+      localStorage.removeItem('junglyst_refresh');
+      localStorage.removeItem('junglyst_user');
+      // Redirect to login if not already there
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?expired=true';
+      }
+    }
     return Promise.reject(error);
   }
 );
