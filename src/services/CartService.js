@@ -5,7 +5,7 @@ export const CartService = {
   getCart: async () => {
     try {
       const response = await api.get('/cart/');
-      return response.data;
+      return response.data; // This is the serialized cart object
     } catch (error) {
       console.error('Error fetching cart:', error);
       throw error;
@@ -13,9 +13,11 @@ export const CartService = {
   },
 
   // Add item to cart
-  addToCart: async (productId, quantity = 1) => {
+  addToCart: async (productId, quantity = 1, variantId = null) => {
     try {
-      const response = await api.post('/cart/', { productId, quantity });
+      // If variantId is not provided, we might need a default one or a change in API
+      // But for now, we expect variantId from the caller
+      const response = await api.post('/cart/add_item/', { productId, quantity, variant_id: variantId });
       return response.data;
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -23,13 +25,13 @@ export const CartService = {
     }
   },
 
-  // Update cart item (quantities)
-  updateCart: async (cartData) => {
+  // Update item quantity
+  updateItem: async (itemId, quantity) => {
     try {
-      const response = await api.put('/cart/', cartData);
+      const response = await api.post('/cart/update_item/', { item_id: itemId, quantity });
       return response.data;
     } catch (error) {
-      console.error('Error updating cart:', error);
+      console.error('Error updating cart item:', error);
       throw error;
     }
   }

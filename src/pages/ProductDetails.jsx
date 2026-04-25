@@ -118,6 +118,9 @@ export default function ProductDetails() {
       try {
         const data = await ProductService.getProduct(id);
         setProduct(data);
+        if (data.variants && data.variants.length > 0) {
+          setSelectedVariant(data.variants[0]);
+        }
       } catch (error) {
         console.error("Failed to fetch product:", error);
       } finally {
@@ -129,7 +132,7 @@ export default function ProductDetails() {
   }, [id]);
 
   const handleBuyNow = async () => {
-    await addItemToCart(id, quantity);
+    await addItemToCart(id, quantity, selectedVariant?.id);
     navigate('/checkout');
   };
 
@@ -153,9 +156,11 @@ export default function ProductDetails() {
   }
 
   const name = product?.name || product?.title || "Unknown Specimen";
-  const price = product?.price || 0;
-  const originalPrice = product.compareAtPrice || product.compare_at_price || product.originalPrice || Math.round(price * 1.15);
-  const discount = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  const displayPrice = selectedVariant ? selectedVariant.price : (product?.price || 0);
+  const originalPrice = selectedVariant?.compare_at_price || product.compareAtPrice || product.compare_at_price || Math.round(displayPrice * 1.15);
+  const discount = originalPrice > displayPrice ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100) : 0;
+  
+  const sellerAvatar = product.seller?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${product.seller?.full_name || product.seller?.username}&backgroundColor=1b2d2a&fontFamily=serif`;
 
   return (
     <div style={{ backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '8rem' }}>
@@ -249,7 +254,7 @@ export default function ProductDetails() {
                   {name}
                 </h1>
                 <button 
-                    onClick={() => toggleWishlist({ id: product.id || product._id, name, price, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
+                    onClick={() => toggleWishlist({ id: product.id || product._id, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
                     style={{ 
                         background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '50%', 
                         width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -273,8 +278,8 @@ export default function ProductDetails() {
 
             <div style={{ padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '16px', display: 'flex', alignItems: 'baseline', gap: '1.25rem' }}>
               <div>
-                <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--bg-deep)' }}>₹{price}</span>
-                {originalPrice > price && (
+                <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--bg-deep)' }}>₹{displayPrice}</span>
+                {originalPrice > displayPrice && (
                   <span style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', textDecoration: 'line-through', marginLeft: '0.75rem' }}>₹{originalPrice}</span>
                 )}
               </div>
@@ -358,38 +363,44 @@ export default function ProductDetails() {
             </div>
 
             {/* Variant Selector */}
-            <div>
-              <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--brand-gold)', marginBottom: '1rem' }}>Specimen Variant</p>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                {['Standard', 'XL Specimen', 'Tissue Culture'].map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setSelectedVariant(v)}
-                    style={{
-                      padding: '0.85rem 1.75rem', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700,
-                      border: '2px solid',
-                      backgroundColor: selectedVariant === v ? 'var(--bg-deep)' : 'transparent',
-                      borderColor: selectedVariant === v ? 'var(--bg-deep)' : 'var(--border-subtle)',
-                      color: selectedVariant === v ? 'white' : 'var(--text-primary)',
-                      transition: 'all 0.2s'
-                    }}
-                  >{v}</button>
-                ))}
+            {product.variants && product.variants.length > 0 && (
+              <div>
+                <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--brand-gold)', marginBottom: '1rem' }}>Specimen Variant</p>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {product.variants.map(v => (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVariant(v)}
+                      style={{
+                        padding: '0.85rem 1.75rem', borderRadius: '10px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700,
+                        border: '2px solid',
+                        backgroundColor: selectedVariant?.id === v.id ? 'var(--bg-deep)' : 'transparent',
+                        borderColor: selectedVariant?.id === v.id ? 'var(--bg-deep)' : 'var(--border-subtle)',
+                        color: selectedVariant?.id === v.id ? 'white' : 'var(--text-primary)',
+                        transition: 'all 0.2s'
+                      }}
+                    >{v.name}</button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Seller Story Bridge */}
             <div style={{ display: 'flex', gap: '1.5rem', padding: '1.75rem', borderRadius: '20px', backgroundColor: 'var(--bg-deep)', color: 'white' }}>
-              <div style={{ flexShrink: 0, width: '110px', height: '110px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--brand-gold)' }}>
-                <img src="/src/assets/sellers/aquatic_exotica_owner.png" alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ flexShrink: 0, width: '110px', height: '110px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--brand-gold)', backgroundColor: 'white' }}>
+                <img src={product.seller?.seller_profile?.logo_url || sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Master Grower</div>
-                <h4 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: '#fff' }}>Rahul M. • Aquatic Exotica</h4>
+                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+                  {product.seller?.role === 'grower' ? 'Master Grower' : 'Verified Partner'}
+                </div>
+                <h4 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: '#fff' }}>
+                  {product.seller?.full_name || product.seller?.username} • {product.seller?.seller_profile?.store_name || 'Botanical Studio'}
+                </h4>
                 <p style={{ fontSize: '0.8rem', lineHeight: 1.6, opacity: 0.85 }}>
-                  Curating rare aquatic botanicals from Kerala for over 12 years. Expert in tissue culture and sustainable propagation techniques.
+                  {product.seller?.seller_profile?.bio || `Dedicated botanical specialist from ${product.seller?.location || 'India'}, committed to the preservation and distribution of premium specimens.`}
                 </p>
-                <Link to={`/store/${encodeURIComponent(product.seller?.username || product.seller?.name || 'Aquatic Exotica')}`} style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 800, marginTop: '0.5rem', textDecoration: 'none' }}>VIEW CATALOG →</Link>
+                <Link to={`/store/${product.seller?.seller_profile?.slug || encodeURIComponent(product.seller?.username || 'Aquatic Exotica')}`} style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 800, marginTop: '0.5rem', textDecoration: 'none' }}>VIEW CATALOG →</Link>
               </div>
             </div>
           </div>
@@ -400,7 +411,7 @@ export default function ProductDetails() {
             padding: '2rem', border: '1px solid var(--border-subtle)', borderRadius: '24px', backgroundColor: '#fff',
             boxShadow: 'var(--shadow-lg)'
           }}>
-            <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--bg-deep)', marginBottom: '0.5rem' }}>₹{price}</div>
+            <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--bg-deep)', marginBottom: '0.5rem' }}>₹{displayPrice}</div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-green)', fontWeight: 700, fontSize: '0.8rem', marginBottom: '2rem' }}>
               <CheckCircle2 size={16} /> STUDIO SECURED IN STOCK

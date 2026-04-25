@@ -32,7 +32,8 @@ export function CartProvider({ children }) {
     if (!Array.isArray(items)) return { items: [], total_items: 0, subtotal: 0, tax_total: 0, shipping_total: 0, grand_total: 0 };
     
     const subtotal = items.reduce((acc, curr) => {
-      const itemPrice = curr?.product?.price || 0;
+      // Use variant price if available, fallback to product price
+      const itemPrice = parseFloat(curr?.variant?.price || curr?.product?.price || 0);
       const itemQty = curr?.quantity || 0;
       return acc + (itemPrice * itemQty);
     }, 0);
@@ -55,7 +56,6 @@ export function CartProvider({ children }) {
   const fetchCart = async () => {
     try {
       const data = await CartService.getCart();
-      // Ensure data has the required structure
       const items = data.items || [];
       setCart(calculateFinancials(items));
     } catch (error) {
@@ -65,9 +65,9 @@ export function CartProvider({ children }) {
     }
   };
 
-  const addItemToCart = async (productId, quantity = 1) => {
+  const addItemToCart = async (productId, quantity = 1, variantId = null) => {
     try {
-      const updatedCart = await CartService.addToCart(productId, quantity);
+      const updatedCart = await CartService.addToCart(productId, quantity, variantId);
       setCart(calculateFinancials(updatedCart.items || []));
       return true;
     } catch (error) {
@@ -77,30 +77,38 @@ export function CartProvider({ children }) {
   };
 
   const updateItemQuantity = async (itemIndex, change) => {
-    const newItems = [...cart.items];
-    const item = { ...newItems[itemIndex] };
+    const item = cart.items[itemIndex];
+    if (!item) return;
     
-    if (item.quantity + change > 0) {
-      item.quantity += change;
-      newItems[itemIndex] = item;
-      const updatedCartState = calculateFinancials(newItems);
-      setCart(updatedCartState); // Optimistic update
-      await CartService.updateCart(updatedCartState);
+    const newQuantity = item.quantity + change;
+    if (newQuantity > 0) {
+      try {
+        const updatedCart = await CartService.updateItem(item.id, newQuantity);
+        setCart(calculateFinancials(updatedCart.items || []));
+      } catch (error) {
+        console.error("Failed to update quantity:", error);
+      }
     }
   };
 
   const removeItem = async (itemIndex) => {
-    const newItems = [...cart.items];
-    newItems.splice(itemIndex, 1);
-    const updatedCartState = calculateFinancials(newItems);
-    setCart(updatedCartState); // Optimistic update
-    await CartService.updateCart(updatedCartState);
+    const item = cart.items[itemIndex];
+    if (!item) return;
+    
+    try {
+      const updatedCart = await CartService.updateItem(item.id, 0);
+      setCart(calculateFinancials(updatedCart.items || []));
+    } catch (error) {
+      console.error("Failed to remove item:", error);
+    }
   };
 
   const clearCart = async () => {
-    const updatedCartState = calculateFinancials([]);
-    setCart(updatedCartState);
-    await CartService.updateCart(updatedCartState);
+    // This might need a backend implementation or just loop through items
+    for (const item of cart.items) {
+      await CartService.updateItem(item.id, 0);
+    }
+    setCart(calculateFinancials([]));
   };
 
   return (
