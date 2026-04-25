@@ -90,27 +90,27 @@ export default function Checkout() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>First Name</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>First Name <span style={{ color: '#ef4444' }}>*</span></label>
                   <input required placeholder="E.g. John" value={shipping.firstName} onChange={e => setShipping({...shipping, firstName: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>Last Name</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>Last Name <span style={{ color: '#ef4444' }}>*</span></label>
                   <input required placeholder="E.g. Doe" value={shipping.lastName} onChange={e => setShipping({...shipping, lastName: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
                 </div>
               </div>
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>Shipping Address</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>Shipping Address <span style={{ color: '#ef4444' }}>*</span></label>
                 <input required placeholder="Street address, apartment, suite" value={shipping.address} onChange={e => setShipping({...shipping, address: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>City / Region</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>City / Region <span style={{ color: '#ef4444' }}>*</span></label>
                   <input required placeholder="E.g. Kochi" value={shipping.city} onChange={e => setShipping({...shipping, city: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>ZIP Code</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>ZIP Code <span style={{ color: '#ef4444' }}>*</span></label>
                   <input required placeholder="682001" value={shipping.zip} onChange={e => setShipping({...shipping, zip: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
                 </div>
               </div>
