@@ -71,7 +71,7 @@ export default function Profile() {
       const imageUrl = response.data.url;
       
       // Update user on backend
-      await api.patch('/core/profile/', { avatar_url: imageUrl });
+      await api.patch('/core/me/', { avatar_url: imageUrl });
       
       // Update local state
       updateUser({ avatar_url: imageUrl });
@@ -92,7 +92,7 @@ export default function Profile() {
       const first_name = names[0] || '';
       const last_name = names.slice(1).join(' ') || '';
 
-      const response = await api.patch('/core/profile/', {
+      const response = await api.patch('/core/me/', {
         first_name,
         last_name,
         email: formData.email,

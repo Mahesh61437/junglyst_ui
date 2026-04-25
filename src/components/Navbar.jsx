@@ -133,7 +133,11 @@ export default function Navbar() {
                    width: '34px', height: '34px', borderRadius: '50%', overflow: 'hidden', 
                    border: '1.5px solid var(--brand-gold)', padding: '2px' 
                  }}>
-                    <img src={user.avatar} alt="P" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                    <img 
+                      src={user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name || user.username}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`} 
+                      alt="P" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
+                    />
                  </div>
                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', display: window.innerWidth > 768 ? 'block' : 'none' }}>
                    {(user.full_name || user.username || 'User').split(' ')[0]}
