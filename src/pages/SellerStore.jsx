@@ -64,7 +64,7 @@ export default function SellerStore() {
           setProfileFound(true);
           
           // Now fetch products using the seller's slug
-          const data = await ProductService.getProducts({ seller: sellerName });
+          const data = await ProductService.getProducts({ seller_slug: sellerName });
           setProducts(data.results || data || []);
         } else {
           setProfileFound(false);
