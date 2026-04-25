@@ -331,7 +331,7 @@ export default function SellerOnboarding() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Name</label>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Name <span style={{ color: '#ef4444' }}>*</span></label>
                   <input name="storeName" value={formData.storeName} onChange={handleInputChange} placeholder="e.g. Rare Greens Nursery" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
                 </div>
                 <div>
@@ -350,7 +350,7 @@ export default function SellerOnboarding() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sanctuary Theme Color</label>
+                  <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sanctuary Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
                   
                   {/* Presets Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '1rem', marginBottom: '2.5rem' }}>
@@ -402,7 +402,7 @@ export default function SellerOnboarding() {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Logo</label>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Logo <span style={{ color: '#ef4444' }}>*</span></label>
                     <div style={{ position: 'relative' }}>
                       <input type="file" accept="image/*" id="logo-upload" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, 'logo')} />
                       <label htmlFor="logo-upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '120px', border: uploading === 'logo' ? '2px solid #E5C48B' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
@@ -450,7 +450,7 @@ export default function SellerOnboarding() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Philosophy</label>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Philosophy <span style={{ color: '#ef4444' }}>*</span></label>
                   <textarea name="description" value={formData.description} onChange={handleInputChange} rows="4" placeholder="Describe your cultivation methods and commitment to specimen purity..." style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', resize: 'none' }} />
                 </div>
               </div>
@@ -465,11 +465,11 @@ export default function SellerOnboarding() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tax Identification (GST/PAN)</label>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tax Identification (GST/PAN) <span style={{ color: '#ef4444' }}>*</span></label>
                   <input name="taxId" value={formData.taxId} onChange={handleInputChange} placeholder="Enter your business tax ID" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payout Account</label>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payout Account <span style={{ color: '#ef4444' }}>*</span></label>
                   <div style={{ position: 'relative' }}>
                     <CreditCard size={18} style={{ position: 'absolute', left: '1.125rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                     <input name="payoutBank" value={formData.payoutBank} onChange={handleInputChange} placeholder="UPI ID or Bank Account" style={{ width: '100%', padding: '1.125rem 1.125rem 1.125rem 3.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
@@ -487,12 +487,12 @@ export default function SellerOnboarding() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Specimen Name</label>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Specimen Name <span style={{ color: '#ef4444' }}>*</span></label>
                   <input name="firstProductName" value={formData.firstProductName} onChange={handleInputChange} placeholder="e.g. Monstera Albo Variegata" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Launch Price (₹)</label>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Launch Price (₹) <span style={{ color: '#ef4444' }}>*</span></label>
                     <input name="firstProductPrice" type="number" value={formData.firstProductPrice} onChange={handleInputChange} placeholder="4999" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
                   </div>
                   <div>

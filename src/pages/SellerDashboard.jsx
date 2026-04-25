@@ -833,7 +833,7 @@ export default function SellerDashboard() {
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Custom Theme Color</label>
+                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Custom Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
                           <div style={{ display: 'flex', gap: '1rem' }}>
                             <input type="color" value={spotlight.brand_color} onChange={e => setSpotlight({...spotlight, brand_color: e.target.value})} style={{ width: '60px', height: '60px', border: 'none', borderRadius: '12px', cursor: 'pointer' }} />
                             <input type="text" value={spotlight.brand_color} onChange={e => setSpotlight({...spotlight, brand_color: e.target.value})} style={{ flexGrow: 1, padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontFamily: 'monospace' }} />
@@ -841,7 +841,7 @@ export default function SellerDashboard() {
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                           <div>
-                            <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Logo</label>
+                            <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Logo <span style={{ color: '#ef4444' }}>*</span></label>
                             <div style={{ position: 'relative' }}>
                               <input type="file" accept="image/*" id="logo-upload" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, 'logo')} />
                               <label htmlFor="logo-upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '140px', border: uploading === 'logo' ? '2px solid #E5C48B' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
@@ -879,7 +879,7 @@ export default function SellerDashboard() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors.store_name ? '#ef4444' : 'inherit' }}>Studio Name {fieldErrors.store_name && `— ${fieldErrors.store_name}`}</label>
+                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors.store_name ? '#ef4444' : 'inherit' }}>Studio Name <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.store_name && `— ${fieldErrors.store_name}`}</label>
                           <input value={spotlight.store_name} onChange={e => { setSpotlight({...spotlight, store_name: e.target.value}); setFieldErrors({...fieldErrors, store_name: null}); }} className={fieldErrors.store_name ? 'form-error-input' : ''} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0' }} />
                         </div>
                         <div>
@@ -888,7 +888,7 @@ export default function SellerDashboard() {
                         </div>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Botanical Mandate / Bio</label>
+                        <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Botanical Mandate / Bio <span style={{ color: '#ef4444' }}>*</span></label>
                         <textarea rows="5" value={spotlight.bio} onChange={e => setSpotlight({...spotlight, bio: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', resize: 'none' }} />
                       </div>
                     </div>
@@ -1141,7 +1141,7 @@ export default function SellerDashboard() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.name ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Name {fieldErrors.name && `— ${fieldErrors.name}`}</label>
+                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.name ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Name <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.name && `— ${fieldErrors.name}`}</label>
                               <input value={newProduct.name} onChange={e => { setNewProduct({...newProduct, name: e.target.value}); setFieldErrors({...fieldErrors, name: null}); }} placeholder="e.g. Alocasia Azlanii" className={fieldErrors.name ? 'form-error-input' : ''} style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontSize: '1.125rem', fontWeight: 500 }} />
                             </div>
                             <div>
@@ -1157,7 +1157,7 @@ export default function SellerDashboard() {
 
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_id ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Category {fieldErrors.category_id && `— ${fieldErrors.category_id}`}</label>
+                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_id ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Category <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.category_id && `— ${fieldErrors.category_id}`}</label>
                               <select value={newProduct.category_id} onChange={e => { 
                                 const catId = e.target.value;
                                 const selectedCat = categories.find(c => String(c.id) === String(catId));
@@ -1273,7 +1273,7 @@ export default function SellerDashboard() {
                             
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem', marginBottom: '2.5rem' }}>
                               <div>
-                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_name`] ? '#ef4444' : '#64748b' }}>Variant Name {fieldErrors[`variant_${idx}_name`] && `— ${fieldErrors[`variant_${idx}_name`]}`}</label>
+                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_name`] ? '#ef4444' : '#64748b' }}>Variant Name <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_name`] && `— ${fieldErrors[`variant_${idx}_name`]}`}</label>
                                 <input 
                                   value={v.name} 
                                   onChange={e => {
@@ -1288,7 +1288,7 @@ export default function SellerDashboard() {
                                 />
                               </div>
                               <div>
-                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_stock`] ? '#ef4444' : '#64748b' }}>Current Stock {fieldErrors[`variant_${idx}_stock`] && `— ${fieldErrors[`variant_${idx}_stock`]}`}</label>
+                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_stock`] ? '#ef4444' : '#64748b' }}>Current Stock <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_stock`] && `— ${fieldErrors[`variant_${idx}_stock`]}`}</label>
                                 <input 
                                   type="number" 
                                   value={v.stock} 
@@ -1309,7 +1309,7 @@ export default function SellerDashboard() {
                             <div style={{ padding: '2rem', backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', marginBottom: '2.5rem' }}>
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem', marginBottom: '2rem' }}>
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>Base Payout (₹) {fieldErrors[`variant_${idx}_base_price`] && `— ${fieldErrors[`variant_${idx}_base_price`]}`}</label>
+                                  <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>Base Payout (₹) <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_base_price`] && `— ${fieldErrors[`variant_${idx}_base_price`]}`}</label>
                                   <input 
                                     type="number" 
                                     value={v.base_price} 
@@ -1392,12 +1392,12 @@ export default function SellerDashboard() {
                      {/* Section 4: Imagery & Content */}
                     <div style={{ backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 30px rgba(0,0,0,0.03)' }}>
                       <h4 style={{ fontSize: '0.85rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '2.5rem', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <Camera size={18} color="#10b981" /> Imagery & Content
+                        <Camera size={18} color="#10b981" /> Imagery & Content <span style={{ color: '#ef4444' }}>*</span>
                       </h4>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '1.25rem', color: fieldErrors.description ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Description {fieldErrors.description && `— ${fieldErrors.description}`}</label>
+                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '1.25rem', color: fieldErrors.description ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Description <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.description && `— ${fieldErrors.description}`}</label>
                           <textarea rows="6" value={newProduct.description} onChange={e => { setNewProduct({...newProduct, description: e.target.value}); setFieldErrors({...fieldErrors, description: null}); }} placeholder="Detail the specimen's health, coloration, and acclimation history..." className={fieldErrors.description ? 'form-error-input' : ''} style={{ width: '100%', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', resize: 'none', fontSize: '1.1rem', lineHeight: '1.7', color: '#1b2d2a' }} />
                         </div>
 
