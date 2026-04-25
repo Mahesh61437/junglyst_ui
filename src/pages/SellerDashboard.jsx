@@ -54,7 +54,14 @@ const isLight = (color) => {
 
 export default function SellerDashboard() {
   const { user, logout, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('sellerActiveTab') || 'dashboard';
+  });
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    localStorage.setItem('sellerActiveTab', tabId);
+  };
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -513,9 +520,10 @@ export default function SellerDashboard() {
             {sidebarItems.map(item => (
               <button 
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleTabChange(item.id)}
                  style={{ 
-                  display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.25rem 1.5rem', borderRadius: '16px', border: 'none', 
+                  display: 'flex', alignItems: 'center', gap: '1rem', width: '100%', padding: '1rem 1.5rem', 
+                  borderRadius: '16px', border: 'none', 
                   backgroundColor: activeTab === item.id ? spotlight.brand_color || 'rgba(255,255,255,0.1)' : 'transparent',
                   color: activeTab === item.id ? (isLight(spotlight.brand_color) ? '#1b2d2a' : 'white') : 'rgba(255,255,255,0.6)',
                   cursor: 'pointer', textAlign: 'left', fontWeight: activeTab === item.id ? 700 : 500, transition: 'all 0.2s',

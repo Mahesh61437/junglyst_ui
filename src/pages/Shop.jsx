@@ -27,15 +27,20 @@ export default function Shop() {
     'Advanced': false
   });
 
+  const [page, setPage] = useState(1);
+  
   // Use TanStack Query for caching and speed
-  const { data: products = [], isLoading, isError } = useQuery({
-    queryKey: ['products'],
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['products', page],
     queryFn: async () => {
-      const data = await ProductService.getProducts();
-      const results = data.results || data || [];
-      return results.filter(p => p.status !== 'Archived');
+      const res = await ProductService.getProducts({ page });
+      return res;
     }
   });
+
+  const products = data?.results || [];
+  const totalCount = data?.count || 0;
+  const totalPages = Math.ceil(totalCount / 20);
 
   useEffect(() => {
     if (category) {
@@ -48,16 +53,19 @@ export default function Shop() {
 
   const handleCategoryChange = (cat) => {
     setCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+    setPage(1); // Reset to first page on filter change
   };
 
   const handleDifficultyChange = (diff) => {
     setDifficulties(prev => ({ ...prev, [diff]: !prev[diff] }));
+    setPage(1);
   };
 
   const clearAllFilters = () => {
     setCategories(Object.keys(categories).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
     setDifficulties(Object.keys(difficulties).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
     setSearchTerm('');
+    setPage(1);
     if (category) navigate('/shop');
   };
 
@@ -116,7 +124,7 @@ export default function Shop() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '2rem' }}>
           <div>
             <h1 style={{ fontSize: '3.5rem', marginBottom: '0.5rem', fontFamily: 'serif' }}>The Collection</h1>
-            <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>Discover {displayedProducts.length} high-fidelity specimens</p>
+            <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>Discover {totalCount} high-fidelity specimens</p>
           </div>
           
           <div style={{ display: 'flex', gap: '1rem', flexGrow: 1, justifyContent: 'flex-end', maxWidth: '600px' }}>
@@ -138,7 +146,7 @@ export default function Shop() {
 
         <div style={{ flexGrow: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-             <p style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 700 }}>Analysis: {displayedProducts.length} results</p>
+             <p style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 700 }}>Analysis: {totalCount} total results</p>
              <select 
                value={sortBy} onChange={(e) => setSortBy(e.target.value)} 
                style={{ padding: '0.6rem 1.25rem', border: '1px solid #e2e8f0', borderRadius: '100px', fontSize: '0.8rem', backgroundColor: 'white', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
@@ -152,18 +160,49 @@ export default function Shop() {
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: '8rem 0' }}>Assembling catalog...</div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
-              {displayedProducts.map(product => (
-                <ProductCard key={product.id} {...product} name={product.name || product.title} image={product.image_url || product.image} />
-              ))}
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
+                {displayedProducts.map(product => (
+                  <ProductCard key={product.id} {...product} />
+                ))}
+              </div>
+              
+              {/* Pagination Bar */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '6rem' }}>
+                  <button 
+                    disabled={page === 1} onClick={() => setPage(p => p - 1)}
+                    style={{ padding: '0.75rem 1.5rem', borderRadius: '100px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
+                  >
+                    Previous
+                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button 
+                        key={i} onClick={() => setPage(i + 1)}
+                        style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', backgroundColor: page === i + 1 ? '#0A3029' : 'transparent', color: page === i + 1 ? 'white' : '#64748b', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
+                    style={{ padding: '0.75rem 1.5rem', borderRadius: '100px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+
               {displayedProducts.length === 0 && (
-                <div style={{ gridColumn: '1 / -1', padding: '8rem 0', textAlign: 'center', backgroundColor: '#fcfdfc', borderRadius: '32px', border: '1px dashed #e2e8f0' }}>
+                <div style={{ padding: '8rem 0', textAlign: 'center', backgroundColor: '#fcfdfc', borderRadius: '32px', border: '1px dashed #e2e8f0' }}>
                   <Leaf size={48} style={{ color: '#e2e8f0', marginBottom: '1.5rem' }} />
                   <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>No specimens found</h3>
                   <button onClick={clearAllFilters} style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }}>Clear all filters</button>
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>

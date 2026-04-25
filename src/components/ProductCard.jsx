@@ -15,7 +15,7 @@ const isLight = (color) => {
   return luminance > 0.6;
 };
 
-export default function ProductCard({ id, name, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor }) {
+export default function ProductCard({ id, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor }) {
   const { addItemToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
    const sellerInfo = seller?.seller_profile || {};
@@ -131,67 +131,84 @@ export default function ProductCard({ id, name, price, originalPrice, image, tre
           </button>
         </div>
 
-        {/* Curator Note Badge */}
-        {trending && (
-          <div style={{
-            position: 'absolute',
-            top: '1rem',
-            left: '1rem',
-            backgroundColor: 'rgba(255,255,255,0.9)',
-            backdropFilter: 'blur(8px)',
-            color: brandColor || 'var(--bg-deep)',
-            fontSize: '0.6rem',
-            fontWeight: 900,
-            padding: '0.4rem 0.75rem',
-            borderRadius: '50px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
-          }}>
-            Specimen Focus
-          </div>
-        )}
+        {/* Attribute Badges Overlay */}
+        <div style={{ position: 'absolute', top: '1rem', left: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {trending && (
+            <div style={{
+              backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', color: brandColor || 'var(--bg-deep)',
+              fontSize: '0.55rem', fontWeight: 900, padding: '0.35rem 0.75rem', borderRadius: '50px',
+              textTransform: 'uppercase', letterSpacing: '0.12em', boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+            }}>
+              Specimen Focus
+            </div>
+          )}
+          {care_level && (
+            <div style={{
+              backgroundColor: 'rgba(10, 48, 41, 0.8)', backdropFilter: 'blur(8px)', color: 'white',
+              fontSize: '0.55rem', fontWeight: 800, padding: '0.35rem 0.75rem', borderRadius: '50px',
+              textTransform: 'uppercase', letterSpacing: '0.1em'
+            }}>
+              {care_level}
+            </div>
+          )}
         </div>
+      </div>
 
       {/* Editorial Content */}
-      <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-        <div style={{ marginBottom: '0.25rem' }}>
+      <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
           <Link 
             to={`/store/${sellerSlug}`} 
             style={{ 
               color: brandColor || sellerInfo.brand_color || 'var(--brand-gold)', 
-              fontSize: '0.65rem', 
-              fontWeight: 900, 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.15em',
-              textDecoration: 'none'
+              fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', 
+              letterSpacing: '0.15em', textDecoration: 'none'
             }}
             onClick={(e) => e.stopPropagation()}
           >
              {sellerName}
           </Link>
+          {origin && (
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {origin}
+            </span>
+          )}
         </div>
 
         <Link to={`/product/${id}`} style={{ 
-          fontWeight: 600, 
-          fontSize: '1.25rem', 
-          fontFamily: 'var(--font-serif)', 
-          color: 'var(--text-primary)',
-          lineHeight: 1.1,
-          textDecoration: 'none',
-          marginBottom: '0.75rem',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          minHeight: '2.8rem',
-          letterSpacing: '-0.015em'
+          fontWeight: 600, fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: 'var(--text-primary)',
+          lineHeight: 1.1, textDecoration: 'none', marginBottom: '0.4rem',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          overflow: 'hidden', minHeight: '2.8rem', letterSpacing: '-0.015em'
         }}>
           {name}
         </Link>
+        
+        {scientific_name && (
+          <p style={{ 
+            fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-secondary)', 
+            marginBottom: '1rem', fontFamily: 'var(--font-serif)', opacity: 0.8 
+          }}>
+            {scientific_name}
+          </p>
+        )}
+
+        {/* Technical Attributes */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          {growth_rate && (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.05em' }}>Growth</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-primary)' }}>{growth_rate}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.05em' }}>Status</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#10b981' }}>{stockStatus || 'In Stock'}</span>
+          </div>
+        </div>
 
         {/* Rating & Pricing Anchor */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             <Star size={12} fill={brandColor || "var(--brand-gold)"} color={brandColor || "var(--brand-gold)"} />
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>{reviews || '4.8'}</span>
