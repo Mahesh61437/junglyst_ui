@@ -831,6 +831,23 @@ export default function SellerDashboard() {
                           ))}
                         </div>
                       </div>
+                      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                         <button 
+                           type="button" 
+                           onClick={() => setSpotlight({
+                             ...spotlight,
+                             store_name: "The Obsidian Fern",
+                             expertise: "Primitive Botanicals & Rare Lithophytes",
+                             bio: "Welcome to The Obsidian Fern. We specialize in specimens that thrive in the shadows of the forest floor. Our nursery in the Western Ghats focuses on long-term health and spectral stability for advanced collectors.",
+                             brand_color: "#1b2d2a",
+                             logo_url: "https://images.unsplash.com/photo-1512428559083-a401c469b60d?auto=format&fit=crop&q=80&w=200",
+                             banner_url: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&q=80&w=2000"
+                           })}
+                           style={{ padding: '0.6rem 1.25rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8faf9', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer', color: '#1b2d2a' }}
+                         >
+                           INFUSE SAMPLE IDENTITY
+                         </button>
+                      </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Custom Theme Color <span style={{ color: '#ef4444' }}>*</span></label>

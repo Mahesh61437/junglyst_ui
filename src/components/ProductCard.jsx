@@ -18,8 +18,10 @@ const isLight = (color) => {
 export default function ProductCard({ id, name, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor }) {
   const { addItemToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const sellerName = seller?.name || 'Aqueous Exotica';
-  const isSaved = isInWishlist(id);
+   const sellerInfo = seller?.seller_profile || {};
+   const sellerName = sellerInfo.store_name || seller?.full_name || 'Aqueous Exotica';
+   const sellerSlug = sellerInfo.slug || encodeURIComponent(sellerName);
+   const isSaved = isInWishlist(id);
   
   const finalImage = getImageUrl(image);
 
@@ -155,9 +157,9 @@ export default function ProductCard({ id, name, price, originalPrice, image, tre
       <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
         <div style={{ marginBottom: '0.25rem' }}>
           <Link 
-            to={`/store/${encodeURIComponent(sellerName)}`} 
+            to={`/store/${sellerSlug}`} 
             style={{ 
-              color: brandColor || 'var(--brand-gold)', 
+              color: brandColor || sellerInfo.brand_color || 'var(--brand-gold)', 
               fontSize: '0.65rem', 
               fontWeight: 900, 
               textTransform: 'uppercase', 
