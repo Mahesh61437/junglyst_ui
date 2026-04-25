@@ -5,7 +5,7 @@ import {
   User, Mail, MapPin, Package, Heart, LogOut, 
   ChevronRight, ShieldCheck, Clock, Award, 
   LayoutDashboard, ShoppingBag, Store, ExternalLink,
-  Camera, Settings, CheckCircle2, Save, X, Bell
+  Camera, Settings, CheckCircle2, Save, X, Bell, Loader2
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -16,6 +16,7 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState('identity');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -54,19 +55,54 @@ export default function Profile() {
     }
   };
 
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    const uploadData = new FormData();
+    uploadData.append('image', file);
+    uploadData.append('type', 'avatar');
+
+    try {
+      const response = await api.post('/core/upload/', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const imageUrl = response.data.url;
+      
+      // Update user on backend
+      await api.patch('/core/profile/', { avatar_url: imageUrl });
+      
+      // Update local state
+      updateUser({ avatar_url: imageUrl });
+    } catch (error) {
+      console.error("Avatar upload failed:", error);
+      alert("Failed to update profile picture.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Logic for updating profile via API
-      // Since UserAdminViewSet supports partial_update, we could theoretically use it
-      // But we might need a specific /auth/me/ update endpoint.
-      // For now, we'll update the local state and mock the API call success.
+      // Split full_name into first and last for Django
+      const names = formData.full_name.trim().split(' ');
+      const first_name = names[0] || '';
+      const last_name = names.slice(1).join(' ') || '';
+
+      const response = await api.patch('/core/profile/', {
+        first_name,
+        last_name,
+        email: formData.email,
+        phone: formData.phone,
+        location: formData.location
+      });
       
-      const updatedUser = { ...user, ...formData };
-      updateUser(updatedUser);
+      updateUser(response.data);
       setIsEditing(false);
-      alert("Profile credentials updated successfully.");
+      // alert("Profile credentials updated successfully.");
     } catch (error) {
       console.error("Failed to update profile:", error);
       alert("Failed to sync updates with the sanctuary.");
@@ -90,7 +126,7 @@ export default function Profile() {
     );
   }
 
-  const isSeller = user.isStaff || user.is_staff || user.isSeller || user.username === 'aquaticexotica';
+  const isSeller = user.role === 'grower' || user.is_verified_seller || user.username === 'aquaticexotica';
 
   const sidebarItems = [
     { id: 'identity', icon: <User size={20} />, label: 'Identity Details' },
@@ -100,21 +136,36 @@ export default function Profile() {
     { id: 'security', icon: <ShieldCheck size={20} />, label: 'Security & Access' }
   ];
 
+  const defaultAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name || user.username}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`;
+
   return (
     <div className="container" style={{ padding: '6rem 1rem 10rem' }}>
       {/* Profile Header */}
       <header style={{ marginBottom: '6rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '3rem' }} className="slide-up">
         <div style={{ position: 'relative' }}>
           <div style={{ width: '160px', height: '160px', borderRadius: '50%', overflow: 'hidden', border: '4px solid var(--brand-gold)', boxShadow: 'var(--shadow-lg)', padding: '6px', backgroundColor: 'white' }}>
-            <img 
-              src={user.avatar || (isSeller ? "/src/assets/sellers/aquatic_exotica_owner.png" : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80")} 
-              alt="Profile" 
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
-            />
+            {avatarUploading ? (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderRadius: '50%' }}>
+                <Loader2 className="animate-spin" color="var(--brand-gold)" />
+              </div>
+            ) : (
+              <img 
+                src={user.avatar_url || (isSeller && user.username === 'aquaticexotica' ? "/src/assets/sellers/aquatic_exotica_owner.png" : defaultAvatar)} 
+                alt="Profile" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
+              />
+            )}
           </div>
-          <button style={{ position: 'absolute', bottom: '10px', right: '10px', backgroundColor: 'white', color: 'var(--bg-deep)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}>
+          <input 
+            type="file" 
+            id="avatar-input" 
+            style={{ display: 'none' }} 
+            accept="image/*"
+            onChange={handleAvatarChange}
+          />
+          <label htmlFor="avatar-input" style={{ position: 'absolute', bottom: '10px', right: '10px', backgroundColor: 'white', color: 'var(--bg-deep)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-subtle)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}>
             <Camera size={18} />
-          </button>
+          </label>
         </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
