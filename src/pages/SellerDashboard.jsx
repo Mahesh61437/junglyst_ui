@@ -6,7 +6,7 @@ import {
   Camera, CheckCircle2, Pencil, Archive, Trash2, 
   ChevronRight, Menu, ExternalLink, Store, ShieldCheck, 
   Save, Info, Image as ImageIcon, Palette, Upload, Loader2,
-  Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft
+  Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft, Download
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -403,6 +403,19 @@ export default function SellerDashboard() {
         }
       }
     });
+  };
+
+  const handleCreateShipment = async (orderId) => {
+    setSaving(true);
+    try {
+      await api.post('/shipping/logistics/create-shipment/', { order_id: orderId });
+      setSuccess("Sanctuary shipment initiated via Nimbuspost");
+      fetchData();
+    } catch (error) {
+      setFormError("Failed to initiate shipment");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (authLoading) {
@@ -858,6 +871,7 @@ export default function SellerDashboard() {
                           <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Items</th>
                           <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Amount</th>
                           <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Destination</th>
+                           <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Logistics</th>
                        </tr>
                     </thead>
                     <tbody>
@@ -884,6 +898,31 @@ export default function SellerDashboard() {
                             </td>
                             <td style={{ padding: '1.5rem 2rem', color: '#64748b', fontSize: '0.85rem' }}>
                                {o.shipping_address?.city || 'Local Pickup'}
+                             </td>
+                             <td style={{ padding: '1.5rem 2rem' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                   {o.status === 'placed' && !o.shipments?.some(s => s.seller === user.id) && (
+                                     <button 
+                                       onClick={() => handleCreateShipment(o.id)}
+                                       style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                     >
+                                       Ship Now
+                                     </button>
+                                   )}
+                                   {o.shipments?.find(s => s.seller === user.id)?.label_url && (
+                                     <a 
+                                       href={o.shipments.find(s => s.seller === user.id).label_url} 
+                                       target="_blank" 
+                                       rel="noreferrer"
+                                       style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}
+                                     >
+                                       <Download size={14} /> Label
+                                     </a>
+                                   )}
+                                   {o.shipments?.find(s => s.seller === user.id) && !o.shipments?.find(s => s.seller === user.id)?.label_url && (
+                                     <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>In Transit...</span>
+                                   )}
+                                </div>
                             </td>
                          </tr>
                        )) : (
