@@ -135,6 +135,9 @@ export default function SellerOnboarding() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Reset target value so selecting the same file again triggers onChange
+    e.target.value = '';
+
     setFormData(prev => ({ ...prev, [type === 'logo' ? 'logoName' : 'bannerName']: file.name }));
     setUploading(type);
     try {

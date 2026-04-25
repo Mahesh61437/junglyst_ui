@@ -227,6 +227,9 @@ export default function SellerDashboard() {
   const handleImageUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Reset target value so selecting the same file again triggers onChange
+    e.target.value = '';
 
     setSpotlight(prev => ({ ...prev, [type === 'logo' ? 'logoName' : 'bannerName']: file.name }));
     setUploading(type);
@@ -268,6 +271,9 @@ export default function SellerDashboard() {
   const handleGalleryImageUpload = async (e, idx) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // Reset target value so selecting the same file again triggers onChange
+    e.target.value = '';
 
     setUploadingImages(prev => ({ ...prev, [idx]: true }));
     try {
