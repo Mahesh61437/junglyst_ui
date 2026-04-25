@@ -6,6 +6,7 @@ import NaturalLogo from '../components/NaturalLogo';
 
 export default function Signup() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'collector' });
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -13,11 +14,16 @@ export default function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
+      if (!register) {
+        throw new Error("Registration service is temporarily unavailable.");
+      }
+      
       await register({
         email: formData.email,
         password: formData.password,
-        username: formData.name, // Use name as username for now
+        username: formData.name, 
         role: formData.role
       });
       
@@ -27,7 +33,12 @@ export default function Signup() {
         navigate('/');
       }
     } catch (err) {
-      alert("Registration failed. Email might already be in use.");
+      console.error(err);
+      const msg = err.response?.data?.email?.[0] || 
+                  err.response?.data?.username?.[0] || 
+                  err.response?.data?.error || 
+                  "Registration failed. Please check your details.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -58,6 +69,21 @@ export default function Signup() {
         
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Join the Sanctuary</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2.5rem' }}>Begin your journey into rare aquatic botanicals.</p>
+
+        {error && (
+          <div style={{ 
+            backgroundColor: '#fee2e2', 
+            color: '#b91c1c', 
+            padding: '1rem', 
+            borderRadius: '12px', 
+            fontSize: '0.85rem', 
+            marginBottom: '2rem',
+            textAlign: 'left',
+            border: '1px solid #fecaca'
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSignup} style={{ textAlign: 'left' }}>
           <div style={{ marginBottom: '1.25rem' }}>

@@ -23,6 +23,16 @@ import { useAuth } from '../context/AuthContext';
 
 export default function SellerOnboarding() {
   const navigate = useNavigate();
+  const { user, updateUser } = useAuth();
+  const [error, setError] = useState(null);
+  
+  // 1. Auth Protection
+  useEffect(() => {
+    if (!user) {
+      navigate('/login?redirect=/seller/onboarding');
+    }
+  }, [user, navigate]);
+
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem('junglyst_onboarding_draft');
     return saved ? JSON.parse(saved) : {
@@ -89,7 +99,31 @@ export default function SellerOnboarding() {
     localStorage.setItem('junglyst_onboarding_step', currentStep.toString());
   }, [formData, currentStep]);
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 6));
+  const validateStep = () => {
+    switch (currentStep) {
+      case 2:
+        return formData.storeName.trim().length >= 3;
+      case 3:
+        return formData.brandColor && formData.logoUrl;
+      case 4:
+        return formData.description.trim().length >= 20;
+      case 5:
+        return formData.taxId.trim().length >= 5 && formData.payoutBank.trim().length >= 5;
+      case 6:
+        return formData.firstProductName && formData.firstProductPrice > 0;
+      default:
+        return true;
+    }
+  };
+
+  const nextStep = () => {
+    if (validateStep()) {
+      setError(null);
+      setCurrentStep(prev => Math.min(prev + 1, 6));
+    } else {
+      setError("Please complete all required fields for this step before continuing.");
+    }
+  };
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const handleInputChange = (e) => {
@@ -106,8 +140,9 @@ export default function SellerOnboarding() {
     try {
       const url = await ProductService.uploadImage(file, type);
       setFormData(prev => ({ ...prev, [type === 'logo' ? 'logoUrl' : 'bannerUrl']: url }));
-    } catch (error) {
-      alert("Failed to upload image. Please try again.");
+      setError(null);
+    } catch (err) {
+      setError("Failed to upload image. Please try again.");
       setFormData(prev => ({ ...prev, [type === 'logo' ? 'logoName' : 'bannerName']: '' }));
     } finally {
       setUploading(null);
@@ -221,6 +256,23 @@ export default function SellerOnboarding() {
         
         {/* Form Column */}
         <div style={{ maxWidth: '700px', justifySelf: 'center', width: '100%' }}>
+          {error && (
+            <div style={{ 
+              backgroundColor: '#fee2e2', 
+              color: '#b91c1c', 
+              padding: '1.25rem', 
+              borderRadius: '16px', 
+              fontSize: '0.9rem', 
+              marginBottom: '2.5rem',
+              border: '1px solid #fecaca',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem'
+            }}>
+              <AlertCircle size={18} />
+              {error}
+            </div>
+          )}
           
           {currentStep === 1 && (
             <div style={{ animation: 'fadeIn 0.5s ease' }}>

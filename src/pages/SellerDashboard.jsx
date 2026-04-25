@@ -572,6 +572,49 @@ export default function SellerDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}
               >
+                {/* Hero Banner Section */}
+                <div style={{ 
+                  width: '100%', 
+                  height: '200px', 
+                  borderRadius: '32px', 
+                  overflow: 'hidden', 
+                  position: 'relative',
+                  marginBottom: '1rem',
+                  backgroundColor: spotlight.brand_color || '#1b2d2a',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+                }}>
+                  {spotlight.banner_url ? (
+                    <img src={spotlight.banner_url} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Leaf size={60} color="rgba(255,255,255,0.2)" />
+                    </div>
+                  )}
+                  <div style={{ 
+                    position: 'absolute', inset: 0, 
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
+                    display: 'flex', alignItems: 'flex-end', padding: '2rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                      <div style={{ 
+                        width: '80px', height: '80px', backgroundColor: 'white', borderRadius: '20px', 
+                        padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+                      }}>
+                        {spotlight.logo_url ? (
+                          <img src={spotlight.logo_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '15px' }} />
+                        ) : (
+                          <Leaf size={40} color={spotlight.brand_color || '#1b2d2a'} />
+                        )}
+                      </div>
+                      <div style={{ color: 'white' }}>
+                        <h2 style={{ fontSize: '2rem', fontFamily: 'serif', margin: 0 }}>{spotlight.store_name}</h2>
+                        <p style={{ fontSize: '0.9rem', opacity: 0.8, margin: '0.25rem 0 0' }}>{spotlight.expertise || 'Collector Sanctuary'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Metric Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
                   {[
@@ -735,6 +778,29 @@ export default function SellerDashboard() {
                     <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <Palette size={20} color={spotlight.brand_color || '#E5C48B'} /> Studio Branding
                     </h3>
+
+                    {/* Quick Preview Banner */}
+                    <div style={{ 
+                      width: '100%', 
+                      height: '120px', 
+                      borderRadius: '16px', 
+                      backgroundColor: spotlight.brand_color || '#1b2d2a',
+                      marginBottom: '2rem',
+                      overflow: 'hidden',
+                      position: 'relative'
+                    }}>
+                      {spotlight.banner_url && <img src={spotlight.banner_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />}
+                      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', padding: '0 2rem' }}>
+                        <div style={{ width: '50px', height: '50px', backgroundColor: 'white', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          {spotlight.logo_url ? <img src={spotlight.logo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Leaf size={24} color={spotlight.brand_color} />}
+                        </div>
+                        <div style={{ marginLeft: '1rem', color: 'white' }}>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{spotlight.store_name}</h4>
+                          <p style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>{spotlight.expertise}</p>
+                        </div>
+                      </div>
+                    </div>
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.25rem' }}>Sanctuary Theme Presets</label>
