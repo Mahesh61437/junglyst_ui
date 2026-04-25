@@ -70,7 +70,7 @@ export default function SellerDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [newProduct, setNewProduct] = useState({ 
-    name: '', scientific_name: '', category_id: '', tagline: '', origin: '', description: '',
+    name: '', scientific_name: '', category_id: '', sub_category_id: '', tagline: '', origin: '', description: '',
     care_level: 'Easy', light_requirements: 'Medium', growth_rate: 'Moderate',
     is_rare: false,
     variants: [{ 
@@ -327,7 +327,7 @@ export default function SellerDashboard() {
       
       if (addAnother) {
         setNewProduct({ 
-          name: '', scientific_name: '', category_id: '', tagline: '', origin: '', description: '',
+          name: '', scientific_name: '', category_id: '', sub_category_id: '', tagline: '', origin: '', description: '',
           care_level: 'Easy', light_requirements: 'Medium', growth_rate: 'Moderate',
           is_rare: false,
           variants: [{ 
@@ -457,6 +457,7 @@ export default function SellerDashboard() {
       name: p.name || '',
       scientific_name: p.scientific_name || '',
       category_id: p.categories?.[0]?.id || '',
+      sub_category_id: p.sub_category?.id || '',
       tagline: p.tagline || '',
       origin: p.origin || '',
       description: p.description || '',
@@ -539,9 +540,8 @@ export default function SellerDashboard() {
               onClick={() => { 
                 setEditingProduct(null); 
                 setNewProduct({ 
-                  name: '', scientific_name: '', category_id: '', description: '', 
-                  care_level: 'Easy', light_requirements: 'Medium', growth_rate: 'Moderate', 
-                  is_rare: false,
+                  name: '', scientific_name: '', category_id: '', sub_category_id: '', description: '', 
+                  tagline: '', origin: '', care_level: 'Easy', light_requirements: 'Medium', growth_rate: 'Moderate', is_rare: false,
                   variants: [{ 
                     name: 'Standard', base_price: '', gst_rate: '0', 
                     commission_rate: '10.0', price: '', stock: '', 
@@ -1183,6 +1183,23 @@ export default function SellerDashboard() {
                                 ))}
                               </select>
                             </div>
+
+                            {newProduct.category_id && (
+                              <div className="fade-in">
+                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Sub Category</label>
+                                <select 
+                                  value={newProduct.sub_category_id} 
+                                  onChange={e => setNewProduct({...newProduct, sub_category_id: e.target.value})}
+                                  style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '1rem' }}
+                                >
+                                  <option value="">Select Sub Category (Optional)</option>
+                                  {categories.find(c => String(c.id) === String(newProduct.category_id))?.subcategories?.map(sub => (
+                                    <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+
                             <div>
                               <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Region of Origin</label>
                               <input value={newProduct.origin} onChange={e => setNewProduct({...newProduct, origin: e.target.value})} placeholder="e.g. Southeast Asia" style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontSize: '1rem' }} />

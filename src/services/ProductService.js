@@ -72,5 +72,28 @@ export const ProductService = {
       console.error('Error uploading image:', error);
       throw error;
     }
+  },
+
+  // Get all categories with nested subcategories
+  getCategories: async () => {
+    try {
+      const response = await api.get('/core/categories/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw error;
+    }
+  },
+
+  // Get subcategories (optionally filtered by category)
+  getSubCategories: async (categoryId = null) => {
+    try {
+      const params = categoryId ? { category: categoryId } : {};
+      const response = await api.get('/core/subcategories/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      throw error;
+    }
   }
 };
