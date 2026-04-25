@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import NaturalLogo from './NaturalLogo';
+import { getImageUrl } from '../utils/imageUtils';
 
 export default function Navbar() {
   const { cart } = useCart();
@@ -134,7 +135,7 @@ export default function Navbar() {
                    border: '1.5px solid var(--brand-gold)', padding: '2px' 
                  }}>
                     <img 
-                      src={user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name || user.username}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`} 
+                      src={getImageUrl(user.avatar_url) || `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name || user.username}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`} 
                       alt="P" 
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
                     />
