@@ -1173,6 +1173,7 @@ export default function SellerDashboard() {
                                 setNewProduct({
                                   ...newProduct, 
                                   category_id: catId,
+                                  sub_category_id: '', // Reset subcategory when category changes
                                   variants: updatedVariants
                                 }); 
                                 setFieldErrors({...fieldErrors, category_id: null}); 

@@ -25,6 +25,19 @@ export default function SellerOnboarding() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
   const [error, setError] = useState(null);
+  const [categories, setCategories] = useState([]);
+  
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const data = await ProductService.getCategories();
+        setCategories(Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : []));
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+      }
+    };
+    fetchCats();
+  }, []);
   
   // 1. Auth Protection
   useEffect(() => {
@@ -49,6 +62,8 @@ export default function SellerOnboarding() {
       firstProductPrice: '',
       firstProductStock: '',
       firstProductWeight: '',
+      firstProductCategoryId: '',
+      firstProductSubCategoryId: '',
       logoName: '',
       bannerName: ''
     };
@@ -128,7 +143,11 @@ export default function SellerOnboarding() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'firstProductCategoryId') {
+      setFormData(prev => ({ ...prev, [name]: value, firstProductSubCategoryId: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleImageUpload = async (e, type) => {
@@ -179,7 +198,8 @@ export default function SellerOnboarding() {
           stock: formData.firstProductStock,
           weight: formData.firstProductWeight || 0.5,
           description: "Initial specimen listing during onboarding.",
-          category_id: 1 // Fixed field name
+          category_id: formData.firstProductCategoryId,
+          sub_category_id: formData.firstProductSubCategoryId
         });
       }
 
@@ -480,6 +500,26 @@ export default function SellerOnboarding() {
                     <input name="firstProductStock" type="number" value={formData.firstProductStock} onChange={handleInputChange} placeholder="5" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
                   </div>
                 </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Marketplace Category</label>
+                  <select name="firstProductCategoryId" value={formData.firstProductCategoryId} onChange={handleInputChange} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', appearance: 'none', backgroundColor: 'white' }}>
+                    <option value="">Select Category</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {formData.firstProductCategoryId && (
+                  <div style={{ animation: 'slideDown 0.3s ease' }}>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sub Category</label>
+                    <select name="firstProductSubCategoryId" value={formData.firstProductSubCategoryId} onChange={handleInputChange} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', appearance: 'none', backgroundColor: 'white' }}>
+                      <option value="">Select Sub Category (Optional)</option>
+                      {categories.find(c => String(c.id) === String(formData.firstProductCategoryId))?.subcategories?.map(sub => (
+                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           )}
