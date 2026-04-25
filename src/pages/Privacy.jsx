@@ -16,7 +16,7 @@ export default function Privacy() {
 
         <div>
            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', marginBottom: '1.25rem' }}>2. Identity Security</h2>
-           <p>Your authentication data (Phone, OTP, Gmail profiles) is managed through secure tokens. Junglyst never stores raw nursery access credentials or sensitive financial vault data on our primary servers.</p>
+           <p>Your authentication data is managed through secure tokens and industry-standard encryption. Junglyst never stores raw nursery access credentials or sensitive financial vault data on our primary servers.</p>
         </div>
 
         <div>

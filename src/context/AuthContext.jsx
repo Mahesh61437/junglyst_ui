@@ -86,25 +86,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const loginWithOTP = async (phone) => {
-    // Mock OTP logic remains for now if backend doesn't support it yet
-    setLoading(true);
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockUser = {
-          id: 1,
-          full_name: 'Nursery Partner',
-          phone: phone,
-          isAdmin: false,
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=growth'
-        };
-        setUser(mockUser);
-        localStorage.setItem('junglyst_user', JSON.stringify(mockUser));
-        setLoading(false);
-        resolve(mockUser);
-      }, 1000);
-    });
-  };
+
 
   const logout = () => {
     setUser(null);
@@ -121,7 +103,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithOTP, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
