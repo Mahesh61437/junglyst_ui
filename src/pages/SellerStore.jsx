@@ -117,268 +117,139 @@ export default function SellerStore() {
   }
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '10rem', fontFamily: 'var(--font-sans)' }}>
+    <div style={{ backgroundColor: '#f9f8f4', minHeight: '100vh', paddingBottom: '10rem', fontFamily: 'Inter, sans-serif', color: '#1a1a1a' }}>
       
-      {/* 1. Immersive Editorial Banner */}
-      <section style={{ position: 'relative', height: '70vh', minHeight: '600px', backgroundColor: sellerInfo.brandColor }}>
-        <motion.div 
-          initial={{ opacity: 0, scale: 1.1 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.5 }}
-          style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}
-        >
-          <img 
-            src={sellerInfo.heroImage} 
-            alt={sellerInfo.name} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }}
-          />
-          <div style={{ 
-            position: 'absolute', inset: 0, 
-            background: `linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, ${sellerInfo.brandColor}BF 50%, ${sellerInfo.brandColor} 100%)` 
-          }} />
-        </motion.div>
-
-        <div className="container" style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: '6rem', zIndex: 10 }}>
+      {/* 1. Fashion Editorial Hero */}
+      <section style={{ position: 'relative', height: '85vh', display: 'grid', gridTemplateColumns: '1.2fr 1fr', backgroundColor: '#f3f4f1' }}>
+        {/* Left: Store Narrative */}
+        <div style={{ padding: '0 10%', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 10 }}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.3 }}
           >
-            <Link to="/shop" style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgba(255,255,255,0.8)', 
-              textDecoration: 'none', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', 
-              letterSpacing: '0.15em', marginBottom: '3rem', width: 'fit-content'
+            <Link to="/sellers" style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', 
+              textDecoration: 'none', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', 
+              letterSpacing: '0.2em', marginBottom: '4rem'
             }}>
-              <ArrowLeft size={16} /> RETURN TO WILD
+              <ArrowLeft size={16} /> All Sanctuaries
             </Link>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '2.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem' }}>
               {sellerInfo.badges.map((badge, idx) => (
-                <motion.span 
-                  key={badge}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7 + (idx * 0.1) }}
-                  style={{ 
-                    backgroundColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', 
-                    border: '1px solid rgba(255,255,255,0.2)', color: 'white', 
-                    padding: '0.6rem 1.25rem', borderRadius: '50px', fontSize: '0.6rem', 
-                    fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' 
-                  }}
-                >
+                <span key={badge} style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#10b981', borderBottom: '1px solid #10b981', paddingBottom: '0.2rem' }}>
                   {badge}
-                </motion.span>
+                </span>
               ))}
             </div>
 
             <h1 style={{ 
-              fontSize: 'clamp(3.5rem, 10vw, 7rem)', fontFamily: 'var(--font-serif)', color: 'white', 
-              lineHeight: 0.85, letterSpacing: '-0.04em', margin: 0, marginBottom: '2rem',
-              textShadow: '0 10px 30px rgba(0,0,0,0.2)'
+              fontSize: 'clamp(4rem, 8vw, 6rem)', fontFamily: 'serif', lineHeight: 0.9, 
+              letterSpacing: '-0.03em', margin: 0, marginBottom: '2.5rem'
             }}>
-              {sellerInfo.name}
+              {sellerInfo.name.split(' ')[0]} <br/> 
+              <span style={{ fontStyle: 'italic', color: '#64748b' }}>&</span> {sellerInfo.name.split(' ').slice(1).join(' ')}
             </h1>
+            
             <p style={{ 
-              fontSize: '1.75rem', color: 'rgba(255,255,255,0.9)', maxWidth: '750px', 
-              fontWeight: 400, fontStyle: 'italic', margin: 0, lineHeight: 1.3,
-              fontFamily: 'var(--font-serif)'
+              fontSize: '1.5rem', color: '#4b5563', maxWidth: '500px', 
+              fontWeight: 400, margin: 0, lineHeight: 1.4, fontFamily: 'serif'
             }}>
-              {sellerInfo.tagline}
+              "{sellerInfo.tagline}"
             </p>
+
+            <div style={{ marginTop: '4rem', display: 'flex', gap: '4rem' }}>
+               <div>
+                 <p style={{ fontSize: '2.5rem', fontWeight: 700, margin: 0 }}>{sellerInfo.rating}</p>
+                 <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.1em' }}>Curator Rating</p>
+               </div>
+               <div>
+                 <p style={{ fontSize: '2.5rem', fontWeight: 700, margin: 0 }}>{sellerInfo.experience}y</p>
+                 <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.1em' }}>Mastery Tenure</p>
+               </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Right: Studio/Farm Vision */}
+        <div style={{ position: 'relative', overflow: 'hidden' }}>
+          <motion.div 
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 1.5 }}
+            style={{ width: '100%', height: '100%', clipPath: 'polygon(15% 0%, 100% 0%, 100% 100%, 0% 100%)' }}
+          >
+            <img 
+              src={sellerInfo.heroImage} 
+              alt="Studio View" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <div style={{ position: 'absolute', inset: 0, backgroundColor: `${sellerInfo.brandColor}1A` }} />
+          </motion.div>
+          
+          {/* Circular Branding Logo Overlay */}
+          <motion.div 
+            initial={{ rotate: -90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ delay: 1, duration: 1 }}
+            style={{ 
+              position: 'absolute', bottom: '10%', left: '0', 
+              width: '180px', height: '180px', backgroundColor: 'white', 
+              borderRadius: '50%', padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)', zIndex: 20
+            }}
+          >
+            <img 
+              src={sellerInfo.logoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${sellerInfo.name}&backgroundColor=1b2d2a`} 
+              style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
+              alt="Logo"
+            />
           </motion.div>
         </div>
       </section>
 
-
-      {/* 2. Studio Identity Card (Overlapping) */}
-      <div className="container" style={{ position: 'relative', zIndex: 20 }}>
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          style={{ 
-            marginTop: '-6rem', backgroundColor: 'var(--bg-primary)', borderRadius: '32px', 
-            padding: '4.5rem', boxShadow: 'var(--shadow-lg)',
-            display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6rem', alignItems: 'center',
-            border: '1px solid var(--border-subtle)'
-          }}
-        >
-          {/* Identity & Bio */}
-          <div style={{ display: 'flex', gap: '3.5rem', alignItems: 'center' }}>
-            <div style={{ 
-              width: '180px', height: '180px', minWidth: '180px', borderRadius: '32px', 
-              overflow: 'hidden', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-secondary)',
-              padding: '10px', boxShadow: 'var(--shadow-sm)'
-            }}>
-              <img 
-                src={sellerInfo.logoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${sellerInfo.name}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`} 
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '24px' }} 
-                alt="Logo"
-                onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${sellerInfo.name}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700` }}
-              />
+      {/* 2. Studio Ethos & Expertise */}
+      <section style={{ padding: '12rem 0' }}>
+        <div className="container">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '8rem', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#10b981', marginBottom: '2.5rem' }}>The Botanical Mandate</h3>
+              <h2 style={{ fontSize: '3.5rem', fontFamily: 'serif', lineHeight: 1.1, marginBottom: '3rem' }}>Philosophy of Cultivation</h2>
+              <div style={{ width: '60px', height: '2px', backgroundColor: '#1a1a1a' }} />
             </div>
             <div>
-              <h2 style={{ fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--brand-gold)', marginBottom: '1.25rem' }}>Botanical Mandate</h2>
-              <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0, fontStyle: 'italic', fontFamily: 'var(--font-serif)' }}>
+              <p style={{ fontSize: '1.4rem', color: '#4b5563', lineHeight: 1.8, marginBottom: '4rem', fontFamily: 'serif', fontStyle: 'italic' }}>
                 "{sellerInfo.expertise}"
               </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginTop: '3rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-primary)' }}>
-                  <div style={{ padding: '0.6rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px' }}>
-                    <MapPin size={18} color="var(--brand-green)" />
-                  </div>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Origin</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{sellerInfo.location}</span>
-                  </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.5rem' }}>Infrastructure</h4>
+                  <p style={{ fontSize: '0.95rem', color: '#64748b', lineHeight: 1.6 }}>{sellerInfo.infrastructure || 'Advanced climate-controlled propagation systems with custom light spectrum optimization.'}</p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-primary)' }}>
-                  <div style={{ padding: '0.6rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px' }}>
-                    <Calendar size={18} color="var(--brand-green)" />
-                  </div>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Established</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{sellerInfo.founded}</span>
+                <div>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.5rem' }}>Studio Pillars</h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {(sellerInfo.expertise_tags?.length > 0 ? sellerInfo.expertise_tags : ['Sustainability', 'Purity', 'Rare Stock']).map(tag => (
+                      <span key={tag} style={{ fontSize: '0.75rem', padding: '0.5rem 1rem', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '100px' }}>{tag}</span>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Studio Metrics */}
-          <div style={{ 
-            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', 
-            paddingLeft: '5rem', borderLeft: '1px solid var(--border-subtle)' 
-          }}>
-            <div style={{ padding: '2.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                <Star fill="var(--brand-gold)" color="var(--brand-gold)" size={14} />
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.1em' }}>Trust Score</span>
-              </div>
-              <p style={{ fontSize: '2.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)' }}>{sellerInfo.rating}</p>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.5rem', fontWeight: 600 }}>Pure Satisfaction</p>
-            </div>
-            <div style={{ padding: '2.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                <Package color="var(--brand-green)" size={14} />
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.1em' }}>Shipments</span>
-              </div>
-              <p style={{ fontSize: '2.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)' }}>{sellerInfo.reviews}+</p>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.5rem', fontWeight: 600 }}>Botanical Relocations</p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* 3. Mastery & Infrastructure Showcase */}
-      <div className="container" style={{ marginTop: '8rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '4rem' }}>
-          
-          {/* Expertise Pillars */}
-          <motion.div 
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            style={{ 
-              backgroundColor: '#1b2d2a', borderRadius: '40px', padding: '4rem', color: 'white',
-              backgroundImage: 'radial-gradient(circle at top left, rgba(229, 196, 139, 0.1), transparent)',
-              position: 'relative', overflow: 'hidden'
-            }}
-          >
-            <div style={{ position: 'absolute', top: '2rem', right: '2rem', opacity: 0.1 }}><Sparkles size={120} /></div>
-            
-            <h3 style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#E5C48B', marginBottom: '1.5rem' }}>Core Mastery</h3>
-            <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', marginBottom: '2.5rem', lineHeight: 1.2 }}>Specialized Botanical Pillars</h2>
-            
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-              {(sellerInfo.expertise_tags?.length > 0 ? sellerInfo.expertise_tags : ['Aquascaping', 'Rare Species Propogation', 'Tissue Culture', 'Sustainable Logistics']).map(tag => (
-                <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem 1.5rem', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px' }}>
-                  <CheckCircle2 size={18} color="#10b981" />
-                  <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{tag}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: '4rem', display: 'flex', gap: '3rem' }}>
-               <div>
-                 <p style={{ fontSize: '2.5rem', fontWeight: 700, color: '#E5C48B', margin: 0, lineHeight: 1 }}>{sellerInfo.experience}+</p>
-                 <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Years Experience</p>
-               </div>
-               <div>
-                 <p style={{ fontSize: '2.5rem', fontWeight: 700, color: '#E5C48B', margin: 0, lineHeight: 1 }}>{sellerInfo.isVerified ? '100%' : 'High'}</p>
-                 <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Trust Quotient</p>
-               </div>
-            </div>
-          </motion.div>
-
-          {/* Infrastructure & Setup */}
-          <motion.div 
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            style={{ 
-              backgroundColor: 'white', borderRadius: '40px', padding: '4rem', 
-              border: '1px solid var(--border-subtle)', position: 'relative', overflow: 'hidden'
-            }}
-          >
-            <h3 style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--brand-green)', marginBottom: '1.5rem' }}>Cultivation Environment</h3>
-            <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', marginBottom: '2.5rem', lineHeight: 1.2, color: 'var(--text-primary)' }}>Technical Infrastructure</h2>
-            
-            <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '3rem' }}>
-              {sellerInfo.infrastructure || "Maintaining high-fidelity specimens requires a meticulously controlled environment. Our studio utilizes advanced filtration, spectrum-tuned lighting, and automated climate control systems to ensure every plant reaches you in peak vitality."}
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div style={{ width: '40px', height: '40px', backgroundColor: '#f0fdf4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                   <ShieldCheck size={20} color="#10b981" />
-                </div>
-                <div>
-                  <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Purity Audit</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Algae-free & snail-free guarantee</p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div style={{ width: '40px', height: '40px', backgroundColor: '#fff7ed', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                   <Award size={20} color="#f97316" />
-                </div>
-                <div>
-                  <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Verified Logistics</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Proprietary expert packaging</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
         </div>
-      </div>
+      </section>
 
-      {/* 4. The Collection */}
-      <div className="container" style={{ marginTop: '10rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6rem' }}>
-          <div>
-            <motion.h3 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              style={{ fontSize: '3.5rem', fontFamily: 'var(--font-serif)', color: 'var(--text-primary)', margin: 0, marginBottom: '0.75rem', letterSpacing: '-0.02em' }}
-            >
-              The Sanctuary Collection
-            </motion.h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.15em' }}>REVEALING {products.length} BOTANICAL SPECIMENS</p>
-          </div>
+      {/* 3. The Newest Arrivals (Fashion Grid Style) */}
+      <div className="container">
+        <div style={{ textAlign: 'center', marginBottom: '8rem' }}>
+          <h2 style={{ fontSize: '4.5rem', fontFamily: 'serif', marginBottom: '1rem' }}>Seasonal Selections</h2>
+          <p style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af' }}>LATEST {products.length} SPECIMENS FROM THE SANCTUARY</p>
         </div>
 
         {products.length > 0 ? (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ staggerChildren: 0.1 }}
-            className="grid-responsive"
-            style={{ gap: '3rem' }}
-          >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '4rem' }}>
             {paginatedProducts.map(product => (
               <ProductCard 
                 key={product.id}
@@ -391,45 +262,19 @@ export default function SellerStore() {
                 reviews={product.rating}
               />
             ))}
-          </motion.div>
+          </div>
         ) : (
-          <div style={{ padding: '12rem 2rem', textAlign: 'center', backgroundColor: 'white', borderRadius: '40px', border: '1px solid var(--border-subtle)' }}>
-            <Leaf size={64} color="var(--border-subtle)" style={{ marginBottom: '2.5rem' }} />
-            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--text-primary)', marginBottom: '1rem' }}>Collection Currently Dormant</h4>
-            <p style={{ color: 'var(--text-secondary)', maxWidth: '450px', margin: '0 auto', fontSize: '1.1rem', lineHeight: 1.6 }}>This grower is currently nurturing their next batch of rare specimens. Please subscribe to alerts for this sanctuary.</p>
+          <div style={{ padding: '10rem 2rem', textAlign: 'center', backgroundColor: 'white', border: '1px solid #f3f4f6' }}>
+            <Leaf size={48} color="#e5e7eb" style={{ marginBottom: '2rem' }} />
+            <h4 style={{ fontFamily: 'serif', fontSize: '2rem', marginBottom: '1rem' }}>Collection Dormant</h4>
+            <p style={{ color: '#94a3b8' }}>This grower is currently nurturing their next batch of rare specimens.</p>
           </div>
         )}
       </div>
 
-      {/* 4. Commitment Row */}
-      <div className="container" style={{ marginTop: '12rem' }}>
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          style={{ 
-            backgroundColor: 'var(--bg-deep)', borderRadius: '56px', padding: '8rem 5rem', 
-            display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
-            backgroundImage: 'radial-gradient(circle at top right, rgba(197, 160, 89, 0.15), transparent)',
-            color: 'white', position: 'relative', overflow: 'hidden'
-          }}
-        >
-          <div style={{ position: 'absolute', top: '10%', right: '5%', opacity: 0.05 }}><Leaf size={240} /></div>
-          
-          <Award size={48} color="var(--brand-gold)" style={{ marginBottom: '2.5rem' }} />
-          <h2 style={{ fontSize: '3.5rem', fontFamily: 'var(--font-serif)', marginBottom: '1.5rem', color: 'white' }}>Verified Excellence</h2>
-          <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', maxWidth: '750px', lineHeight: 1.7, marginBottom: '5rem', fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>
-            Every specimen from this sanctuary has passed our rigorous botanical screening process. 
-            We guarantee health, purity, and sustainable cultivation practices.
-          </p>
-          <div style={{ width: '100%', maxWidth: '1000px' }}>
-            <TrustBadges brandColor="var(--brand-gold)" darkMode={true} />
-          </div>
-        </motion.div>
-      </div>
-
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 2rem; }
       `}</style>
     </div>
   );

@@ -62,10 +62,10 @@ export default function VerifiedSellers() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fcfdfd', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9f8f4', fontFamily: 'Inter, sans-serif', color: '#1a1a1a' }}>
       
-      {/* Hero Promotion Carousel */}
-      <section style={{ height: '70vh', position: 'relative', overflow: 'hidden', backgroundColor: '#0A3029' }}>
+      {/* 1. Fashion-Style Hero Spotlight */}
+      <section style={{ height: '90vh', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeSlide}
@@ -73,176 +73,207 @@ export default function VerifiedSellers() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1 }}
-            style={{ position: 'absolute', inset: 0 }}
+            style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1.2fr' }}
           >
-            {/* Background Image with Gradient */}
-            <div style={{ position: 'absolute', inset: 0 }}>
-              <img 
-                src={PROMOTED_SELLERS[activeSlide].image} 
-                style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }}
-                alt="Promotion"
-              />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(10,48,41,0.95) 30%, transparent 100%)' }} />
+            {/* Left Content: Bold Typography */}
+            <div style={{ padding: '0 10%', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 10 }}>
+              <motion.span 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#10b981', marginBottom: '2rem' }}
+              >
+                Featured Sanctuary
+              </motion.span>
+              <motion.h1 
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                style={{ fontSize: '6rem', fontFamily: 'serif', lineHeight: 0.9, marginBottom: '2rem', letterSpacing: '-0.03em' }}
+              >
+                {PROMOTED_SELLERS[activeSlide].store_name.split(' ')[0]} <br/> 
+                <span style={{ fontStyle: 'italic', color: '#64748b' }}>&</span> {PROMOTED_SELLERS[activeSlide].store_name.split(' ').slice(1).join(' ')}
+              </motion.h1>
+              <motion.p 
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                style={{ fontSize: '1.25rem', color: '#4b5563', marginBottom: '3rem', maxWidth: '400px', lineHeight: 1.6 }}
+              >
+                {PROMOTED_SELLERS[activeSlide].tagline}
+              </motion.p>
+              <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
+                <Link 
+                  to={`/store/${PROMOTED_SELLERS[activeSlide].slug}`}
+                  style={{ 
+                    backgroundColor: '#1a1a1a', color: 'white', padding: '1.5rem 4rem', 
+                    display: 'inline-block', textDecoration: 'none', fontWeight: 800, 
+                    textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.8rem'
+                  }}
+                >
+                  Explore Studio
+                </Link>
+              </motion.div>
             </div>
 
-            {/* Content Container */}
-            <div className="container" style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center' }}>
-              <div style={{ maxWidth: '700px' }}>
-                <motion.div 
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'rgba(229, 196, 139, 0.2)', color: '#E5C48B', padding: '0.6rem 1.25rem', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '2rem' }}
-                >
-                  <Award size={16} /> Partner Spotlight
-                </motion.div>
-                
-                <motion.h2 
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  style={{ fontSize: '4.5rem', fontFamily: 'serif', color: 'white', marginBottom: '1.5rem', lineHeight: 1.1 }}
-                >
-                  {PROMOTED_SELLERS[activeSlide].store_name}
-                </motion.h2>
-                
-                <motion.p 
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  style={{ fontSize: '1.5rem', color: 'rgba(255,255,255,0.7)', marginBottom: '3rem', fontWeight: 300 }}
-                >
-                  {PROMOTED_SELLERS[activeSlide].tagline}
-                </motion.p>
-                
-                <motion.div
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.6 }}
-                >
-                  <Link 
-                    to={`/store/${PROMOTED_SELLERS[activeSlide].slug}`}
-                    style={{ 
-                      backgroundColor: PROMOTED_SELLERS[activeSlide].brand_color, 
-                      color: 'white', padding: '1.25rem 3rem', borderRadius: '100px', 
-                      display: 'inline-flex', alignItems: 'center', gap: '1rem',
-                      textDecoration: 'none', fontWeight: 800, textTransform: 'uppercase', 
-                      letterSpacing: '0.1em', fontSize: '0.9rem', boxShadow: `0 10px 30px ${PROMOTED_SELLERS[activeSlide].brand_color}40`
-                    }}
-                  >
-                    View Boutique Studio <ArrowRight size={18} />
-                  </Link>
-                </motion.div>
-              </div>
+            {/* Right Image: Framed Fashion Aesthetic */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5%' }}>
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                style={{ 
+                  width: '100%', height: '80%', borderRadius: '40px 40px 400px 40px', 
+                  overflow: 'hidden', position: 'relative', boxShadow: '0 40px 80px rgba(0,0,0,0.1)'
+                }}
+              >
+                <img 
+                  src={PROMOTED_SELLERS[activeSlide].image} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  alt="Spotlight"
+                />
+                <div style={{ position: 'absolute', inset: 0, border: '20px solid rgba(255,255,255,0.1)' }} />
+              </motion.div>
+              
+              {/* Decorative Floating Element */}
+              <motion.div 
+                animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
+                transition={{ duration: 6, repeat: Infinity }}
+                style={{ 
+                  position: 'absolute', top: '15%', right: '10%', backgroundColor: 'white', 
+                  padding: '1.5rem', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
+                  display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 20
+                }}
+              >
+                <div style={{ width: '40px', height: '40px', backgroundColor: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShieldCheck size={20} color="#10b981" />
+                </div>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>Certified Purity</span>
+              </motion.div>
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Carousel Indicators */}
-        <div style={{ position: 'absolute', bottom: '3rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '1rem', zIndex: 10 }}>
+        {/* Carousel Controls */}
+        <div style={{ position: 'absolute', bottom: '5%', left: '10%', display: 'flex', gap: '1.5rem', alignItems: 'center', zIndex: 30 }}>
           {PROMOTED_SELLERS.map((_, idx) => (
             <button 
               key={idx}
               onClick={() => setActiveSlide(idx)}
               style={{ 
-                width: idx === activeSlide ? '48px' : '12px', 
-                height: '4px', borderRadius: '100px', border: 'none', 
-                backgroundColor: idx === activeSlide ? '#E5C48B' : 'rgba(255,255,255,0.2)',
-                transition: 'all 0.4s ease', cursor: 'pointer'
+                fontSize: '1rem', fontWeight: 700, border: 'none', background: 'none', 
+                color: idx === activeSlide ? '#1a1a1a' : '#9ca3af', cursor: 'pointer',
+                transition: 'all 0.3s'
               }}
-            />
+            >
+              0{idx + 1}
+            </button>
           ))}
+          <div style={{ width: '100px', height: '1px', backgroundColor: '#e5e7eb', margin: '0 1rem' }} />
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>Next Trend</span>
         </div>
       </section>
 
-      <div className="container" style={{ padding: '8rem 1rem 6rem' }}>
-        <div style={{ marginBottom: '6rem', textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', backgroundColor: '#f0fdf4', color: '#166534', padding: '0.6rem 1.25rem', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '2rem' }}>
-            <ShieldCheck size={16} /> Certified Sanctuary Partners
+      {/* 2. Global Stats: Fashion Impact */}
+      <section style={{ backgroundColor: 'white', padding: '6rem 0', borderTop: '1px solid #f3f4f6' }}>
+        <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', textAlign: 'center' }}>
+          <div>
+            <h3 style={{ fontSize: '3rem', fontFamily: 'serif', marginBottom: '0.5rem' }}>140+</h3>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.1em' }}>Global Sanctuaries</p>
           </div>
-          <h1 style={{ fontSize: '3.5rem', fontWeight: 300, fontFamily: 'serif', color: '#0A3029', marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>
-            Verified Excellence
-          </h1>
-          <p style={{ fontSize: '1.25rem', color: '#64748b', maxWidth: '700px', margin: '0 auto', lineHeight: 1.6 }}>
-            Meet the master growers and botanical curators who maintain the highest standards of specimen care and ethical distribution.
-          </p>
+          <div style={{ borderLeft: '1px solid #f3f4f6', borderRight: '1px solid #f3f4f6' }}>
+            <h3 style={{ fontSize: '3rem', fontFamily: 'serif', marginBottom: '0.5rem' }}>2.4k</h3>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.1em' }}>Rare Species</p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '3rem', fontFamily: 'serif', marginBottom: '0.5rem' }}>98%</h3>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.1em' }}>Survival Rate</p>
+          </div>
         </div>
+      </section>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>Discovering master growers...</div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '2.5rem' }}>
-          {sellers.map(seller => (
-            <Link 
-              key={seller.id} 
-              to={`/store/${seller.slug}`}
-              style={{ textDecoration: 'none', color: 'inherit' }}
-            >
-              <div style={{ 
-                backgroundColor: 'white', borderRadius: '32px', padding: '2.5rem', 
-                border: '1px solid rgba(0,0,0,0.04)', transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-                height: '100%', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.02)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-10px)';
-                e.currentTarget.style.boxShadow = '0 30px 60px -12px rgba(10, 48, 41, 0.12)';
-                e.currentTarget.style.borderColor = seller.brand_color || '#10b981';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.02)';
-                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.04)';
-              }}
+      {/* 3. Editorial Seller Directory */}
+      <section style={{ padding: '10rem 0' }}>
+        <div className="container">
+          <div style={{ textAlign: 'center', marginBottom: '8rem' }}>
+            <h2 style={{ fontSize: '4.5rem', fontFamily: 'serif', marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>The Master Curators</h2>
+            <div style={{ width: '60px', height: '2px', backgroundColor: '#10b981', margin: '0 auto' }} />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8rem' }}>
+            {sellers.map((seller, idx) => (
+              <motion.div 
+                key={seller.id}
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                style={{ 
+                  display: 'grid', gridTemplateColumns: idx % 2 === 0 ? '1fr 1.2fr' : '1.2fr 1fr', 
+                  gap: '6rem', alignItems: 'center' 
+                }}
               >
-                {/* Brand Color Accent */}
-                <div style={{ 
-                  position: 'absolute', top: 0, left: 0, right: 0, height: '4px', 
-                  backgroundColor: seller.brand_color || '#10b981' 
-                }} />
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
+                {/* Visual Section */}
+                <div style={{ order: idx % 2 === 0 ? 0 : 1, position: 'relative' }}>
                   <div style={{ 
-                    width: '80px', height: '80px', borderRadius: '24px', overflow: 'hidden', 
-                    border: '1px solid #f1f5f9', flexShrink: 0 
+                    aspectRatio: '4/5', backgroundColor: '#e5e7eb', borderRadius: '40px', 
+                    overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,0.05)' 
                   }}>
                     <img 
-                      src={getImageUrl(seller.logo_url) || `https://api.dicebear.com/7.x/initials/svg?seed=${seller.store_name}&backgroundColor=1b2d2a`} 
-                      alt={seller.store_name} 
+                      src={getImageUrl(seller.logo_url) || `https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=1000`} 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      alt={seller.store_name}
                     />
                   </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'serif', color: '#0A3029', marginBottom: '0.25rem' }}>
-                      {seller.store_name}
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', fontSize: '0.85rem' }}>
-                      <MapPin size={14} /> {seller.location_city || 'India'}
-                    </div>
-                  </div>
+                  {/* Decorative Number */}
+                  <span style={{ 
+                    position: 'absolute', top: '-2rem', [idx % 2 === 0 ? 'left' : 'right']: '-2rem', 
+                    fontSize: '12rem', fontFamily: 'serif', color: 'rgba(0,0,0,0.03)', zIndex: -1 
+                  }}>
+                    0{idx + 1}
+                  </span>
                 </div>
 
-                <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2.5rem', flexGrow: 1 }}>
-                  {seller.bio || 'Curating rare botanical specimens and high-fidelity aquascape essentials with a focus on sustainable growth.'}
-                </p>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.5rem', borderTop: '1px solid #f1f5f9' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', color: '#E5C48B' }}>
-                      {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
+                {/* Text Section */}
+                <div style={{ textAlign: idx % 2 === 0 ? 'left' : 'right' }}>
+                  <div style={{ display: 'flex', justifyContent: idx % 2 === 0 ? 'flex-start' : 'flex-end', gap: '0.5rem', marginBottom: '2rem' }}>
+                    <div style={{ color: '#E5C48B', display: 'flex' }}>
+                      {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
                     </div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0A3029' }}>Elite Curator</span>
                   </div>
-                  <div style={{ color: seller.brand_color || '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Enter Studio <ArrowRight size={16} />
-                  </div>
+                  <h3 style={{ fontSize: '3.5rem', fontFamily: 'serif', marginBottom: '2rem', lineHeight: 1.1 }}>{seller.store_name}</h3>
+                  <p style={{ fontSize: '1.1rem', color: '#64748b', lineHeight: 1.8, marginBottom: '3rem', maxWidth: '500px', marginLeft: idx % 2 === 0 ? 0 : 'auto' }}>
+                    {seller.bio || 'Curating rare botanical specimens and high-fidelity aquascape essentials with a focus on sustainable growth.'}
+                  </p>
+                  <Link 
+                    to={`/store/${seller.slug}`}
+                    style={{ 
+                      fontSize: '0.8rem', fontWeight: 900, textTransform: 'uppercase', 
+                      letterSpacing: '0.2em', color: '#1a1a1a', textDecoration: 'none',
+                      borderBottom: '2px solid #10b981', paddingBottom: '0.5rem'
+                    }}
+                  >
+                    View Boutique <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
+                  </Link>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </motion.div>
+            ))}
+          </div>
         </div>
-      )}
-      </div>
+      </section>
+
+      {/* 4. Editorial Footer Join */}
+      <section style={{ backgroundColor: '#1a1a1a', padding: '10rem 0', color: 'white', textAlign: 'center' }}>
+        <div className="container">
+          <Sparkles size={48} color="#E5C48B" style={{ marginBottom: '3rem' }} />
+          <h2 style={{ fontSize: '4rem', fontFamily: 'serif', marginBottom: '2rem' }}>Become a Certified Curator</h2>
+          <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', margin: '0 auto 4rem' }}>
+            Join our exclusive network of master growers and showcase your botanical artistry to a global audience.
+          </p>
+          <Link to="/seller/onboarding" style={{ padding: '1.5rem 4rem', backgroundColor: 'white', color: '#1a1a1a', textDecoration: 'none', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Apply for Certification
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }
