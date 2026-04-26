@@ -109,7 +109,7 @@ export default function Shop() {
               <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: '1.5px solid', borderColor: categories[cat] ? '#10b981' : '#e2e8f0', backgroundColor: categories[cat] ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {categories[cat] && <div style={{ width: '6px', height: '6px', backgroundColor: 'white', borderRadius: '50%' }} />}
               </div>
-              <span style={{ fontSize: '0.9rem' }}>{cat}</span>
+              <span style={{ fontSize: '0.9rem' }}>{cat === 'Aquatic Plants' ? 'Plants' : cat}</span>
             </li>
           ))}
         </ul>

@@ -30,10 +30,10 @@ export default function Navbar() {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'New Arrivals', path: '/shop' },
-    { name: 'Aquatic Plants', path: '/shop/Aquatic Plants' },
+    { name: 'Plants', path: '/shop/Aquatic Plants' },
     { name: 'Hardscape', path: '/shop/Hardscape' },
-    { name: 'Verified Sellers', path: '#' },
-    { name: 'Care Guides', path: '#' },
+    { name: 'Verified Sellers', path: '/sellers' },
+    { name: 'Care Guides', path: '/guides' },
   ];
 
   return (

@@ -16,6 +16,8 @@ import Privacy from './pages/Privacy';
 import Profile from './pages/Profile';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import VerifiedSellers from './pages/VerifiedSellers';
+import CareGuides from './pages/CareGuides';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -42,6 +44,8 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="about" element={<About />} />
                 <Route path="contact" element={<Contact />} />
+                <Route path="sellers" element={<VerifiedSellers />} />
+                <Route path="guides" element={<CareGuides />} />
               </Route>
               
               {/* Auth Portals (Standalone) */}
