@@ -28,6 +28,7 @@ export default function Navbar() {
   }, [location]);
 
   const navLinks = [
+    { name: 'Home', path: '/' },
     { name: 'New Arrivals', path: '/shop' },
     { name: 'Aquatic Plants', path: '/shop/Aquatic Plants' },
     { name: 'Hardscape', path: '/shop/Hardscape' },

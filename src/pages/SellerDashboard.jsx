@@ -533,6 +533,21 @@ export default function SellerDashboard() {
               </button>
             ))}
           </nav>
+
+          <div style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <Link 
+              to="/" 
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '1rem', width: '100%', padding: '1rem 1.5rem', 
+                borderRadius: '16px', textDecoration: 'none', color: 'rgba(255,255,255,0.6)', 
+                fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.color = 'white'}
+              onMouseOut={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
+            >
+              <ChevronRight size={18} /> Go to Store
+            </Link>
+          </div>
         </div>
       </aside>
 
