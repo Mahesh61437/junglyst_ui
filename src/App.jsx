@@ -18,6 +18,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import VerifiedSellers from './pages/VerifiedSellers';
 import CareGuides from './pages/CareGuides';
+import AdminDashboard from './pages/AdminDashboard';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -55,6 +56,7 @@ function App() {
               {/* Seller Dashboard & Onboarding (Standalone) */}
               <Route path="/seller/onboarding" element={<SellerOnboarding />} />
               <Route path="/seller/dashboard" element={<SellerDashboard />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
             </Routes>
           </BrowserRouter>
         </CartProvider>

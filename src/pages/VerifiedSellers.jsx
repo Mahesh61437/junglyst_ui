@@ -37,26 +37,43 @@ const PROMOTED_SELLERS = [
 
 export default function VerifiedSellers() {
   const [sellers, setSellers] = useState([]);
+  const [promotedSellers, setPromotedSellers] = useState(PROMOTED_SELLERS);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
-    const fetchSellers = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get('/sellers/profiles/');
-        setSellers(response.data.results || response.data || []);
+        const [sellersRes, promotedRes] = await Promise.all([
+          api.get('/sellers/profiles/'),
+          api.get('/sellers/profiles/?featured=true')
+        ]);
+        setSellers(sellersRes.data.results || sellersRes.data || []);
+        
+        const featuredData = promotedRes.data.results || promotedRes.data || [];
+        if (featuredData.length > 0) {
+          const mappedPromoted = featuredData.map(p => ({
+            id: p.id,
+            store_name: p.store_name,
+            tagline: p.tagline || 'Excellence in Botanical Curation',
+            image: getImageUrl(p.banner_url) || 'https://images.unsplash.com/photo-1466721594955-2d185c3c59bc?auto=format&fit=crop&q=80&w=2000',
+            slug: p.slug,
+            brand_color: '#10b981'
+          }));
+          setPromotedSellers(mappedPromoted);
+        }
       } catch (error) {
-        console.error('Error fetching sellers:', error);
+        console.error("Error fetching editorial data", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchSellers();
+    fetchData();
   }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveSlide(prev => (prev + 1) % PROMOTED_SELLERS.length);
+      setActiveSlide(prev => (prev + 1) % promotedSellers.length);
     }, 6000);
     return () => clearInterval(timer);
   }, []);
@@ -91,8 +108,8 @@ export default function VerifiedSellers() {
                 transition={{ delay: 0.4 }}
                 style={{ fontSize: '6rem', fontFamily: 'serif', lineHeight: 0.9, marginBottom: '2rem', letterSpacing: '-0.03em' }}
               >
-                {PROMOTED_SELLERS[activeSlide].store_name.split(' ')[0]} <br/> 
-                <span style={{ fontStyle: 'italic', color: '#64748b' }}>&</span> {PROMOTED_SELLERS[activeSlide].store_name.split(' ').slice(1).join(' ')}
+                {promotedSellers[activeSlide].store_name.split(' ')[0]} <br/> 
+                <span style={{ fontStyle: 'italic', color: '#64748b' }}>&</span> {promotedSellers[activeSlide].store_name.split(' ').slice(1).join(' ')}
               </motion.h1>
               <motion.p 
                 initial={{ y: 30, opacity: 0 }}
@@ -100,11 +117,11 @@ export default function VerifiedSellers() {
                 transition={{ delay: 0.5 }}
                 style={{ fontSize: '1.25rem', color: '#4b5563', marginBottom: '3rem', maxWidth: '400px', lineHeight: 1.6 }}
               >
-                {PROMOTED_SELLERS[activeSlide].tagline}
+                {promotedSellers[activeSlide].tagline}
               </motion.p>
               <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
                 <Link 
-                  to={`/store/${PROMOTED_SELLERS[activeSlide].slug}`}
+                  to={`/store/${promotedSellers[activeSlide].slug}`}
                   style={{ 
                     backgroundColor: '#1a1a1a', color: 'white', padding: '1.5rem 4rem', 
                     display: 'inline-block', textDecoration: 'none', fontWeight: 800, 
@@ -128,7 +145,7 @@ export default function VerifiedSellers() {
                 }}
               >
                 <img 
-                  src={PROMOTED_SELLERS[activeSlide].image} 
+                  src={promotedSellers[activeSlide].image} 
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   alt="Spotlight"
                 />
@@ -156,7 +173,7 @@ export default function VerifiedSellers() {
 
         {/* Carousel Controls */}
         <div style={{ position: 'absolute', bottom: '5%', left: '10%', display: 'flex', gap: '1.5rem', alignItems: 'center', zIndex: 30 }}>
-          {PROMOTED_SELLERS.map((_, idx) => (
+          {promotedSellers.map((_, idx) => (
             <button 
               key={idx}
               onClick={() => setActiveSlide(idx)}

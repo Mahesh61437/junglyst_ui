@@ -431,7 +431,24 @@ export default function SellerDashboard() {
     }
   };
 
-  if (authLoading) {
+  const [isApproved, setIsApproved] = useState(null);
+
+  useEffect(() => {
+    const checkApproval = async () => {
+      if (user) {
+        try {
+          // Check if user is in AllowedSeller list
+          const res = await api.get('/sellers/check-approval/');
+          setIsApproved(res.data.is_approved);
+        } catch (error) {
+          setIsApproved(false);
+        }
+      }
+    };
+    checkApproval();
+  }, [user]);
+
+  if (authLoading || isApproved === null) {
     return (
       <div style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid #edf2ed', borderTopColor: '#1b2d2a', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 2rem' }}></div>
@@ -440,18 +457,20 @@ export default function SellerDashboard() {
     );
   }
 
-  if (!user || (user.role !== 'grower' && user.role !== 'admin')) {
+  if (!user || !isApproved || (user.role !== 'grower' && user.role !== 'admin')) {
     return (
       <div className="container" style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
         <div className="slide-up">
-          <div style={{ backgroundColor: 'var(--bg-secondary)', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: '#ef4444' }}>
+          <div style={{ backgroundColor: '#fff5f5', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: '#ef4444' }}>
             <ShieldCheck size={32} />
           </div>
-          <h1 style={{ fontSize: '3rem', marginBottom: '1.5rem', fontFamily: 'serif' }}>Grower Access Required</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '3.5rem', fontSize: '1.125rem', maxWidth: '500px', margin: '0 auto 3.5rem' }}>This sanctuary is reserved for verified growers. Please sign in with an authorized account or complete your onboarding.</p>
+          <h1 style={{ fontSize: '3rem', marginBottom: '1.5rem', fontFamily: 'serif' }}>Sanctuary Access Denied</h1>
+          <p style={{ color: '#64748b', marginBottom: '3.5rem', fontSize: '1.125rem', maxWidth: '500px', margin: '0 auto 3.5rem' }}>
+            Your credentials are not in our master curator registry. Please contact the administrator for a sanctuary invitation.
+          </p>
           <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
-            <Link to="/login" className="btn btn-primary" style={{ padding: '1.125rem 3.5rem' }}>Sign In</Link>
-            <Link to="/seller/onboarding" className="btn btn-outline" style={{ padding: '1.125rem 3.5rem' }}>Join as Grower</Link>
+            <Link to="/login" className="btn btn-primary" style={{ padding: '1.125rem 3.5rem' }}>Return to Login</Link>
+            <Link to="/" className="btn btn-outline" style={{ padding: '1.125rem 3.5rem' }}>Back to Shop</Link>
           </div>
         </div>
       </div>

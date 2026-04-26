@@ -39,12 +39,53 @@ export default function SellerOnboarding() {
     fetchCats();
   }, []);
   
-  // 1. Auth Protection
+  const [isApproved, setIsApproved] = useState(null);
+  
+  // 1. Auth & Approval Protection
   useEffect(() => {
-    if (!user) {
-      navigate('/login?redirect=/seller/onboarding');
-    }
+    const checkAccess = async () => {
+      if (!user) {
+        navigate('/login?redirect=/seller/onboarding');
+        return;
+      }
+      
+      try {
+        const res = await api.get('/sellers/check-approval/');
+        setIsApproved(res.data.is_approved);
+      } catch (error) {
+        setIsApproved(false);
+      }
+    };
+    checkAccess();
   }, [user, navigate]);
+
+  if (isApproved === false) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfdfc', padding: '2rem' }}>
+        <div style={{ maxWidth: '500px', textAlign: 'center', animation: 'fadeIn 0.5s ease' }}>
+          <div style={{ backgroundColor: '#fff5f5', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: '#ef4444' }}>
+            <ShieldCheck size={32} />
+          </div>
+          <h1 style={{ fontSize: '2.5rem', fontFamily: 'serif', marginBottom: '1.5rem' }}>Access Denied</h1>
+          <p style={{ color: '#64748b', marginBottom: '3rem', lineHeight: 1.6 }}>
+            Your credentials are not in our master curator registry. We currently only onboard growers who have been pre-screened for botanical excellence.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button onClick={() => navigate('/')} style={{ padding: '1rem 2rem', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer' }}>Back to Shop</button>
+            <button onClick={() => navigate('/login')} style={{ padding: '1rem 2rem', borderRadius: '12px', background: '#0A3029', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Switch Account</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isApproved === null) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid #edf2ed', borderTopColor: '#0A3029', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+      </div>
+    );
+  }
 
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem('junglyst_onboarding_draft');
