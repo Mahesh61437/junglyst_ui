@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -238,9 +238,21 @@ export default function Navbar() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '3rem' }}>
+            <Link 
+              to="/" 
+              style={{ 
+                fontSize: '1.125rem', fontFamily: 'var(--font-serif)', fontWeight: 700, 
+                color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '1rem'
+              }}
+            >
+              <Store size={20} color="var(--brand-gold)" /> Home
+            </Link>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Gallery Sections</p>
-            {navLinks.map(link => (
+            {navLinks.filter(l => l.name !== 'Home').map(link => (
               <Link 
                 key={link.name} 
                 to={link.path} 
