@@ -36,13 +36,24 @@ export const ProductService = {
     }
   },
 
-  // Update product details
+  // Update product details (full update)
   updateProduct: async (id, productData) => {
     try {
       const response = await api.put(`/core/products/id/${id}/`, productData);
       return response.data;
     } catch (error) {
       console.error(`Error updating product ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Partial update (e.g. archive: { is_active: false })
+  patchProduct: async (id, partialData) => {
+    try {
+      const response = await api.patch(`/core/products/id/${id}/`, partialData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error patching product ${id}:`, error);
       throw error;
     }
   },
