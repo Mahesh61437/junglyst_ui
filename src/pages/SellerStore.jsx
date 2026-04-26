@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink } from 'lucide-react';
+import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink, Sparkles, CheckCircle2 } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import ProductCard from '../components/ProductCard';
 import api from '../services/api';
@@ -59,7 +59,11 @@ export default function SellerStore() {
             rating: parseFloat(profile.rating) || 5.0,
             reviews: parseInt(profile.total_sales) || 0,
             founded: new Date(profile.created_at).getFullYear(),
-            badges: ['Verified Sanctuary', 'Purity Certified', 'Premium Logistics']
+            badges: profile.identity_verified ? ['Identity Verified', 'Verified Sanctuary', 'Master Grower'] : ['Verified Sanctuary', 'Purity Certified', 'Premium Logistics'],
+            expertise_tags: profile.expertise_tags || [],
+            infrastructure: profile.infrastructure_details || '',
+            experience: profile.experience_years || 0,
+            isVerified: profile.identity_verified
           });
           setProfileFound(true);
           
@@ -267,7 +271,90 @@ export default function SellerStore() {
         </motion.div>
       </div>
 
-      {/* 3. The Collection */}
+      {/* 3. Mastery & Infrastructure Showcase */}
+      <div className="container" style={{ marginTop: '8rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '4rem' }}>
+          
+          {/* Expertise Pillars */}
+          <motion.div 
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            style={{ 
+              backgroundColor: '#1b2d2a', borderRadius: '40px', padding: '4rem', color: 'white',
+              backgroundImage: 'radial-gradient(circle at top left, rgba(229, 196, 139, 0.1), transparent)',
+              position: 'relative', overflow: 'hidden'
+            }}
+          >
+            <div style={{ position: 'absolute', top: '2rem', right: '2rem', opacity: 0.1 }}><Sparkles size={120} /></div>
+            
+            <h3 style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#E5C48B', marginBottom: '1.5rem' }}>Core Mastery</h3>
+            <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', marginBottom: '2.5rem', lineHeight: 1.2 }}>Specialized Botanical Pillars</h2>
+            
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+              {(sellerInfo.expertise_tags?.length > 0 ? sellerInfo.expertise_tags : ['Aquascaping', 'Rare Species Propogation', 'Tissue Culture', 'Sustainable Logistics']).map(tag => (
+                <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem 1.5rem', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px' }}>
+                  <CheckCircle2 size={18} color="#10b981" />
+                  <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>{tag}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '4rem', display: 'flex', gap: '3rem' }}>
+               <div>
+                 <p style={{ fontSize: '2.5rem', fontWeight: 700, color: '#E5C48B', margin: 0, lineHeight: 1 }}>{sellerInfo.experience}+</p>
+                 <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Years Experience</p>
+               </div>
+               <div>
+                 <p style={{ fontSize: '2.5rem', fontWeight: 700, color: '#E5C48B', margin: 0, lineHeight: 1 }}>{sellerInfo.isVerified ? '100%' : 'High'}</p>
+                 <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Trust Quotient</p>
+               </div>
+            </div>
+          </motion.div>
+
+          {/* Infrastructure & Setup */}
+          <motion.div 
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            style={{ 
+              backgroundColor: 'white', borderRadius: '40px', padding: '4rem', 
+              border: '1px solid var(--border-subtle)', position: 'relative', overflow: 'hidden'
+            }}
+          >
+            <h3 style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--brand-green)', marginBottom: '1.5rem' }}>Cultivation Environment</h3>
+            <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', marginBottom: '2.5rem', lineHeight: 1.2, color: 'var(--text-primary)' }}>Technical Infrastructure</h2>
+            
+            <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '3rem' }}>
+              {sellerInfo.infrastructure || "Maintaining high-fidelity specimens requires a meticulously controlled environment. Our studio utilizes advanced filtration, spectrum-tuned lighting, and automated climate control systems to ensure every plant reaches you in peak vitality."}
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ width: '40px', height: '40px', backgroundColor: '#f0fdf4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                   <ShieldCheck size={20} color="#10b981" />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Purity Audit</h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Algae-free & snail-free guarantee</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ width: '40px', height: '40px', backgroundColor: '#fff7ed', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                   <Award size={20} color="#f97316" />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Verified Logistics</h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Proprietary expert packaging</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+        </div>
+      </div>
+
+      {/* 4. The Collection */}
       <div className="container" style={{ marginTop: '10rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6rem' }}>
           <div>
