@@ -6,6 +6,7 @@ import NaturalLogo from '../components/NaturalLogo';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -13,11 +14,13 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       await login(formData);
       navigate('/');
     } catch (err) {
-      alert("Authenticity check failed. Please verify credentials.");
+      console.error(err);
+      setError(err.response?.data?.detail || "Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -48,6 +51,21 @@ export default function Login() {
         
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Welcome Back</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2.5rem' }}>Access your botanical collection and secure specimens.</p>
+
+        {error && (
+          <div style={{ 
+            backgroundColor: '#fee2e2', 
+            color: '#b91c1c', 
+            padding: '1rem', 
+            borderRadius: '12px', 
+            fontSize: '0.85rem', 
+            marginBottom: '2rem',
+            textAlign: 'left',
+            border: '1px solid #fecaca'
+          }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleLogin} style={{ textAlign: 'left' }}>
           <div style={{ marginBottom: '1.25rem' }}>
