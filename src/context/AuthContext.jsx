@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
       try {
         const token = localStorage.getItem('junglyst_token');
         const savedUser = localStorage.getItem('junglyst_user');
-        
+
         if (token && savedUser) {
           setUser(JSON.parse(savedUser));
           // Optionally verify token with backend
@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('junglyst_token', access);
       localStorage.setItem('junglyst_refresh', refresh);
       localStorage.setItem('junglyst_user', JSON.stringify(userInfo));
-      
+
       setUser(userInfo);
       return userInfo;
     } catch (error) {
