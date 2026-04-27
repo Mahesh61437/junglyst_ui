@@ -423,14 +423,16 @@ export default function ProductDetails() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    style={{ background: 'none', border: 'none', color: 'var(--bg-deep)', cursor: 'pointer', padding: '0.25rem' }}
+                    style={{ background: 'none', border: 'none', color: 'var(--bg-deep)', cursor: 'pointer', padding: '0.25rem', opacity: quantity <= 1 ? 0.3 : 1 }}
+                    disabled={quantity <= 1}
                   >
                     <ChevronLeft size={22} strokeWidth={3} />
                   </button>
                   <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--bg-deep)', minWidth: '1.5rem', textAlign: 'center' }}>{quantity}</span>
                   <button 
-                    onClick={() => setQuantity(quantity + 1)}
-                    style={{ background: 'none', border: 'none', color: 'var(--bg-deep)', cursor: 'pointer', padding: '0.25rem' }}
+                    onClick={() => setQuantity(Math.min(selectedVariant?.stock || 0, quantity + 1))}
+                    style={{ background: 'none', border: 'none', color: 'var(--bg-deep)', cursor: 'pointer', padding: '0.25rem', opacity: quantity >= (selectedVariant?.stock || 0) ? 0.3 : 1 }}
+                    disabled={quantity >= (selectedVariant?.stock || 0)}
                   >
                     <ChevronRight size={22} strokeWidth={3} />
                   </button>
@@ -440,27 +442,35 @@ export default function ProductDetails() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button 
                   onClick={async () => {
-                    await addItemToCart(id, quantity);
-                    alert("Specimen secured in Box.");
+                    if (selectedVariant?.stock <= 0) return;
+                    try {
+                      await addItemToCart(id, quantity, selectedVariant?.id);
+                      alert("Specimen secured in Box.");
+                    } catch (err) {
+                      alert(err.response?.data?.error || "Failed to add to box");
+                    }
                   }}
+                  disabled={!selectedVariant || selectedVariant.stock <= 0}
                   style={{ 
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: '2px solid var(--bg-deep)',
                     backgroundColor: 'transparent', color: 'var(--bg-deep)', fontWeight: 800, cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s', opacity: (!selectedVariant || selectedVariant.stock <= 0) ? 0.5 : 1
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(10,31,28,0.05)'}
+                  onMouseOver={(e) => { if (selectedVariant?.stock > 0) e.currentTarget.style.backgroundColor = 'rgba(10,31,28,0.05)' }}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  ADD TO BOX
+                  {selectedVariant?.stock > 0 ? 'ADD TO BOX' : 'OUT OF STOCK'}
                 </button>
                 <button 
                   onClick={handleBuyNow}
+                  disabled={!selectedVariant || selectedVariant.stock <= 0}
                   style={{ 
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: 'none',
                     backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer',
-                    transition: 'all 0.2s', boxShadow: '0 10px 20px rgba(10,31,28,0.2)'
+                    transition: 'all 0.2s', boxShadow: '0 10px 20px rgba(10,31,28,0.2)',
+                    opacity: (!selectedVariant || selectedVariant.stock <= 0) ? 0.5 : 1
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseOver={(e) => { if (selectedVariant?.stock > 0) e.currentTarget.style.transform = 'translateY(-2px)' }}
                   onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   SECURE BUY NOW

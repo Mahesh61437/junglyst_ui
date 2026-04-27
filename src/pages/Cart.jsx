@@ -69,9 +69,23 @@ export default function Cart() {
                 
                 <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '100px', padding: '0.35rem' }}>
-                    <button onClick={() => updateItemQuantity(index, -1)} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontWeight: 700 }}>-</button>
+                    <button 
+                        onClick={() => updateItemQuantity(index, -1)} 
+                        style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontWeight: 700, opacity: item.quantity <= 1 ? 0.3 : 1 }}
+                        disabled={item.quantity <= 1}
+                    >-</button>
                     <span style={{ padding: '0 1.25rem', fontWeight: 800, fontSize: '0.95rem', minWidth: '40px', textAlign: 'center' }}>{item.quantity}</span>
-                    <button onClick={() => updateItemQuantity(index, 1)} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontWeight: 700 }}>+</button>
+                    <button 
+                        onClick={async () => {
+                            try {
+                                await updateItemQuantity(index, 1);
+                            } catch (err) {
+                                alert(err.message || err.response?.data?.error || "Cannot increase quantity");
+                            }
+                        }} 
+                        style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontWeight: 700, opacity: (item.variant?.stock !== undefined && item.quantity >= item.variant.stock) ? 0.3 : 1 }}
+                        disabled={item.variant?.stock !== undefined && item.quantity >= item.variant.stock}
+                    >+</button>
                   </div>
                   <button onClick={() => removeItem(index)} style={{ background: 'none', border: 'none', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     <Trash2 size={16} /> Remove

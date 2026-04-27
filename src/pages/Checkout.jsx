@@ -25,19 +25,28 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      const orderData = {
-        customer: `${shipping.firstName} ${shipping.lastName}`,
-        total: `₹${cart.grand_total.toFixed(2)}`,
-        items: cart.total_items
+      // Data format expected by backend CheckoutView
+      const checkoutData = {
+        cart_id: cart.id || localStorage.getItem('cart_id'), // Assuming cart.id exists or is stored
+        guest_info: {
+          email: shipping.email || 'guest@example.com', // Should ideally be collected
+          phone: shipping.phone || '0000000000',
+          address: shipping
+        }
       };
       
-      const newOrder = await OrderService.createOrder(orderData);
+      const response = await OrderService.checkout(checkoutData);
+      
+      // If Razorpay is integrated, we would trigger the modal here
+      // For now, if it succeeds, we clear cart and show success
       await clearCart();
       
-      setOrderNum(newOrder.id || 'JL-' + Math.floor(Math.random() * 100000));
+      setOrderNum(response.order?.order_number || 'JL-' + Math.floor(Math.random() * 100000));
       setOrdered(true);
     } catch (err) {
-      alert("Failed to process order");
+      console.error("Checkout failed:", err);
+      const errorMsg = err.response?.data?.error || "Botanical acquisition failed. Please check specimen availability.";
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }

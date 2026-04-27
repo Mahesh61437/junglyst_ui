@@ -72,7 +72,7 @@ export function CartProvider({ children }) {
       return true;
     } catch (error) {
       console.error("Failed to add to cart:", error);
-      return false;
+      throw error;
     }
   };
 
@@ -81,12 +81,19 @@ export function CartProvider({ children }) {
     if (!item) return;
     
     const newQuantity = item.quantity + change;
+    
+    // Check against stock locally first if possible
+    if (change > 0 && item.variant?.stock !== undefined && newQuantity > item.variant.stock) {
+      throw new Error(`Only ${item.variant.stock} units available.`);
+    }
+
     if (newQuantity > 0) {
       try {
         const updatedCart = await CartService.updateItem(item.id, newQuantity);
         setCart(calculateFinancials(updatedCart.items || []));
       } catch (error) {
         console.error("Failed to update quantity:", error);
+        throw error;
       }
     }
   };

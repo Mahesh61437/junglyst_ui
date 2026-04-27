@@ -11,12 +11,22 @@ export const OrderService = {
     }
   },
 
-  createOrder: async (orderData) => {
+  checkout: async (checkoutData) => {
     try {
-      const response = await api.post('/orders/', orderData);
+      const response = await api.post('/orders/checkout/', checkoutData);
       return response.data;
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('Error during checkout:', error);
+      throw error;
+    }
+  },
+
+  verifyPayment: async (paymentData) => {
+    try {
+      const response = await api.post('/orders/checkout/verify/', paymentData);
+      return response.data;
+    } catch (error) {
+      console.error('Error verifying payment:', error);
       throw error;
     }
   },
