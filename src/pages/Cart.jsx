@@ -79,6 +79,11 @@ export default function Cart() {
                   {variant.name && (
                     <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Specimen: {variant.name}</span>
                   )}
+                  {item.note && (
+                    <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 800, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <ShieldCheck size={12} /> {item.note}
+                    </div>
+                  )}
                   
                   {/* Controls */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem', marginTop: '1.5rem' }}>
