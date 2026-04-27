@@ -73,7 +73,9 @@ export function AuthProvider({ children }) {
         username: safeUsername,
         password: userData.password,
         phone: userData.phone,
-        role: userData.role || 'collector'
+        role: userData.role || 'collector',
+        first_name: userData.first_name,
+        last_name: userData.last_name
       });
 
       // Auto-login after registration

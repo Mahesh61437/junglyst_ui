@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  CheckCircle2, 
-  Leaf, 
-  MapPin, 
-  CreditCard, 
-  PackagePlus, 
-  Globe, 
-  ArrowRight, 
+import {
+  CheckCircle2,
+  Leaf,
+  MapPin,
+  CreditCard,
+  PackagePlus,
+  Globe,
+  ArrowRight,
   ArrowLeft,
   ShieldCheck,
   Camera,
   Store,
   Palette,
   Upload,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import api from '../services/api';
 import { ProductService } from '../services/ProductService';
@@ -26,7 +27,7 @@ export default function SellerOnboarding() {
   const { user, updateUser } = useAuth();
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
-  
+
   useEffect(() => {
     const fetchCats = async () => {
       try {
@@ -38,9 +39,9 @@ export default function SellerOnboarding() {
     };
     fetchCats();
   }, []);
-  
+
   const [isApproved, setIsApproved] = useState(null);
-  
+
   // 1. Auth & Approval Protection
   useEffect(() => {
     const checkAccess = async () => {
@@ -48,10 +49,11 @@ export default function SellerOnboarding() {
         navigate('/login?redirect=/seller/onboarding');
         return;
       }
-      
+
       try {
         const res = await api.get('/sellers/check-approval/');
         setIsApproved(res.data.is_approved);
+        console.log(res.data);
       } catch (error) {
         setIsApproved(false);
       }
@@ -216,7 +218,7 @@ export default function SellerOnboarding() {
     setLoading(true);
     try {
       // 1. Create/Update the seller profile
-      const response = await api.post('/sellers/dashboard/', { 
+      const response = await api.post('/sellers/dashboard/', {
         store_name: formData.storeName,
         expertise: formData.tagline,
         bio: formData.description,
@@ -268,17 +270,17 @@ export default function SellerOnboarding() {
   ];
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       backgroundColor: '#fcfdfc',
-      display: 'flex', 
+      display: 'flex',
       flexDirection: 'column',
       fontFamily: 'Inter, sans-serif'
     }}>
-      
+
       {/* Dynamic Header */}
-      <header style={{ 
-        padding: '1.5rem 4rem', 
+      <header style={{
+        padding: '1.5rem 4rem',
         borderBottom: '1px solid #edf2ed',
         display: 'flex',
         justifyContent: 'space-between',
@@ -297,12 +299,12 @@ export default function SellerOnboarding() {
             <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#E5C48B', fontWeight: 700 }}>Grower Sanctuary</span>
           </div>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '2rem' }}>
           {steps.map(step => (
             <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: currentStep >= step.id ? 1 : 0.3, transition: 'opacity 0.3s' }}>
-              <div style={{ 
-                width: '24px', height: '24px', borderRadius: '50%', 
+              <div style={{
+                width: '24px', height: '24px', borderRadius: '50%',
                 backgroundColor: currentStep >= step.id ? formData.brandColor : '#e5e7eb',
                 color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700,
                 transition: 'background-color 0.3s'
@@ -317,16 +319,16 @@ export default function SellerOnboarding() {
 
       {/* Main Content Layout */}
       <main style={{ flexGrow: 1, display: 'grid', gridTemplateColumns: currentStep > 1 ? '1.2fr 1fr' : '1fr', gap: '4rem', padding: '4rem' }}>
-        
+
         {/* Form Column */}
         <div style={{ maxWidth: '700px', justifySelf: 'center', width: '100%' }}>
           {error && (
-            <div style={{ 
-              backgroundColor: '#fee2e2', 
-              color: '#b91c1c', 
-              padding: '1.25rem', 
-              borderRadius: '16px', 
-              fontSize: '0.9rem', 
+            <div style={{
+              backgroundColor: '#fee2e2',
+              color: '#b91c1c',
+              padding: '1.25rem',
+              borderRadius: '16px',
+              fontSize: '0.9rem',
               marginBottom: '2.5rem',
               border: '1px solid #fecaca',
               display: 'flex',
@@ -337,7 +339,7 @@ export default function SellerOnboarding() {
               {error}
             </div>
           )}
-          
+
           {currentStep === 1 && (
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               <h2 style={{ fontSize: '3.5rem', fontFamily: 'serif', color: '#0A3029', marginBottom: '1.5rem', lineHeight: 1.1 }}>
@@ -347,16 +349,16 @@ export default function SellerOnboarding() {
                 Join the most exclusive community of botanical artisans. We provide the tools; you provide the beauty.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '4rem' }}>
-                 <div style={{ padding: '2rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed' }}>
-                    <Globe size={24} color="#E5C48B" style={{ marginBottom: '1rem' }} />
-                    <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>Pan-India Logistics</h3>
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Integrated Nimbuspost fulfillment for all your specimens.</p>
-                 </div>
-                 <div style={{ padding: '2rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed' }}>
-                    <ShieldCheck size={24} color="#E5C48B" style={{ marginBottom: '1rem' }} />
-                    <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>Verified Status</h3>
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Command premium prices with the Junglyst Seal of Purity.</p>
-                 </div>
+                <div style={{ padding: '2rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed' }}>
+                  <Globe size={24} color="#E5C48B" style={{ marginBottom: '1rem' }} />
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>Pan-India Logistics</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Integrated Nimbuspost fulfillment for all your specimens.</p>
+                </div>
+                <div style={{ padding: '2rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed' }}>
+                  <ShieldCheck size={24} color="#E5C48B" style={{ marginBottom: '1rem' }} />
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>Verified Status</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Command premium prices with the Junglyst Seal of Purity.</p>
+                </div>
               </div>
               <button onClick={nextStep} style={{ backgroundColor: '#0A3029', color: 'white', border: 'none', borderRadius: '12px', padding: '1.25rem 3rem', fontSize: '1.125rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 Begin My Onboarding <ArrowRight size={20} />
@@ -392,18 +394,18 @@ export default function SellerOnboarding() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sanctuary Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
-                  
+
                   {/* Presets Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '1rem', marginBottom: '2.5rem' }}>
                     {presets.map(p => (
-                      <button 
+                      <button
                         key={p.color}
                         onClick={() => setFormData(prev => ({ ...prev, brandColor: p.color }))}
                         title={p.name}
-                        style={{ 
-                          height: '40px', 
+                        style={{
+                          height: '40px',
                           width: '40px',
-                          backgroundColor: p.color, 
+                          backgroundColor: p.color,
                           border: formData.brandColor === p.color ? '3px solid #E5C48B' : '1px solid rgba(0,0,0,0.05)',
                           borderRadius: '50%',
                           cursor: 'pointer',
@@ -417,12 +419,12 @@ export default function SellerOnboarding() {
 
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <div style={{ position: 'relative', width: '60px', height: '60px' }}>
-                      <input 
-                        type="color" 
-                        name="brandColor" 
-                        value={formData.brandColor} 
-                        onChange={handleInputChange} 
-                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '12px', cursor: 'pointer', position: 'absolute', inset: 0, opacity: 0 }} 
+                      <input
+                        type="color"
+                        name="brandColor"
+                        value={formData.brandColor}
+                        onChange={handleInputChange}
+                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '12px', cursor: 'pointer', position: 'absolute', inset: 0, opacity: 0 }}
                       />
                       <div style={{ width: '100%', height: '100%', backgroundColor: formData.brandColor, borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Palette size={20} color="white" style={{ mixBlendMode: 'difference' }} />
@@ -430,17 +432,17 @@ export default function SellerOnboarding() {
                     </div>
                     <div style={{ flexGrow: 1, position: 'relative' }}>
                       <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: '#94a3b8' }}>#</span>
-                      <input 
-                        type="text" 
-                        name="brandColor" 
-                        value={formData.brandColor.replace('#', '')} 
-                        onChange={(e) => setFormData(prev => ({ ...prev, brandColor: '#' + e.target.value }))} 
-                        style={{ width: '100%', padding: '1.125rem 1.125rem 1.125rem 2.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', fontFamily: 'monospace', fontWeight: 700 }} 
+                      <input
+                        type="text"
+                        name="brandColor"
+                        value={formData.brandColor.replace('#', '')}
+                        onChange={(e) => setFormData(prev => ({ ...prev, brandColor: '#' + e.target.value }))}
+                        style={{ width: '100%', padding: '1.125rem 1.125rem 1.125rem 2.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', fontFamily: 'monospace', fontWeight: 700 }}
                       />
                     </div>
                   </div>
                 </div>
-                
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Logo <span style={{ color: '#ef4444' }}>*</span></label>
@@ -574,15 +576,15 @@ export default function SellerOnboarding() {
             ) : <div />}
 
             <div style={{ display: 'flex', gap: '1rem' }}>
-               {currentStep < 6 ? (
-                 <button onClick={nextStep} style={{ backgroundColor: formData.brandColor, color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'background-color 0.3s' }}>
+              {currentStep < 6 ? (
+                <button onClick={nextStep} style={{ backgroundColor: formData.brandColor, color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'background-color 0.3s' }}>
                   CONTINUE <ArrowRight size={18} />
-                 </button>
-               ) : (
-                 <button onClick={handleCompleteOnboarding} disabled={loading} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 3rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)' }}>
+                </button>
+              ) : (
+                <button onClick={handleCompleteOnboarding} disabled={loading} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 3rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)' }}>
                   {loading ? 'PLANTING...' : 'LAUNCH SANCTUARY'} <CheckCircle2 size={18} />
-                 </button>
-               )}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -599,7 +601,7 @@ export default function SellerOnboarding() {
               </div>
             </div>
             <div style={{ height: '600px', width: '100%' }}>
-               <SellerOnboardingPreview formData={formData} />
+              <SellerOnboardingPreview formData={formData} />
             </div>
             <p style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', fontStyle: 'italic' }}>
               This is how your studio will appear to collectors.
