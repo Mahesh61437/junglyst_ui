@@ -159,12 +159,8 @@ export default function OrderTracking() {
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '2rem', fontFamily: 'var(--font-serif)' }}>Financial Transcript</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem' }}>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
-                    <span>Specimen Total</span>
+                    <span>Subtotal <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>(GST Incl.)</span></span>
                     <span style={{ fontWeight: 700 }}>₹{parseFloat(order.subtotal).toLocaleString()}</span>
-                 </div>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
-                    <span>GST (Botanical)</span>
-                    <span style={{ fontWeight: 700 }}>₹{parseFloat(order.gst_total).toLocaleString()}</span>
                  </div>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
                     <span>Thermal Logistics</span>
