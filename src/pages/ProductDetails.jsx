@@ -35,6 +35,7 @@ export default function ProductDetails() {
   const [activeTab, setActiveTab] = useState('description');
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState('Standard');
+  const [isMobile, setIsMobile] = useState(false);
   const { addToCart, addItemToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
@@ -113,6 +114,18 @@ export default function ProductDetails() {
   }, [product]);
 
   useEffect(() => {
+    const mql = window.matchMedia('(max-width: 640px)');
+    const onChange = (e) => setIsMobile(e.matches);
+    setIsMobile(mql.matches);
+    if (mql.addEventListener) mql.addEventListener('change', onChange);
+    else mql.addListener(onChange);
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener('change', onChange);
+      else mql.removeListener(onChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
       try {
@@ -131,8 +144,32 @@ export default function ProductDetails() {
     window.scrollTo(0, 0);
   }, [id]);
 
+  const stockLimit = useMemo(() => {
+    const raw =
+      selectedVariant?.stock ??
+      product?.stock ??
+      product?.variants?.[0]?.stock;
+    const parsed = typeof raw === 'number' ? raw : parseInt(raw ?? '', 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [selectedVariant, product]);
+
+  const hasStockLimit = stockLimit !== null;
+  const isSoldOut = hasStockLimit && stockLimit <= 0;
+  const lowStock = hasStockLimit && stockLimit > 0 && stockLimit < 10;
+
+  useEffect(() => {
+    if (!hasStockLimit) return;
+    if (stockLimit <= 0) {
+      setQuantity(1);
+      return;
+    }
+    setQuantity((q) => Math.max(1, Math.min(q, stockLimit)));
+  }, [hasStockLimit, stockLimit]);
+
   const handleBuyNow = async () => {
-    await addItemToCart(id, quantity, selectedVariant?.id);
+    const safeQty = hasStockLimit ? Math.max(1, Math.min(quantity, Math.max(0, stockLimit))) : quantity;
+    if (hasStockLimit && safeQty < 1) return;
+    await addItemToCart(id, safeQty, selectedVariant?.id);
     navigate('/checkout');
   };
 
@@ -175,67 +212,184 @@ export default function ProductDetails() {
           <span style={{ color: 'var(--brand-green)' }}>{product.category?.name || product.category || 'Specimens'}</span>
         </nav>
 
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: window.innerWidth > 1200 ? '1.1fr 0.9fr 280px' : window.innerWidth > 1024 ? '1fr 1fr' : '1fr', 
-          gap: '3rem', 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr 280px',
+          gap: isMobile ? '2rem' : '3rem',
           alignItems: 'start',
           maxWidth: '100%'
         }}>
           
           {/* Column 1: Media Gallery */}
-          <div style={{ position: window.innerWidth > 1024 ? 'sticky' : 'relative', top: '100px', maxWidth: '100%', overflow: 'hidden' }}>
-            <div style={{ 
-              display: window.innerWidth > 640 ? 'grid' : 'flex', 
-              gridTemplateColumns: window.innerWidth > 640 ? '80px 1fr' : 'none',
-              flexDirection: window.innerWidth > 640 ? 'row' : 'column-reverse', 
-              gap: '1.5rem',
-              overflow: 'hidden'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: window.innerWidth > 640 ? 'column' : 'row', 
-                gap: '0.75rem', 
-                overflowY: window.innerWidth > 640 ? 'auto' : 'hidden',
-                overflowX: window.innerWidth > 640 ? 'hidden' : 'auto',
-                maxHeight: window.innerWidth > 640 ? '600px' : 'none'
-              }}>
-                {images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onMouseEnter={() => setActiveImageIdx(idx)}
-                    style={{
-                      width: '100%', height: '80px', border: activeImageIdx === idx ? '2.5px solid var(--brand-gold)' : '1px solid var(--border-subtle)',
-                      borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', padding: 0, transition: 'all 0.3s', flexShrink: 0
-                    }}
-                  >
-                    <img 
-                      src={img} 
-                      alt="thumb" 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#cbd5e1;background:#f1f5f9;font-size:1.5rem">🌿</div>';
-                      }}
-                    />
+          <div style={{ position: isMobile ? 'relative' : 'sticky', top: isMobile ? undefined : '100px', maxWidth: '100%', overflow: 'hidden' }}>
+            {isMobile ? (
+              <div>
+                {/* Mobile carousel */}
+                <div style={{
+                  position: 'relative',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '18px',
+                  overflow: 'hidden',
+                  backgroundColor: '#fcfcfc',
+                  boxShadow: 'var(--shadow-sm)',
+                  aspectRatio: '1 / 1',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    height: '100%',
+                    width: `${images.length * 100}%`,
+                    transform: `translateX(-${activeImageIdx * (100 / Math.max(1, images.length))}%)`,
+                    transition: 'transform 300ms cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}>
+                    {images.map((img, idx) => (
+                      <div key={idx} style={{ width: `${100 / Math.max(1, images.length)}%`, height: '100%', flexShrink: 0 }}>
+                        <img
+                          src={img}
+                          alt={name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#cbd5e1;background:#f1f5f9;"><span style="font-size:5rem;margin-bottom:1rem">🌿</span><p style="font-size:0.8rem;font-weight:700;color:var(--text-secondary)">Specimen Image Unstable</p></div>';
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActiveImageIdx((i) => (i - 1 + images.length) % images.length)}
+                        style={{
+                          position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                          width: '40px', height: '40px', borderRadius: '999px',
+                          backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: '0 10px 30px rgba(0,0,0,0.12)'
+                        }}
+                        aria-label="Previous image"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => setActiveImageIdx((i) => (i + 1) % images.length)}
+                        style={{
+                          position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                          width: '40px', height: '40px', borderRadius: '999px',
+                          backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: '0 10px 30px rgba(0,0,0,0.12)'
+                        }}
+                        aria-label="Next image"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </>
+                  )}
+
+                  <button style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: '#fff', border: 'none', width: '36px', height: '36px', borderRadius: '50%', boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <Share2 size={18} color="var(--bg-deep)" />
                   </button>
-                ))}
+                </div>
+
+                {/* Dots */}
+                {images.length > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '0.9rem' }}>
+                    {images.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveImageIdx(idx)}
+                        style={{
+                          width: idx === activeImageIdx ? '20px' : '8px',
+                          height: '8px',
+                          borderRadius: '999px',
+                          backgroundColor: idx === activeImageIdx ? 'var(--bg-deep)' : '#d1d5db',
+                          transition: 'all 200ms',
+                        }}
+                        aria-label={`Go to image ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Thumbnails strip */}
+                {images.length > 1 && (
+                  <div style={{ display: 'flex', gap: '0.6rem', overflowX: 'auto', paddingTop: '1rem' }}>
+                    {images.map((img, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveImageIdx(idx)}
+                        style={{
+                          width: '72px',
+                          height: '72px',
+                          borderRadius: '14px',
+                          overflow: 'hidden',
+                          border: idx === activeImageIdx ? '2px solid var(--brand-gold)' : '1px solid var(--border-subtle)',
+                          flexShrink: 0,
+                          padding: 0,
+                          background: 'white'
+                        }}
+                        aria-label={`Thumbnail ${idx + 1}`}
+                      >
+                        <img src={img} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div style={{ flexGrow: 1, position: 'relative', border: '1px solid var(--border-subtle)', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#fcfcfc', boxShadow: 'var(--shadow-sm)' }}>
-                <img 
-                  src={images[activeImageIdx]} 
-                  alt={name} 
-                  style={{ width: '100%', height: 'auto', display: 'block' }} 
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.parentElement.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;color:#cbd5e1;background:#f1f5f9;"><span style="font-size:5rem;margin-bottom:1rem">🌿</span><p style="font-size:0.8rem;font-weight:700;color:var(--text-secondary)">Specimen Image Unstable</p></div>';
-                  }}
-                />
-                <button style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#fff', border: 'none', width: '36px', height: '36px', borderRadius: '50%', boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <Share2 size={18} color="var(--bg-deep)" />
-                </button>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '80px 1fr',
+                gap: '1.5rem',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  maxHeight: '600px'
+                }}>
+                  {images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onMouseEnter={() => setActiveImageIdx(idx)}
+                      onFocus={() => setActiveImageIdx(idx)}
+                      style={{
+                        width: '100%', height: '80px', border: activeImageIdx === idx ? '2.5px solid var(--brand-gold)' : '1px solid var(--border-subtle)',
+                        borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', padding: 0, transition: 'all 0.3s', flexShrink: 0
+                      }}
+                    >
+                      <img
+                        src={img}
+                        alt="thumb"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#cbd5e1;background:#f1f5f9;font-size:1.5rem">🌿</div>';
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <div style={{ flexGrow: 1, position: 'relative', border: '1px solid var(--border-subtle)', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#fcfcfc', boxShadow: 'var(--shadow-sm)' }}>
+                  <img
+                    src={images[activeImageIdx]}
+                    alt={name}
+                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;color:#cbd5e1;background:#f1f5f9;"><span style="font-size:5rem;margin-bottom:1rem">🌿</span><p style="font-size:0.8rem;font-weight:700;color:var(--text-secondary)">Specimen Image Unstable</p></div>';
+                    }}
+                  />
+                  <button style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#fff', border: 'none', width: '36px', height: '36px', borderRadius: '50%', boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <Share2 size={18} color="var(--bg-deep)" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Column 2: Branded Meta Information & Botanical Tabs */}
@@ -414,7 +568,19 @@ export default function ProductDetails() {
             <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--bg-deep)', marginBottom: '0.5rem' }}>₹{displayPrice}</div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-green)', fontWeight: 700, fontSize: '0.8rem', marginBottom: '2rem' }}>
-              <CheckCircle2 size={16} /> STUDIO SECURED IN STOCK
+              {isSoldOut ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444' }}>
+                  <Leaf size={16} /> SOLD OUT
+                </span>
+              ) : lowStock ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444' }}>
+                  <CheckCircle2 size={16} /> {stockLimit} ONLY LEFT
+                </span>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} /> STUDIO SECURED IN STOCK
+                </>
+              )}
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
@@ -429,7 +595,13 @@ export default function ProductDetails() {
                   </button>
                   <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--bg-deep)', minWidth: '1.5rem', textAlign: 'center' }}>{quantity}</span>
                   <button 
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => {
+                      if (hasStockLimit) {
+                        setQuantity((q) => Math.min(Math.max(1, stockLimit), q + 1));
+                      } else {
+                        setQuantity((q) => q + 1);
+                      }
+                    }}
                     style={{ background: 'none', border: 'none', color: 'var(--bg-deep)', cursor: 'pointer', padding: '0.25rem' }}
                   >
                     <ChevronRight size={22} strokeWidth={3} />
@@ -440,14 +612,17 @@ export default function ProductDetails() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button 
                   onClick={async () => {
-                    await addItemToCart(id, quantity);
+                    const safeQty = hasStockLimit ? Math.max(1, Math.min(quantity, Math.max(0, stockLimit))) : quantity;
+                    if (hasStockLimit && safeQty < 1) return;
+                    await addItemToCart(id, safeQty, selectedVariant?.id);
                     alert("Specimen secured in Box.");
                   }}
                   style={{ 
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: '2px solid var(--bg-deep)',
-                    backgroundColor: 'transparent', color: 'var(--bg-deep)', fontWeight: 800, cursor: 'pointer',
+                    backgroundColor: 'transparent', color: 'var(--bg-deep)', fontWeight: 800, cursor: isSoldOut ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s'
                   }}
+                  disabled={isSoldOut}
                   onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(10,31,28,0.05)'}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
@@ -457,9 +632,10 @@ export default function ProductDetails() {
                   onClick={handleBuyNow}
                   style={{ 
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: 'none',
-                    backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer',
+                    backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: isSoldOut ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s', boxShadow: '0 10px 20px rgba(10,31,28,0.2)'
                   }}
+                  disabled={isSoldOut}
                   onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                   onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >

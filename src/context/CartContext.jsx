@@ -76,18 +76,35 @@ export function CartProvider({ children }) {
     }
   };
 
+  const getItemStockLimit = (item) => {
+    const raw =
+      item?.variant?.stock ??
+      item?.variant?.inventory ??
+      item?.product_variant?.stock ??
+      item?.product_variant?.inventory ??
+      item?.product?.stock ??
+      item?.product?.inventory ??
+      item?.product?.variants?.[0]?.stock ??
+      item?.product?.variants?.[0]?.inventory;
+    const parsed = typeof raw === 'number' ? raw : parseInt(raw ?? '', 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const updateItemQuantity = async (itemIndex, change) => {
     const item = cart.items[itemIndex];
     if (!item) return;
     
-    const newQuantity = item.quantity + change;
-    if (newQuantity > 0) {
-      try {
-        const updatedCart = await CartService.updateItem(item.id, newQuantity);
-        setCart(calculateFinancials(updatedCart.items || []));
-      } catch (error) {
-        console.error("Failed to update quantity:", error);
-      }
+    const stockLimit = getItemStockLimit(item);
+    const unclamped = (item.quantity || 0) + change;
+    const clampedLower = Math.max(0, unclamped);
+    const newQuantity = stockLimit === null ? clampedLower : Math.min(stockLimit, clampedLower);
+    if (newQuantity === item.quantity) return;
+
+    try {
+      const updatedCart = await CartService.updateItem(item.id, newQuantity);
+      setCart(calculateFinancials(updatedCart.items || []));
+    } catch (error) {
+      console.error("Failed to update quantity:", error);
     }
   };
 

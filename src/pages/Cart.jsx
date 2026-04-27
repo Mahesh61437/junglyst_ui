@@ -40,6 +40,14 @@ export default function Cart() {
         {/* Cart Items */}
         <div style={{ flex: '1 1 600px', display: 'flex', flexDirection: 'column', gap: '2rem' }} className="slide-up">
           {cart.items.map((item, index) => (
+            (() => {
+              const stockLimitRaw = item?.variant?.stock ?? item?.product?.stock ?? null;
+              const stockLimit = typeof stockLimitRaw === 'number' ? stockLimitRaw : parseInt(stockLimitRaw ?? '', 10);
+              const hasStockLimit = Number.isFinite(stockLimit);
+              const canDecrement = (item.quantity || 0) > 0;
+              const canIncrement = !hasStockLimit || (item.quantity || 0) < stockLimit;
+              const lowStock = hasStockLimit && stockLimit > 0 && stockLimit < 10;
+              return (
             <div key={item.id} style={{ 
               backgroundColor: 'white',
               padding: '2rem',
@@ -63,15 +71,36 @@ export default function Cart() {
                      <p style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>
                         {item.product?.category || 'Rare Specimen'}
                      </p>
+                     {lowStock && (
+                       <p style={{ marginTop: '0.4rem', color: '#ef4444', fontWeight: 800, fontSize: '0.8rem' }}>
+                         only {stockLimit} left
+                       </p>
+                     )}
                   </div>
                   <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--bg-deep)' }}>₹{item.product?.price}</div>
                 </div>
                 
                 <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '100px', padding: '0.35rem' }}>
-                    <button onClick={() => updateItemQuantity(index, -1)} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontWeight: 700 }}>-</button>
+                    <button
+                      onClick={() => updateItemQuantity(index, -1)}
+                      disabled={!canDecrement}
+                      style={{
+                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                        cursor: canDecrement ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: canDecrement ? 1 : 0.4
+                      }}
+                    >-</button>
                     <span style={{ padding: '0 1.25rem', fontWeight: 800, fontSize: '0.95rem', minWidth: '40px', textAlign: 'center' }}>{item.quantity}</span>
-                    <button onClick={() => updateItemQuantity(index, 1)} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)', cursor: 'pointer', fontWeight: 700 }}>+</button>
+                    <button
+                      onClick={() => updateItemQuantity(index, 1)}
+                      disabled={!canIncrement}
+                      style={{
+                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                        cursor: canIncrement ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: canIncrement ? 1 : 0.4
+                      }}
+                    >+</button>
                   </div>
                   <button onClick={() => removeItem(index)} style={{ background: 'none', border: 'none', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     <Trash2 size={16} /> Remove
@@ -79,6 +108,8 @@ export default function Cart() {
                 </div>
               </div>
             </div>
+              );
+            })()
           ))}
 
           <Link to="/shop" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginTop: '2rem', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 700, textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
