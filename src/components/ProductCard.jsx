@@ -97,17 +97,22 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
           <Heart size={18} fill={isSaved ? (brandColor || "var(--brand-gold)") : "none"} strokeWidth={2} />
         </button>
         
-        {/* Quick Add Overlay */}
+        {/* Quick Add Overlay (Aquatic Exotica Style) */}
         <div className="card-hover-overlay" style={{
           position: 'absolute',
-          inset: 0,
-          backgroundColor: 'rgba(10, 48, 41, 0.2)',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'rgba(10, 48, 41, 0.9)',
+          backdropFilter: 'blur(8px)',
           display: 'flex',
-          alignItems: 'flex-end',
-          padding: '1rem',
+          alignItems: 'center',
+          padding: '0.75rem',
           opacity: 0,
-          transition: 'all 0.4s ease',
-          pointerEvents: 'none'
+          transform: 'translateY(100%)',
+          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          pointerEvents: 'none',
+          zIndex: 5
         }}>
           <button 
              onClick={(e) => {
@@ -118,31 +123,25 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
              }}
              style={{ 
                 width: '100%',
-                backgroundColor: 'white',
-                color: 'var(--bg-deep)',
+                backgroundColor: 'transparent',
+                color: 'white',
                 border: 'none',
-                borderRadius: '12px',
-                padding: '0.85rem',
-                fontSize: '0.75rem',
-                fontWeight: 800,
+                fontSize: '0.7rem',
+                fontWeight: 900,
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.15em',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.6rem',
                 cursor: 'pointer',
-                pointerEvents: 'auto',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                transform: 'translateY(20px)',
-                transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+                pointerEvents: 'auto'
              }}
-             className="quick-add-btn"
           >
             {quantityInCart > 0 ? (
-              <><ShieldCheck size={16} color="#10b981" /> {quantityInCart} In Collection</>
+              <><ShieldCheck size={14} color="#10b981" /> {quantityInCart} In Box</>
             ) : (
-              <><ShoppingCart size={16} /> Quick Acquisition</>
+              <><ShoppingCart size={14} /> Add to Collection</>
             )}
           </button>
         </div>
@@ -219,14 +218,11 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         }
         .product-card:hover .card-hover-overlay {
           opacity: 1;
-        }
-        .product-card:hover .quick-add-btn {
           transform: translateY(0);
         }
         .product-card:hover {
           transform: translateY(-8px);
           box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-          border-color: rgba(10, 48, 41, 0.1);
         }
       `}</style>
     </div>
