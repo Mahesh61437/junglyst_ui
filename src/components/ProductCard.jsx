@@ -98,22 +98,7 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         </button>
         
         {/* Quick Add Overlay (Aquatic Exotica Style) */}
-        <div className="card-hover-overlay" style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: 'rgba(10, 48, 41, 0.9)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0.75rem',
-          opacity: 0,
-          transform: 'translateY(100%)',
-          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-          pointerEvents: 'none',
-          zIndex: 5
-        }}>
+        <div className="card-hover-overlay">
           <button 
              onClick={(e) => {
                e.preventDefault();
@@ -121,27 +106,12 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
                const vid = variants?.length > 0 ? variants[0].id : null;
                addItemToCart(id, 1, vid);
              }}
-             style={{ 
-                width: '100%',
-                backgroundColor: 'transparent',
-                color: 'white',
-                border: 'none',
-                fontSize: '0.7rem',
-                fontWeight: 900,
-                textTransform: 'uppercase',
-                letterSpacing: '0.15em',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.6rem',
-                cursor: 'pointer',
-                pointerEvents: 'auto'
-             }}
+             className="quick-add-btn"
           >
             {quantityInCart > 0 ? (
               <><ShieldCheck size={14} color="#10b981" /> {quantityInCart} In Box</>
             ) : (
-              <><ShoppingCart size={14} /> Add to Collection</>
+              <><ShoppingCart size={14} /> Add to Cart</>
             )}
           </button>
         </div>
@@ -150,11 +120,11 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         <div style={{ position: 'absolute', top: '1rem', left: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           {trending && (
             <div style={{
-              backgroundColor: 'var(--brand-gold)', color: 'white',
-              fontSize: '0.55rem', fontWeight: 900, padding: '0.3rem 0.6rem', borderRadius: '4px',
-              textTransform: 'uppercase', letterSpacing: '0.1em'
+              backgroundColor: '#FF5722', color: 'white',
+              fontSize: '0.6rem', fontWeight: 900, padding: '0.3rem 0.7rem', borderRadius: '50px',
+              textTransform: 'uppercase', letterSpacing: '0.05em'
             }}>
-              Specimen focus
+              TRENDING
             </div>
           )}
           {care_level && (
@@ -176,8 +146,9 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
              {sellerName}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-             <Star size={10} fill="var(--brand-gold)" color="var(--brand-gold)" />
-             <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>{reviews || '4.8'}</span>
+             {[...Array(5)].map((_, i) => (
+               <Star key={i} size={10} fill={i < 4 ? "var(--brand-gold)" : "none"} color="var(--brand-gold)" />
+             ))}
           </div>
         </div>
 
@@ -196,13 +167,15 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid #f1f5f9', paddingLeft: '0.8rem' }}>
             <span style={{ fontSize: '0.45rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800 }}>Status</span>
-            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#10b981' }}>{stockStatus || 'In Stock'}</span>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: quantityInCart > 0 ? '#10b981' : (stockStatus === 'Out of Stock' ? '#ef4444' : '#f59e0b') }}>
+              {stockStatus || 'In Stock'}
+            </span>
           </div>
         </div>
 
         {/* Pricing Anchor */}
-        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-          <span style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--bg-deep)' }}>
+        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+          <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#E67E22' }}>
             ₹{minPrice.toLocaleString()}
             {hasPriceRange && <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}> - ₹{maxPrice.toLocaleString()}</span>}
           </span>
@@ -213,6 +186,34 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
       </div>
 
       <style>{`
+        .card-hover-overlay {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 1rem;
+          opacity: 0;
+          transform: translateY(100%);
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          background: linear-gradient(to top, rgba(255,255,255,0.9), transparent);
+          z-index: 5;
+        }
+        .quick-add-btn {
+          width: 100%;
+          background-color: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          padding: 0.8rem;
+          font-size: 0.8rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
         .product-card:hover .card-image {
           transform: scale(1.1);
         }
