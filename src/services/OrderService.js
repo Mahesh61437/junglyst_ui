@@ -11,6 +11,16 @@ export const OrderService = {
     }
   },
 
+  getOrderById: async (id) => {
+    try {
+      const response = await api.get(`/orders/${id}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+      throw error;
+    }
+  },
+
   checkout: async (checkoutData) => {
     try {
       const response = await api.post('/orders/checkout/', checkoutData);
