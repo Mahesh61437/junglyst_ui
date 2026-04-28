@@ -26,15 +26,23 @@ export default function Checkout() {
 
     try {
       const orderData = {
-        customer: `${shipping.firstName} ${shipping.lastName}`,
-        total: `₹${cart.grand_total.toFixed(2)}`,
-        items: cart.total_items
+        cart_id: cart.id,
+        guest_info: {
+          firstName: shipping.firstName,
+          lastName: shipping.lastName,
+          address: shipping.address,
+          city: shipping.city,
+          zip: shipping.zip,
+          email: 'guest@junglyst.com', // Needed by backend
+          phone: '0000000000' // Needed by backend
+        }
       };
       
-      const newOrder = await OrderService.createOrder(orderData);
+      const newOrderResponse = await OrderService.createOrder(orderData);
       await clearCart();
       
-      setOrderNum(newOrder.id || 'JL-' + Math.floor(Math.random() * 100000));
+      const generatedOrderNum = newOrderResponse.order?.order_number || 'JL-' + Math.floor(Math.random() * 100000);
+      setOrderNum(generatedOrderNum);
       setOrdered(true);
     } catch (err) {
       alert("Failed to process order");

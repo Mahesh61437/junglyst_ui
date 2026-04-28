@@ -13,7 +13,7 @@ export const OrderService = {
 
   createOrder: async (orderData) => {
     try {
-      const response = await api.post('/orders/', orderData);
+      const response = await api.post('/orders/checkout/', orderData);
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);

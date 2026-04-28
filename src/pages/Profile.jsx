@@ -15,6 +15,7 @@ export default function Profile() {
   const { wishlist } = useWishlist();
   const [activeTab, setActiveTab] = useState('identity');
   const [orders, setOrders] = useState([]);
+  const [expandedOrder, setExpandedOrder] = useState(null);
   const [loading, setLoading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -47,7 +48,8 @@ export default function Profile() {
     setLoading(true);
     try {
       const response = await api.get('/orders/');
-      setOrders(response.data);
+      // Handle both paginated and non-paginated responses
+      setOrders(response.data.results || response.data || []);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
     } finally {
@@ -390,7 +392,7 @@ export default function Profile() {
                           <Package size={32} strokeWidth={1.5} />
                         </div>
                         <div>
-                          <div style={{ fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.4rem', fontSize: '1.25rem' }}>#ACQ-{order.id}</div>
+                          <div style={{ fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.4rem', fontSize: '1.25rem' }}>{order.order_number || ('#ACQ-' + order.id.substring(0, 8).toUpperCase())}</div>
                           <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                             <span>{order.items?.length || 1} Specimens</span>
                             <span>•</span>
@@ -398,17 +400,85 @@ export default function Profile() {
                           </div>
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', fontSize: '1.5rem', color: 'var(--bg-deep)' }}>₹{order.total_amount}</div>
-                        <div style={{ 
-                          fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em',
-                          color: order.status === 'delivered' ? 'var(--brand-green)' : 'var(--brand-gold)',
-                          backgroundColor: order.status === 'delivered' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(164, 137, 72, 0.1)',
-                          padding: '0.6rem 1.25rem', borderRadius: '100px', border: '1px solid currentColor'
-                        }}>
-                          {order.status}
+                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
+                        <div style={{ fontWeight: 800, fontSize: '1.5rem', color: 'var(--bg-deep)' }}>₹{order.total_amount}</div>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                          <div style={{ 
+                            fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em',
+                            color: order.status === 'delivered' ? 'var(--brand-green)' : 'var(--brand-gold)',
+                            backgroundColor: order.status === 'delivered' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(164, 137, 72, 0.1)',
+                            padding: '0.6rem 1.25rem', borderRadius: '100px', border: '1px solid currentColor'
+                          }}>
+                            {order.status}
+                          </div>
+                          <button 
+                            onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                            style={{ 
+                              padding: '0.5rem 1rem', borderRadius: '100px', border: '1px solid var(--border-subtle)', 
+                              backgroundColor: 'white', color: 'var(--bg-deep)', fontSize: '0.75rem', fontWeight: 800, 
+                              cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase' 
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--brand-gold)'}
+                            onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                          >
+                            {expandedOrder === order.id ? 'Hide Details' : 'View Details'}
+                          </button>
                         </div>
                       </div>
+
+                      {expandedOrder === order.id && (
+                        <div style={{ width: '100%', marginTop: '0.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-subtle)' }} className="slide-up">
+                          <h5 style={{ fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>Acquired Specimens</h5>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
+                            {order.items?.map(item => (
+                              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '16px' }}>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{item.product_name}</div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Variant: {item.variant_name}</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>₹{item.unit_price} × {item.quantity}</div>
+                                  <div style={{ fontWeight: 800, color: 'var(--brand-gold)' }}>₹{(parseFloat(item.unit_price) * item.quantity).toFixed(2)}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', padding: '1.5rem', backgroundColor: '#fcfcfc', borderRadius: '16px', border: '1px dashed var(--border-subtle)' }}>
+                            <div>
+                              <h5 style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Delivery Destination</h5>
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.6, fontWeight: 500 }}>
+                                {order.shipping_address?.full_name || (order.shipping_address?.firstName ? `${order.shipping_address.firstName} ${order.shipping_address.lastName}` : 'Collector')}<br/>
+                                {order.shipping_address?.address_line1 || order.shipping_address?.address || ''}
+                                {order.shipping_address?.address_line2 ? <><br/>{order.shipping_address.address_line2}</> : ''}<br/>
+                                {order.shipping_address?.city || ''}, {order.shipping_address?.state || ''} {order.shipping_address?.pincode || order.shipping_address?.zip || ''}<br/>
+                                {order.shipping_address?.phone && `Ph: ${order.shipping_address.phone}`}
+                              </div>
+                            </div>
+                            <div>
+                              <h5 style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Financial Breakdown</h5>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', fontWeight: 500 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
+                                  <span style={{ fontWeight: 700 }}>₹{parseFloat(order.subtotal).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: 'var(--text-secondary)' }}>GST (18%)</span>
+                                  <span style={{ fontWeight: 700 }}>₹{parseFloat(order.gst_total).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: 'var(--text-secondary)' }}>Shipping</span>
+                                  <span style={{ fontWeight: 700, color: order.shipping_fee > 0 ? 'var(--text-primary)' : 'var(--brand-green)' }}>{order.shipping_fee > 0 ? `₹${parseFloat(order.shipping_fee).toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'FREE'}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', paddingTop: '1rem', borderTop: '2px solid var(--border-subtle)', fontWeight: 800, color: 'var(--bg-deep)', fontSize: '1.25rem' }}>
+                                  <span>Total</span>
+                                  <span>₹{parseFloat(order.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

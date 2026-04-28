@@ -28,8 +28,8 @@ export function CartProvider({ children }) {
     fetchCart();
   }, []);
 
-  const calculateFinancials = (items = []) => {
-    if (!Array.isArray(items)) return { items: [], total_items: 0, subtotal: 0, tax_total: 0, shipping_total: 0, grand_total: 0 };
+  const calculateFinancials = (cartData = {}) => {
+    const items = cartData.items || [];
     
     const subtotal = items.reduce((acc, curr) => {
       // Use variant price if available, fallback to product price
@@ -44,6 +44,7 @@ export function CartProvider({ children }) {
     const total_items = items.reduce((acc, curr) => acc + (curr?.quantity || 0), 0);
 
     return {
+      ...cartData,
       items,
       total_items,
       subtotal,
@@ -56,8 +57,7 @@ export function CartProvider({ children }) {
   const fetchCart = async () => {
     try {
       const data = await CartService.getCart();
-      const items = data.items || [];
-      setCart(calculateFinancials(items));
+      setCart(calculateFinancials(data));
     } catch (error) {
       console.error("Failed to load global cart:", error);
     } finally {
@@ -68,7 +68,7 @@ export function CartProvider({ children }) {
   const addItemToCart = async (productId, quantity = 1, variantId = null) => {
     try {
       const updatedCart = await CartService.addToCart(productId, quantity, variantId);
-      setCart(calculateFinancials(updatedCart.items || []));
+      setCart(calculateFinancials(updatedCart));
       return true;
     } catch (error) {
       console.error("Failed to add to cart:", error);
@@ -84,7 +84,7 @@ export function CartProvider({ children }) {
     if (newQuantity > 0) {
       try {
         const updatedCart = await CartService.updateItem(item.id, newQuantity);
-        setCart(calculateFinancials(updatedCart.items || []));
+        setCart(calculateFinancials(updatedCart));
       } catch (error) {
         console.error("Failed to update quantity:", error);
       }
@@ -101,7 +101,7 @@ export function CartProvider({ children }) {
     
     try {
       const updatedCart = await CartService.updateItem(item.id, 0);
-      setCart(calculateFinancials(updatedCart.items || []));
+      setCart(calculateFinancials(updatedCart));
     } catch (error) {
       console.error("Failed to remove item:", error);
     }
