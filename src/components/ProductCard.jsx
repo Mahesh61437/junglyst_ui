@@ -18,12 +18,10 @@ const isLight = (color) => {
 export default function ProductCard({ id, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants }) {
   const { addItemToCart, cart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  
   const sellerInfo = seller?.seller_profile || {};
   const sellerName = sellerInfo.store_name || seller?.full_name || 'Aqueous Exotica';
   const sellerSlug = sellerInfo.slug || encodeURIComponent(sellerName);
   const isSaved = isInWishlist(id);
-  
   const finalImage = getImageUrl(image);
 
   // Calculate Price Range
@@ -37,9 +35,7 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
   const quantityInCart = cartItem ? cartItem.quantity : 0;
 
   return (
-    <div className="product-card" style={{
-      display: 'flex',
-      flexDirection: 'column',
+    <div className="product-card product-card-layout" style={{
       background: 'white',
       borderRadius: '24px',
       overflow: 'hidden',
@@ -51,24 +47,26 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
       cursor: 'pointer'
     }}>
       {/* Visual Area */}
-      <div style={{ position: 'relative', backgroundColor: '#f8fafc', aspectRatio: '1/1', overflow: 'hidden' }}>
+      <div className="product-card-img-wrapper" style={{ position: 'relative', backgroundColor: '#f8fafc', overflow: 'hidden' }}>
         <Link to={`/product/${id}`} style={{ display: 'block', height: '100%' }}>
-          <img 
-            src={finalImage} 
-            alt={name} 
+          <img
+            src={finalImage}
+            alt={name}
             loading="lazy"
-            style={{ 
-              width: '100%', 
-              height: '100%', 
+            style={{
+              width: '100%',
+              height: '100%',
               objectFit: 'cover',
               transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
-            }} 
+            }}
             className="card-image"
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
           />
         </Link>
 
         {/* Priority Save (Heart) */}
-        <button 
+        <button
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -96,17 +94,29 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         >
           <Heart size={18} fill={isSaved ? (brandColor || "var(--brand-gold)") : "none"} strokeWidth={2} />
         </button>
-        
-        {/* Quick Add Overlay (Aquatic Exotica Style) */}
-        <div className="card-hover-overlay">
-          <button 
-             onClick={(e) => {
-               e.preventDefault();
-               e.stopPropagation();
-               const vid = variants?.length > 0 ? variants[0].id : null;
-               addItemToCart(id, 1, vid);
-             }}
-             className="quick-add-btn"
+
+        {/* Boutique Overlay Actions (Glassmorphic) */}
+        <div className="card-actions" style={{
+          position: 'absolute',
+          bottom: '1rem',
+          left: '1rem',
+          right: '1rem',
+          display: 'flex',
+          gap: '0.6rem',
+          opacity: 0,
+          transform: 'translateY(15px)',
+          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          pointerEvents: 'none'
+        }}>
+
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const vid = variants?.length > 0 ? variants[0].id : null;
+              addItemToCart(id, 1, vid);
+            }}
+            className="quick-add-btn"
           >
             {quantityInCart > 0 ? (
               <><ShieldCheck size={14} color="#10b981" /> {quantityInCart} In Box</>
@@ -140,48 +150,79 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
       </div>
 
       {/* Editorial Content */}
-      <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-          <span style={{ color: 'var(--brand-gold)', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-             {sellerName}
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-             {[...Array(5)].map((_, i) => (
-               <Star key={i} size={10} fill={i < 4 ? "var(--brand-gold)" : "none"} color="var(--brand-gold)" />
-             ))}
-          </div>
+      <div className="product-card-content" style={{ flexGrow: 1 }}>
+        <div className="product-card-seller" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+          <Link
+            to={`/store/${sellerSlug}`}
+            style={{
+              color: brandColor || sellerInfo.brand_color || 'var(--brand-gold)',
+              fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase',
+              letterSpacing: '0.15em', textDecoration: 'none'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {sellerName}
+          </Link>
+          {origin && (
+            <span className="mobile-hide" style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {origin}
+            </span>
+          )}
         </div>
 
-        <h3 style={{ 
-          fontWeight: 600, fontSize: '1.15rem', fontFamily: 'var(--font-serif)', color: 'var(--bg-deep)',
-          lineHeight: 1.2, marginBottom: '0.3rem', letterSpacing: '-0.01em'
+        <Link to={`/product/${id}`} className="product-card-title" style={{
+          color: 'var(--text-primary)',
+          textDecoration: 'none',
+          display: '-webkit-box',
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
         }}>
           {name}
-        </h3>
-        
-        {/* Technical Stack */}
-        <div style={{ display: 'flex', gap: '0.8rem', marginBottom: '1.25rem' }}>
+        </Link>
+
+        {scientific_name && (
+          <p className="product-card-scientific mobile-hide" style={{
+            fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-secondary)',
+            marginBottom: '1rem', fontFamily: 'var(--font-serif)', opacity: 0.8
+          }}>
+            {scientific_name}
+          </p>
+        )}
+
+        {/* Technical Attributes */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          {growth_rate && (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.05em' }}>Growth</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-primary)' }}>{growth_rate}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.45rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800 }}>Growth</span>
-            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{growth_rate || 'Moderate'}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid #f1f5f9', paddingLeft: '0.8rem' }}>
-            <span style={{ fontSize: '0.45rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800 }}>Status</span>
-            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: quantityInCart > 0 ? '#10b981' : (stockStatus === 'Out of Stock' ? '#ef4444' : '#f59e0b') }}>
-              {stockStatus || 'In Stock'}
-            </span>
+            <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.05em' }}>Status</span>
+            {isLowStock ? (
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#ef4444' }}>
+                only {stockCount} left
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: computedStockStatus === 'Sold Out' ? '#ef4444' : '#10b981' }}>
+                {computedStockStatus}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Pricing Anchor */}
-        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-          <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#E67E22' }}>
-            ₹{minPrice.toLocaleString()}
-            {hasPriceRange && <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}> - ₹{maxPrice.toLocaleString()}</span>}
-          </span>
-          {originalPrice && (
-            <span style={{ fontSize: '0.8rem', color: '#94a3b8', textDecoration: 'line-through' }}>₹{originalPrice}</span>
-          )}
+        {/* Rating & Pricing Anchor */}
+        <div className="product-card-footer" style={{ display: 'flex', alignItems: 'center', marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.04)', gap: '0.75rem', justifyContent: 'space-between' }}>
+          <div className="mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Star size={12} fill={brandColor || "var(--brand-gold)"} color={brandColor || "var(--brand-gold)"} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>{reviews || '4.8'}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {originalPrice && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'line-through' }}>₹{originalPrice}</span>
+            )}
+            <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--bg-deep)' }}>₹{price}</span>
+          </div>
         </div>
       </div>
 

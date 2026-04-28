@@ -178,3 +178,116 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Visibility helpers */
+.mobile-only  { display: none !important; }
+.desktop-only { display: block !important; }
+
+@media (max-width: 1024px) {
+  .mobile-only       { display: flex !important; }
+  .mobile-only-block { display: block !important; }
+  .desktop-only      { display: none !important; }
+}
+
+/* ── Product Card ── */
+
+/* Desktop / tablet: vertical stack */
+.product-card-layout {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Desktop image is square */
+.product-card-img-wrapper {
+  aspect-ratio: 1 / 1;
+}
+
+/* Desktop title */
+.product-card-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  font-family: var(--font-serif);
+  line-height: 1.15;
+  margin-bottom: 0.4rem;
+  -webkit-line-clamp: 2;
+  min-height: 2.7rem;
+  letter-spacing: -0.015em;
+}
+
+/* Desktop content padding */
+.product-card-content {
+  padding: 1.5rem;
+}
+
+/* ── Mobile (≤ 768 px): horizontal card ── */
+@media (max-width: 768px) {
+
+  /* Single-column grid so cards span full width */
+  .grid-responsive {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Card flips to row */
+  .product-card-layout {
+    flex-direction: row !important;
+    align-items: stretch;
+    border-radius: 16px !important;
+    height: auto !important;
+  }
+
+  /* Fixed-width square thumbnail on the left */
+  .product-card-img-wrapper {
+    width: 130px !important;
+    min-width: 130px !important;
+    aspect-ratio: 1 / 1 !important;
+    flex-shrink: 0;
+  }
+
+  /* Right-side content */
+  .product-card-content {
+    padding: 0.75rem 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: 0.15rem;
+  }
+
+  /* Product name */
+  .product-card-title {
+    font-size: 0.95rem !important;
+    min-height: auto !important;
+    margin-bottom: 0.2rem !important;
+    -webkit-line-clamp: 2;
+  }
+
+  /* Price row – no top border, flush to name */
+  .product-card-footer {
+    margin-top: 0.25rem !important;
+    padding-top: 0 !important;
+    border-top: none !important;
+    justify-content: flex-start !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Seller name row – moves below price */
+  .product-card-seller {
+    order: 10;
+    margin-bottom: 0 !important;
+    margin-top: 0.3rem !important;
+  }
+
+  /* Hide secondary info on mobile */
+  .mobile-hide { display: none !important; }
+}
+
+/* ── Small phones (≤ 420 px) ── */
+@media (max-width: 420px) {
+  .product-card-img-wrapper {
+    width: 110px !important;
+    min-width: 110px !important;
+  }
+  .product-card-title {
+    font-size: 0.875rem !important;
+  }
+}

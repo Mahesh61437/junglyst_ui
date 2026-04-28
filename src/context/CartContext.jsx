@@ -106,8 +106,8 @@ export const CartProvider = ({ children }) => {
         if (group.weight >= HEAVY_WEIGHT_THRESHOLD) sellerShippingMet = true;
         else if (group.has_accessories && group.subtotal >= ACCESSORY_FREE) sellerShippingMet = true;
         else if (group.has_plants) {
-           if (!isMultiSeller && group.subtotal >= PLANT_SINGLE_SELLER_FREE) sellerShippingMet = true;
-           else if (isMultiSeller && subtotal >= PLANT_MULTI_SELLER_FREE) sellerShippingMet = true;
+          if (!isMultiSeller && group.subtotal >= PLANT_SINGLE_SELLER_FREE) sellerShippingMet = true;
+          else if (isMultiSeller && subtotal >= PLANT_MULTI_SELLER_FREE) sellerShippingMet = true;
         }
 
         if (!sellerShippingMet) allRulesMet = false;
@@ -137,7 +137,7 @@ export const CartProvider = ({ children }) => {
     try {
       const backendData = await CartService.getCart();
       const localItems = JSON.parse(localStorage.getItem('junglyst_cart') || '[]');
-      
+
       if (localItems.length > 0) {
         for (const item of localItems) {
           await CartService.addToCart(item.product.id, item.quantity, item.variant?.id);
@@ -161,7 +161,7 @@ export const CartProvider = ({ children }) => {
       if (localItems.length > 0) {
         setCart(calculateFinancials(localItems));
       }
-      
+
       if (isAuthenticated) {
         await syncCartWithBackend();
       } else {
@@ -237,12 +237,13 @@ export const CartProvider = ({ children }) => {
       return calculateFinancials(newItems);
     });
 
-    if (isAuthenticated && !item.id.toString().startsWith('temp-')) {
+    const newQuantity = item.quantity + change;
+    if (newQuantity > 0) {
       try {
         const updatedCart = await CartService.updateItem(item.id, newQuantity);
         setCart(calculateFinancials(updatedCart.items || []));
       } catch (error) {
-        console.error("Failed to sync quantity:", error);
+        console.error("Failed to update quantity:", error);
       }
     }
   };

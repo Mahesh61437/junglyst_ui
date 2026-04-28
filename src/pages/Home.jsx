@@ -14,7 +14,8 @@ export default function Home() {
       try {
         const data = await ProductService.getProducts();
         const results = data.results || data || [];
-        setProducts(results.slice(0, 8)); // Only show top 8 on home
+        const activeResults = results.filter((p) => p?.is_active !== false);
+        setProducts(activeResults.slice(0, 8)); // Only show top 8 on home
       } catch (error) {
         console.error("Failed to fetch products API:", error);
       } finally {
@@ -106,49 +107,68 @@ export default function Home() {
       </section>
 
       {/* Grower Spotlight */}
-      <section style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: '10rem 0', overflow: 'hidden' }}>
-        <div className="container" style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-          gap: '6rem', 
-          alignItems: 'center' 
+      <section style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: 'clamp(4rem, 8vw, 10rem) 0', overflow: 'hidden' }}>
+        <div className="container" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+          gap: 'clamp(2.5rem, 5vw, 6rem)',
+          alignItems: 'center'
         }}>
+          {/* Image block */}
           <div className="slide-up" style={{ position: 'relative' }}>
-             <div style={{ 
-               position: 'absolute', top: '-30px', left: '-30px', width: '100%', height: '100%', 
-               border: '1px solid rgba(255,255,255,0.08)', zIndex: 0 
-             }} />
-             <img 
-               src="https://images.unsplash.com/photo-1616645391185-36f78fecadad?w=800&q=80" 
-               alt="Grower Studio" 
-               style={{ width: '100%', height: '500px', objectFit: 'cover', position: 'relative', zIndex: 1, boxShadow: '20px 20px 60px rgba(0,0,0,0.3)' }} 
-             />
-             <div style={{ 
-               position: 'absolute', bottom: '40px', right: '-20px', backgroundColor: 'var(--brand-gold)', 
-               padding: '2rem', color: 'white', zIndex: 2, boxShadow: 'var(--shadow-lg)'
-             }}>
-                <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.5rem' }}>Studio Profile</p>
-                <p style={{ fontSize: '1.5rem', fontFamily: 'var(--font-serif)', fontWeight: 700 }}>Aquatic Exotica</p>
-             </div>
+            <div style={{
+              position: 'absolute', top: '-20px', left: '-20px', right: '20px', bottom: '20px',
+              border: '1px solid rgba(255,255,255,0.08)', zIndex: 0,
+              display: 'none' // hide on mobile via inline; we'll show on desktop via the media rule below
+            }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <img
+                src="https://images.unsplash.com/photo-1616645391185-36f78fecadad?w=800&q=80"
+                alt="Grower Studio"
+                style={{
+                  width: '100%',
+                  aspectRatio: '4 / 3',
+                  objectFit: 'cover',
+                  display: 'block',
+                  boxShadow: '20px 20px 60px rgba(0,0,0,0.3)'
+                }}
+              />
+              {/* Gold overlay card — sits inside the image bounds */}
+              <div style={{
+                position: 'absolute',
+                bottom: '1.25rem',
+                right: '1.25rem',
+                backgroundColor: 'var(--brand-gold)',
+                padding: 'clamp(0.875rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem)',
+                color: 'white',
+                zIndex: 2,
+                boxShadow: 'var(--shadow-lg)',
+                maxWidth: '65%'
+              }}>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: '0.4rem', opacity: 0.9 }}>Studio Profile</p>
+                <p style={{ fontSize: 'clamp(1rem, 3vw, 1.4rem)', fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>Aquatic Exotica</p>
+              </div>
+            </div>
           </div>
-          
+
+          {/* Text block */}
           <div className="slide-up" style={{ animationDelay: '0.2s' }}>
-            <span style={{ color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.25em' }}>Featured Grower</span>
-            <h2 style={{ fontSize: '4rem', margin: '1.5rem 0 2rem' }}>Cultivating the Extraordinary</h2>
-            <p style={{ fontSize: '1.25rem', opacity: 0.85, lineHeight: 1.8, marginBottom: '3rem', fontWeight: 300 }}>
+            <span style={{ color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.25em' }}>Featured Grower</span>
+            <h2 style={{ fontSize: 'clamp(1.75rem, 5vw, 3.75rem)', margin: '1.25rem 0 1.5rem', lineHeight: 1.1 }}>Cultivating the Extraordinary</h2>
+            <p style={{ fontSize: 'clamp(0.95rem, 2vw, 1.2rem)', opacity: 0.8, lineHeight: 1.8, marginBottom: '2.5rem', fontWeight: 300 }}>
               Based in the lush Western Ghats, Aquatic Exotica specializes in rare Bucephalandra and mosses. Every specimen is grown with precision in proprietary water-scapes, ensuring seamless transition to your aquarium.
             </p>
-            <Link to="/shop" style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                gap: '1rem', 
-                color: 'var(--brand-gold)', 
-                fontWeight: 700,
-                fontSize: '1rem',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase'
-              }}>
-                Shop the Collection <ArrowRight size={20} />
+            <Link to="/shop" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              color: 'var(--brand-gold)',
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase'
+            }}>
+              Shop the Collection <ArrowRight size={18} />
             </Link>
           </div>
         </div>
