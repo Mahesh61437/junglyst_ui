@@ -1,43 +1,47 @@
-import { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { CartService } from '../services/CartService';
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
-export function useCart() {
-  return useContext(CartContext);
-}
+export const useCart = () => useContext(CartContext);
 
-export function CartProvider({ children }) {
-  const { isAuthenticated, user } = useAuth();
+// Global Policy Constants
+const GST_RATE = 0.18;
+const GLOBAL_FREE_SHIPPING = 1500;
+const PLANT_SINGLE_SELLER_FREE = 699;
+const PLANT_MULTI_SELLER_FREE = 1000;
+const ACCESSORY_FREE = 500;
+const FLAT_SHIPPING_FEE = 49;
+const MAX_SELLERS = 3;
+const HEAVY_WEIGHT_THRESHOLD = 3; // 3kg
+const MAX_ITEM_QUANTITY = 10;
+
+export const CartProvider = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [cart, setCart] = useState({
     items: [],
     total_items: 0,
     subtotal: 0,
     tax_total: 0,
     shipping_total: 0,
-    grand_total: 0
+    grand_total: 0,
+    seller_groups: {},
+    remaining_for_free: 0
   });
   const [loading, setLoading] = useState(true);
 
-  // Constants for complex logistics
-  const GST_RATE = 0.18;
-  const GLOBAL_FREE_SHIPPING = 1500;
-  const PLANT_SINGLE_SELLER_FREE = 699;
-  const PLANT_MULTI_SELLER_FREE = 1000;
-  const ACCESSORY_FREE = 500;
-  const FLAT_SHIPPING_FEE = 49;
-  const MAX_SELLERS = 3;
-  const HEAVY_WEIGHT_THRESHOLD = 3; // 3kg
-
-  // Internal helper to calculate financials from a raw items list
+  // High-Performance Logistics Engine
   const calculateFinancials = useCallback((items = []) => {
-    if (!Array.isArray(items)) return { items: [], total_items: 0, subtotal: 0, tax_total: 0, shipping_total: 0, grand_total: 0, seller_groups: {} };
-
+    if (!Array.isArray(items)) return { items: [], total_items: 0, subtotal: 0, tax_total: 0, shipping_total: 0, grand_total: 0, seller_groups: {}, remaining_for_free: 0 };
+    
     // 1. Enforce Specimen Policy (Stock and Max Quantity)
     let adjustedItems = items.map(item => {
-      const stock = item.variant?.stock ?? 999;
-      const maxAllowed = Math.min(10, stock);
+      const product = item.product || {};
+      const variant = item.variant || {};
+      const stock = variant.stock ?? 999;
+      const maxAllowed = Math.min(MAX_ITEM_QUANTITY, stock);
+      
       if (item.quantity > maxAllowed) {
         return { ...item, quantity: maxAllowed, note: stock === 0 ? "Out of stock" : "Quantity adjusted" };
       }
@@ -47,10 +51,15 @@ export function CartProvider({ children }) {
     // 2. Group by Seller for Logistics Analysis
     const seller_groups = {};
     adjustedItems.forEach(item => {
-      const sellerId = item.product?.seller?.id || 'unknown';
+      if (item.note === "Out of stock") return;
+      
+      const product = item.product || {};
+      const variant = item.variant || {};
+      const sellerId = product.seller?.id || 'unknown';
+      
       if (!seller_groups[sellerId]) {
         seller_groups[sellerId] = {
-          seller: item.product?.seller || {},
+          seller: product.seller || {},
           items: [],
           subtotal: 0,
           weight: 0,
@@ -58,39 +67,35 @@ export function CartProvider({ children }) {
           has_accessories: false
         };
       }
-      const price = parseFloat(item.variant?.price || item.product?.price || 0);
-      const weight = parseFloat(item.variant?.weight || 0.5) * item.quantity;
-
+      
+      const price = parseFloat(variant.price || product.price || 0);
+      const weight = parseFloat(variant.weight || 0.5) * item.quantity;
+      
       seller_groups[sellerId].items.push(item);
       seller_groups[sellerId].subtotal += (price * item.quantity);
       seller_groups[sellerId].weight += weight;
-
-      // Determine category types for shipping rules
-      const catType = item.product?.categories?.[0]?.shipping_type || 'plant';
+      
+      // Category Detection
+      const catType = product.categories?.[0]?.shipping_type || 'plant';
       if (catType === 'plant') seller_groups[sellerId].has_plants = true;
       if (catType === 'accessory') seller_groups[sellerId].has_accessories = true;
     });
 
-    // Enforce 3 Seller Limit
-    const sellerIds = Object.keys(seller_groups);
-    if (sellerIds.length > MAX_SELLERS) {
-      alert(`AOV Policy: Curated collections are limited to ${MAX_SELLERS} unique studios. Please refine your selection.`);
-      // We could auto-remove or just warn. For now, we allow but keep the alert.
-    }
-
-    const subtotal = adjustedItems.reduce((acc, curr) => acc + (parseFloat(curr.variant?.price || curr.product?.price || 0) * curr.quantity), 0);
-
-    // Calculate GST internally (18% inclusive) for future filing/reporting
-    // Formula for inclusive GST: (Amount * 18) / 118
+    const subtotal = adjustedItems.reduce((acc, curr) => {
+       const p = parseFloat(curr.variant?.price || curr.product?.price || 0);
+       return acc + (p * curr.quantity);
+    }, 0);
+    
+    // Internal GST Component
     const tax_total = Math.round((subtotal * 18) / 118);
-
-    // 3. Calculate Global Logistics Fee
+    
+    // 3. Multi-Tier Logistics Calculation
     let shipping_total = 0;
-
+    const sellerIds = Object.keys(seller_groups);
+    
     if (subtotal >= GLOBAL_FREE_SHIPPING || subtotal === 0) {
       shipping_total = 0;
     } else {
-      // Calculate per seller or aggregate based on user rules
       const isMultiSeller = sellerIds.length > 1;
       let allRulesMet = true;
 
@@ -111,7 +116,6 @@ export function CartProvider({ children }) {
       shipping_total = allRulesMet ? 0 : FLAT_SHIPPING_FEE;
     }
 
-    // Grand total is subtotal + shipping (tax is already inside subtotal)
     const grand_total = subtotal + shipping_total;
     const total_items = adjustedItems.reduce((acc, curr) => acc + (curr?.quantity || 0), 0);
 
@@ -119,7 +123,7 @@ export function CartProvider({ children }) {
       items: adjustedItems,
       total_items,
       subtotal,
-      tax_total, // Maintained for internal order logging
+      tax_total,
       shipping_total,
       grand_total,
       seller_groups,
@@ -127,32 +131,20 @@ export function CartProvider({ children }) {
     };
   }, []);
 
-  // Save to localStorage whenever cart changes (for guest persistence)
-  useEffect(() => {
-    if (cart.items.length > 0 || !loading) {
-      localStorage.setItem('junglyst_cart', JSON.stringify(cart.items));
-    }
-  }, [cart.items, loading]);
-
-  // Sync Logic
+  // Sync Strategy
   const syncCartWithBackend = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const backendData = await CartService.getCart();
-      const backendItems = backendData.items || [];
-
-      // Merge Strategy: Local items take precedence if they exist
       const localItems = JSON.parse(localStorage.getItem('junglyst_cart') || '[]');
 
       if (localItems.length > 0) {
         for (const item of localItems) {
-          // Verify against stock if possible before adding
           await CartService.addToCart(item.product.id, item.quantity, item.variant?.id);
         }
         localStorage.removeItem('junglyst_cart');
       }
-
-      // Fetch fresh merged/adjusted cart
+      
       const finalData = await CartService.getCart();
       setCart(calculateFinancials(finalData.items || []));
     } catch (error) {
@@ -162,7 +154,7 @@ export function CartProvider({ children }) {
     }
   }, [isAuthenticated, calculateFinancials]);
 
-  // Initial Load
+  // Initial Load & Persistence
   useEffect(() => {
     const initCart = async () => {
       const localItems = JSON.parse(localStorage.getItem('junglyst_cart') || '[]');
@@ -179,20 +171,71 @@ export function CartProvider({ children }) {
     initCart();
   }, [isAuthenticated, syncCartWithBackend, calculateFinancials]);
 
+  useEffect(() => {
+    if (cart.items.length > 0 || !loading) {
+      localStorage.setItem('junglyst_cart', JSON.stringify(cart.items));
+    }
+  }, [cart.items, loading]);
+
   const addItemToCart = async (productId, quantity = 1, variantId = null) => {
-    try {
-      const updatedCart = await CartService.addToCart(productId, quantity, variantId);
-      setCart(calculateFinancials(updatedCart.items || []));
-      return true;
-    } catch (error) {
-      console.error("Failed to add to cart:", error);
+    const existing = cart.items.find(i => i.product.id === productId && (!variantId || i.variant?.id === variantId));
+    const currentQty = existing ? existing.quantity : 0;
+    
+    if (currentQty + quantity > MAX_ITEM_QUANTITY) {
+      alert(`Policy Limit: You can only acquire up to ${MAX_ITEM_QUANTITY} units of this specimen.`);
       return false;
     }
+
+    setCart(prev => {
+      const existingIndex = prev.items.findIndex(i => 
+        i.product.id === productId && (!variantId || i.variant?.id === variantId)
+      );
+      
+      let newItems = [...prev.items];
+      if (existingIndex > -1) {
+        newItems[existingIndex].quantity = Math.min(MAX_ITEM_QUANTITY, newItems[existingIndex].quantity + quantity);
+      } else {
+        newItems.push({
+          id: `temp-${Date.now()}`,
+          product: { id: productId },
+          variant: variantId ? { id: variantId } : null,
+          quantity: quantity
+        });
+      }
+      return calculateFinancials(newItems);
+    });
+
+    if (isAuthenticated) {
+      try {
+        const updatedCart = await CartService.addToCart(productId, quantity, variantId);
+        setCart(calculateFinancials(updatedCart.items || []));
+      } catch (error) {
+        console.error("Backend sync failed:", error);
+      }
+    }
+    return true;
   };
 
   const updateItemQuantity = async (itemIndex, change) => {
     const item = cart.items[itemIndex];
     if (!item) return;
+    
+    const newQuantity = item.quantity + change;
+    const stock = item.variant?.stock ?? 999;
+    const maxAllowed = Math.min(MAX_ITEM_QUANTITY, stock);
+
+    if (newQuantity > maxAllowed) {
+      alert(`Availability Limit: Only ${maxAllowed} units can be acquired.`);
+      return;
+    }
+    
+    if (newQuantity < 1) return;
+
+    setCart(prev => {
+      const newItems = [...prev.items];
+      newItems[itemIndex].quantity = newQuantity;
+      return calculateFinancials(newItems);
+    });
 
     const newQuantity = item.quantity + change;
     if (newQuantity > 0) {
@@ -209,7 +252,6 @@ export function CartProvider({ children }) {
     const item = cart.items[itemIndex];
     if (!item) return;
 
-    // Optimistic Update
     setCart(prev => {
       const newItems = prev.items.filter((_, i) => i !== itemIndex);
       return calculateFinancials(newItems);
@@ -228,25 +270,27 @@ export function CartProvider({ children }) {
   const clearCart = async () => {
     localStorage.removeItem('junglyst_cart');
     setCart(calculateFinancials([]));
-    if (isAuthenticated) {
-      // Backend clear logic if needed
-    }
   };
 
   return (
-    <CartContext.Provider value={{
-      cart,
-      loading,
-      addItemToCart,
-      updateItemQuantity,
-      removeItem,
-      clearCart,
+    <CartContext.Provider value={{ 
+      cart, 
+      loading, 
+      addItemToCart, 
+      updateItemQuantity, 
+      removeItem, 
+      clearCart, 
       fetchCart: syncCartWithBackend,
-      GST_RATE,
-      SHIPPING_THRESHOLD,
-      FLAT_SHIPPING
+      // Logistical Constants
+      GLOBAL_FREE_SHIPPING,
+      PLANT_SINGLE_SELLER_FREE,
+      PLANT_MULTI_SELLER_FREE,
+      ACCESSORY_FREE,
+      FLAT_SHIPPING_FEE,
+      MAX_SELLERS,
+      MAX_ITEM_QUANTITY
     }}>
       {children}
     </CartContext.Provider>
   );
-}
+};
