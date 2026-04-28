@@ -15,25 +15,24 @@ const isLight = (color) => {
   return luminance > 0.6;
 };
 
-export default function ProductCard({ id, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, stock, variants, seller, brandColor }) {
-  const { addItemToCart } = useCart();
+export default function ProductCard({ id, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants }) {
+  const { addItemToCart, cart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
-   const sellerInfo = seller?.seller_profile || {};
-   const sellerName = sellerInfo.store_name || seller?.full_name || 'Aqueous Exotica';
-   const sellerSlug = sellerInfo.slug || encodeURIComponent(sellerName);
-   const isSaved = isInWishlist(id);
-  
+  const sellerInfo = seller?.seller_profile || {};
+  const sellerName = sellerInfo.store_name || seller?.full_name || 'Aqueous Exotica';
+  const sellerSlug = sellerInfo.slug || encodeURIComponent(sellerName);
+  const isSaved = isInWishlist(id);
   const finalImage = getImageUrl(image);
-  const primaryVariantStock = Array.isArray(variants) ? variants?.[0]?.stock : undefined;
-  const rawStock = stock ?? primaryVariantStock;
-  const stockCount = typeof rawStock === 'number'
-    ? rawStock
-    : parseInt(rawStock ?? undefined, 10);
-  const isLowStock = Number.isFinite(stockCount) && stockCount > 0 && stockCount < 10;
-  const computedStockStatus =
-    Number.isFinite(stockCount)
-      ? (stockCount > 0 ? 'In Stock' : 'Sold Out')
-      : (stockStatus || 'In Stock');
+
+  // Calculate Price Range
+  const prices = variants?.length > 0 ? variants.map(v => parseFloat(v.price)) : [parseFloat(price)];
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const hasPriceRange = minPrice !== maxPrice;
+
+  // Check Cart Quantity
+  const cartItem = cart.items.find(item => item.product.id === id);
+  const quantityInCart = cartItem ? cartItem.quantity : 0;
 
   return (
     <div className="product-card product-card-layout" style={{
@@ -44,28 +43,30 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
       position: 'relative',
       border: '1px solid rgba(0,0,0,0.04)',
       boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
-      height: '100%'
+      height: '100%',
+      cursor: 'pointer'
     }}>
       {/* Visual Area */}
       <div className="product-card-img-wrapper" style={{ position: 'relative', backgroundColor: '#f8fafc', overflow: 'hidden' }}>
         <Link to={`/product/${id}`} style={{ display: 'block', height: '100%' }}>
-          <img 
-            src={finalImage} 
-            alt={name} 
+          <img
+            src={finalImage}
+            alt={name}
             loading="lazy"
-            style={{ 
-              width: '100%', 
-              height: '100%', 
+            style={{
+              width: '100%',
+              height: '100%',
               objectFit: 'cover',
               transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
-            }} 
+            }}
+            className="card-image"
             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
             onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
           />
         </Link>
 
         {/* Priority Save (Heart) */}
-        <button 
+        <button
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -73,10 +74,10 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
           }}
           style={{
             position: 'absolute',
-            top: '1.25rem',
-            right: '1.25rem',
-            width: '40px',
-            height: '40px',
+            top: '1rem',
+            right: '1rem',
+            width: '36px',
+            height: '36px',
             borderRadius: '50%',
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(10px)',
@@ -91,9 +92,9 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
             transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
           }}
         >
-          <Heart size={20} fill={isSaved ? (brandColor || "var(--brand-gold)") : "none"} strokeWidth={2} />
+          <Heart size={18} fill={isSaved ? (brandColor || "var(--brand-gold)") : "none"} strokeWidth={2} />
         </button>
-        
+
         {/* Boutique Overlay Actions (Glassmorphic) */}
         <div className="card-actions" style={{
           position: 'absolute',
@@ -107,54 +108,40 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
           transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           pointerEvents: 'none'
         }}>
-          <button 
-             onClick={(e) => {
-               e.preventDefault();
-               e.stopPropagation();
-               addItemToCart(id, 1);
-               alert(`${name} secured in Box.`);
-             }}
-             style={{ 
-                backgroundColor: brandColor || 'rgba(10, 48, 41, 0.95)', 
-                backdropFilter: 'blur(10px)',
-                color: (brandColor && isLight(brandColor)) ? '#1a2f1a' : 'white',
-                border: 'none',
-                borderRadius: '50px',
-                height: '44px',
-                flexGrow: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                cursor: 'pointer',
-                pointerEvents: 'auto',
-                boxShadow: `0 10px 20px ${(brandColor || '#0a3029')}30`
-             }}
+
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const vid = variants?.length > 0 ? variants[0].id : null;
+              addItemToCart(id, 1, vid);
+            }}
+            className="quick-add-btn"
           >
-            <ShoppingCart size={14} /> Acquisition
+            {quantityInCart > 0 ? (
+              <><ShieldCheck size={14} color="#10b981" /> {quantityInCart} In Box</>
+            ) : (
+              <><ShoppingCart size={14} /> Add to Cart</>
+            )}
           </button>
         </div>
 
-        {/* Attribute Badges Overlay */}
-        <div style={{ position: 'absolute', top: '1rem', left: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {/* Attribute Badges */}
+        <div style={{ position: 'absolute', top: '1rem', left: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           {trending && (
             <div style={{
-              backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', color: brandColor || 'var(--bg-deep)',
-              fontSize: '0.55rem', fontWeight: 900, padding: '0.35rem 0.75rem', borderRadius: '50px',
-              textTransform: 'uppercase', letterSpacing: '0.12em', boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+              backgroundColor: '#FF5722', color: 'white',
+              fontSize: '0.6rem', fontWeight: 900, padding: '0.3rem 0.7rem', borderRadius: '50px',
+              textTransform: 'uppercase', letterSpacing: '0.05em'
             }}>
-              Specimen Focus
+              TRENDING
             </div>
           )}
           {care_level && (
             <div style={{
               backgroundColor: 'rgba(10, 48, 41, 0.8)', backdropFilter: 'blur(8px)', color: 'white',
-              fontSize: '0.55rem', fontWeight: 800, padding: '0.35rem 0.75rem', borderRadius: '50px',
-              textTransform: 'uppercase', letterSpacing: '0.1em'
+              fontSize: '0.55rem', fontWeight: 800, padding: '0.3rem 0.6rem', borderRadius: '4px',
+              textTransform: 'uppercase', letterSpacing: '0.05em'
             }}>
               {care_level}
             </div>
@@ -165,16 +152,16 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
       {/* Editorial Content */}
       <div className="product-card-content" style={{ flexGrow: 1 }}>
         <div className="product-card-seller" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-          <Link 
-            to={`/store/${sellerSlug}`} 
-            style={{ 
-              color: brandColor || sellerInfo.brand_color || 'var(--brand-gold)', 
-              fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', 
+          <Link
+            to={`/store/${sellerSlug}`}
+            style={{
+              color: brandColor || sellerInfo.brand_color || 'var(--brand-gold)',
+              fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase',
               letterSpacing: '0.15em', textDecoration: 'none'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-             {sellerName}
+            {sellerName}
           </Link>
           {origin && (
             <span className="mobile-hide" style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -183,7 +170,7 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
           )}
         </div>
 
-        <Link to={`/product/${id}`} className="product-card-title" style={{ 
+        <Link to={`/product/${id}`} className="product-card-title" style={{
           color: 'var(--text-primary)',
           textDecoration: 'none',
           display: '-webkit-box',
@@ -192,18 +179,18 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         }}>
           {name}
         </Link>
-        
+
         {scientific_name && (
-          <p className="product-card-scientific mobile-hide" style={{ 
-            fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-secondary)', 
-            marginBottom: '1rem', fontFamily: 'var(--font-serif)', opacity: 0.8 
+          <p className="product-card-scientific mobile-hide" style={{
+            fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-secondary)',
+            marginBottom: '1rem', fontFamily: 'var(--font-serif)', opacity: 0.8
           }}>
             {scientific_name}
           </p>
         )}
 
         {/* Technical Attributes */}
-        <div className="product-card-meta mobile-hide" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {growth_rate && (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.05em' }}>Growth</span>
@@ -240,14 +227,44 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
       </div>
 
       <style>{`
-        .product-card:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 24px 48px -12px rgba(0,0,0,0.1);
-          border-color: ${brandColor || 'rgba(10, 48, 41, 0.1)'};
+        .card-hover-overlay {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 1rem;
+          opacity: 0;
+          transform: translateY(100%);
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          background: linear-gradient(to top, rgba(255,255,255,0.9), transparent);
+          z-index: 5;
         }
-        .product-card:hover .card-actions {
+        .quick-add-btn {
+          width: 100%;
+          background-color: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          padding: 0.8rem;
+          font-size: 0.8rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        .product-card:hover .card-image {
+          transform: scale(1.1);
+        }
+        .product-card:hover .card-hover-overlay {
           opacity: 1;
           transform: translateY(0);
+        }
+        .product-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.08);
         }
       `}</style>
     </div>

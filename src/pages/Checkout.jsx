@@ -2,20 +2,19 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { OrderService } from '../services/OrderService';
-import { ShieldCheck, Truck, ArrowLeft, CheckCircle } from 'lucide-react';
+import { ShieldCheck, Truck, ArrowLeft, MapPin, CreditCard, ShoppingBag, Info } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUtils';
 
 export default function Checkout() {
   const { cart, clearCart } = useCart();
   const navigate = useNavigate();
 
   const [shipping, setShipping] = useState({
-    firstName: '', lastName: '', address: '', city: '', zip: ''
+    firstName: '', lastName: '', address: '', city: '', zip: '', phone: '', email: ''
   });
   const [loading, setLoading] = useState(false);
-  const [ordered, setOrdered] = useState(false);
-  const [orderNum, setOrderNum] = useState('');
 
-  if (!cart || (cart.items.length === 0 && !ordered)) {
+  if (!cart || cart.items.length === 0) {
     navigate('/cart');
     return null;
   }
@@ -25,171 +24,183 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      const orderData = {
-        customer: `${shipping.firstName} ${shipping.lastName}`,
-        total: `₹${cart.grand_total.toFixed(2)}`,
-        items: cart.total_items
+      const checkoutData = {
+        cart_id: cart.id,
+        guest_info: {
+          email: shipping.email,
+          phone: shipping.phone,
+          address: shipping
+        }
       };
       
-      const newOrder = await OrderService.createOrder(orderData);
+      const response = await OrderService.checkout(checkoutData);
       await clearCart();
-      
-      setOrderNum(newOrder.id || 'JL-' + Math.floor(Math.random() * 100000));
-      setOrdered(true);
+      // Redirect to success page with order info
+      navigate('/checkout/success', { state: { order: response.order } });
     } catch (err) {
-      alert("Failed to process order");
+      console.error("Checkout failed:", err);
+      navigate('/checkout/failure', { state: { error: err.response?.data?.error } });
     } finally {
       setLoading(false);
     }
   };
 
-  if (ordered) {
-    return (
-      <div className="container" style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
-        <div className="slide-up">
-          <div style={{ color: 'var(--brand-green)', marginBottom: '2.5rem' }}>
-            <CheckCircle size={80} strokeWidth={1.5} />
-          </div>
-          <h1 style={{ fontSize: '3.5rem', marginBottom: '1.5rem' }}>Order Confirmed</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', marginBottom: '4rem', maxWidth: '600px', margin: '0 auto 4rem' }}>
-            Thank you, {shipping.firstName}. Your order <strong style={{ color: 'var(--bg-deep)' }}>#{orderNum}</strong> has been secured and is now entering our quarantine protocol.
-          </p>
-          <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
-            <button onClick={() => navigate('/shop')} className="btn btn-primary" style={{ padding: '1.125rem 3.5rem' }}>
-              Return to Gallery
-            </button>
-            <Link to="/profile" className="btn btn-outline" style={{ padding: '1.125rem 3.5rem' }}>
-              Track Order
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container" style={{ padding: '6rem 1rem 10rem' }}>
-      <div className="slide-up" style={{ marginBottom: '4.5rem' }}>
-        <Link to="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '2rem', textDecoration: 'none' }}>
-           <ArrowLeft size={16} /> Return to Collection
+    <div className="container" style={{ padding: '4rem 1rem 10rem' }}>
+      <div style={{ marginBottom: '3rem' }}>
+        <Link to="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
+           <ArrowLeft size={14} /> Back to Collection
         </Link>
-        <h1 style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>Secure Checkout</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>Complete your acquisition with encrypted security.</p>
       </div>
       
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5rem', alignItems: 'start' }}>
-        {/* Checkout Form */}
-        <div style={{ flex: '1 1 600px' }} className="slide-up">
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 450px', gap: '4rem', alignItems: 'start' }}>
+        {/* Acquisition Flow (Left) */}
+        <div className="slide-up">
+          <form id="checkout-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             
-            <div style={{ backgroundColor: 'white', padding: '3.5rem', borderRadius: '32px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '3rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)', fontWeight: 800 }}>1</div>
-                <h3 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Delivery Details</h3>
+            {/* Identity & Delivery */}
+            <section style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '24px', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f0f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg-deep)', fontSize: '0.8rem', fontWeight: 900 }}>1</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-serif)' }}>Logistics & Identity</h3>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>First Name <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required placeholder="E.g. John" value={shipping.firstName} onChange={e => setShipping({...shipping, firstName: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
+                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', color: '#64748b' }}>Email Contact</label>
+                  <input required type="email" placeholder="collector@email.com" value={shipping.email} onChange={e => setShipping({...shipping, email: e.target.value})} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>Last Name <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required placeholder="E.g. Doe" value={shipping.lastName} onChange={e => setShipping({...shipping, lastName: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
+                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', color: '#64748b' }}>Mobile Secure</label>
+                  <input required type="tel" placeholder="+91 XXXXX XXXXX" value={shipping.phone} onChange={e => setShipping({...shipping, phone: e.target.value})} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
                 </div>
               </div>
 
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>Shipping Address <span style={{ color: '#ef4444' }}>*</span></label>
-                <input required placeholder="Street address, apartment, suite" value={shipping.address} onChange={e => setShipping({...shipping, address: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>City / Region <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required placeholder="E.g. Kochi" value={shipping.city} onChange={e => setShipping({...shipping, city: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
+                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', color: '#64748b' }}>First Name</label>
+                  <input required value={shipping.firstName} onChange={e => setShipping({...shipping, firstName: e.target.value})} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>ZIP Code <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required placeholder="682001" value={shipping.zip} onChange={e => setShipping({...shipping, zip: e.target.value})} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }} />
+                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', color: '#64748b' }}>Last Name</label>
+                  <input required value={shipping.lastName} onChange={e => setShipping({...shipping, lastName: e.target.value})} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
                 </div>
               </div>
-            </div>
 
-            <div style={{ backgroundColor: 'white', padding: '3.5rem', borderRadius: '32px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '3rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)', fontWeight: 800 }}>2</div>
-                <h3 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Secure Payment</h3>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', color: '#64748b' }}>Field Address</label>
+                <input required placeholder="Street address, landmark, suite" value={shipping.address} onChange={e => setShipping({...shipping, address: e.target.value})} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
               </div>
 
-              <div style={{ border: '2px solid var(--brand-gold)', borderRadius: '20px', padding: '1.75rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1.25rem', backgroundColor: 'var(--bg-secondary)' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: '6px solid var(--brand-gold)', backgroundColor: 'white' }}></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', color: '#64748b' }}>City</label>
+                  <input required value={shipping.city} onChange={e => setShipping({...shipping, city: e.target.value})} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', color: '#64748b' }}>PIN Code</label>
+                  <input required placeholder="6XXXXX" value={shipping.zip} onChange={e => setShipping({...shipping, zip: e.target.value})} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
+                </div>
+              </div>
+            </section>
+
+            {/* Payment Method */}
+            <section style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '24px', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f0f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg-deep)', fontSize: '0.8rem', fontWeight: 900 }}>2</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-serif)' }}>Payment Vault</h3>
+              </div>
+
+              <div style={{ border: '2px solid var(--brand-gold)', borderRadius: '16px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', backgroundColor: '#fffdf9' }}>
+                <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '5px solid var(--brand-gold)', backgroundColor: 'white' }}></div>
                 <div style={{ flexGrow: 1 }}>
-                  <span style={{ fontWeight: 800, color: 'var(--bg-deep)', display: 'block', fontSize: '1.1rem' }}>Encrypted Payment Hub</span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Credit Card, UPI, and NetBanking via PayU</span>
+                  <span style={{ fontWeight: 800, color: 'var(--bg-deep)', display: 'block', fontSize: '0.95rem' }}>Secure Botanical Checkout</span>
+                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Cards, UPI, NetBanking • PayU Secured</span>
                 </div>
-                <ShieldCheck size={28} color="var(--brand-gold)" />
+                <ShieldCheck size={20} color="var(--brand-gold)" />
               </div>
-              
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, opacity: 0.8 }}>
-                 Your botanical order will be processed via our high-fidelity secure payment vault. You will be redirected to the secure gateway to complete your transaction.
-              </p>
-            </div>
-
-            <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', padding: '1.5rem', fontSize: '1.25rem' }}>
-              {loading ? 'Validating Acquisition...' : `SECURE ORDER • ₹${cart.grand_total.toLocaleString()}`}
-            </button>
+            </section>
           </form>
         </div>
 
-        {/* Order Summary */}
-        <aside style={{ flex: '1 1 400px', position: 'sticky', top: '8rem' }} className="slide-up">
-          <div style={{ backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-lg)' }}>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '2.5rem' }}>Specimen Summary</h3>
+        {/* Tactical Summary (Right) */}
+        <aside style={{ position: 'sticky', top: '8rem' }} className="slide-up">
+          <div style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '24px', border: '1px solid #f1f5f9', boxShadow: '0 20px 40px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-serif)' }}>Order Summary</h3>
+               <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', backgroundColor: '#ecfdf5', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>Secure</span>
+            </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2.5rem' }}>
-              {cart.items.map(item => (
-                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }}>
-                      <img src={item.product?.image_url || item.product?.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+            {/* Compact Item List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '2rem', paddingRight: '0.5rem' }}>
+              {cart.items.map(item => {
+                const product = item.product || {};
+                const variant = item.variant || {};
+                return (
+                  <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc' }}>
+                      <img src={getImageUrl(variant.image_url || product.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     </div>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{item.quantity}x {item.product?.title || item.product?.name}</span>
+                    <div style={{ flexGrow: 1 }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: 'var(--bg-deep)' }}>{product.name}</h4>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Qty: {item.quantity} • {variant.name || 'Standard'}</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>₹{((variant.price || product.price || 0) * item.quantity).toLocaleString()}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{(item.product.price * item.quantity).toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-            
-            <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '2.5rem 0' }}></div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                    <span>Subtotal</span>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{cart.subtotal.toLocaleString()}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                    <span>GST (18%)</span>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{cart.tax_total.toLocaleString()}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                    <span>Shipping</span>
-                    <span style={{ fontWeight: 700, color: cart.shipping_total === 0 ? 'var(--brand-green)' : 'var(--text-primary)' }}>
-                        {cart.shipping_total === 0 ? 'FREE' : `₹${cart.shipping_total.toLocaleString()}`}
-                    </span>
-                </div>
+                );
+              })}
             </div>
 
-            <div style={{ borderTop: '2px solid var(--bg-deep)', paddingTop: '2rem', display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '2rem' }}>
-              <span>Total</span>
-              <span>₹{cart.grand_total.toLocaleString()}</span>
+            <div style={{ borderTop: '1px solid #f1f5f9', padding: '1.5rem 0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+                  <span>Subtotal</span>
+                  <span style={{ fontWeight: 700, color: 'var(--bg-deep)' }}>₹{cart.subtotal.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+                  <span>Botanical GST (18%)</span>
+                  <span style={{ fontWeight: 700, color: 'var(--bg-deep)' }}>₹{cart.tax_total.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+                  <span>Priority Packaging</span>
+                  <span style={{ fontWeight: 700, color: cart.shipping_total === 0 ? '#10b981' : 'var(--bg-deep)' }}>
+                    {cart.shipping_total === 0 ? 'COMPLIMENTARY' : `₹${cart.shipping_total}`}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div style={{ marginTop: '3rem', padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '24px', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-               <Truck size={20} color="var(--brand-gold)" style={{ flexShrink: 0, marginTop: '0.2rem' }} />
-               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                 Orders are processed within <strong style={{ color: 'var(--bg-deep)' }}>24-48 hours</strong> with priority botanical shipping.
-               </p>
+            <div style={{ borderTop: '2px solid #000', paddingTop: '1.5rem', marginBottom: '2.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Acquisition</span>
+                <span style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--bg-deep)' }}>₹{cart.grand_total.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <button type="submit" form="checkout-form" disabled={loading} style={{ 
+              width: '100%', 
+              padding: '1.25rem', 
+              backgroundColor: 'var(--bg-deep)', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '14px', 
+              fontWeight: 800, 
+              fontSize: '1rem', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              transition: 'opacity 0.2s ease'
+            }}>
+              {loading ? 'Validating Specimens...' : `COMPLETE ACQUISITION`}
+            </button>
+
+            <div style={{ marginTop: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#64748b', fontSize: '0.7rem' }}>
+              <Info size={14} />
+              <span>By clicking, you agree to our Botanical Care and Shipping protocols.</span>
             </div>
           </div>
         </aside>
@@ -197,4 +208,3 @@ export default function Checkout() {
     </div>
   );
 }
-

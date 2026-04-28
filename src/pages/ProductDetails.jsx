@@ -589,7 +589,8 @@ export default function ProductDetails() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    style={{ background: 'none', border: 'none', color: 'var(--bg-deep)', cursor: 'pointer', padding: '0.25rem' }}
+                    style={{ background: 'none', border: 'none', color: 'var(--bg-deep)', cursor: 'pointer', padding: '0.25rem', opacity: quantity <= 1 ? 0.3 : 1 }}
+                    disabled={quantity <= 1}
                   >
                     <ChevronLeft size={22} strokeWidth={3} />
                   </button>
@@ -612,30 +613,28 @@ export default function ProductDetails() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button 
                   onClick={async () => {
-                    const safeQty = hasStockLimit ? Math.max(1, Math.min(quantity, Math.max(0, stockLimit))) : quantity;
-                    if (hasStockLimit && safeQty < 1) return;
-                    await addItemToCart(id, safeQty, selectedVariant?.id);
+                    await addItemToCart(id, quantity);
                     alert("Specimen secured in Box.");
                   }}
+                  disabled={!selectedVariant || selectedVariant.stock <= 0}
                   style={{ 
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: '2px solid var(--bg-deep)',
-                    backgroundColor: 'transparent', color: 'var(--bg-deep)', fontWeight: 800, cursor: isSoldOut ? 'not-allowed' : 'pointer',
+                    backgroundColor: 'transparent', color: 'var(--bg-deep)', fontWeight: 800, cursor: 'pointer',
                     transition: 'all 0.2s'
                   }}
-                  disabled={isSoldOut}
                   onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(10,31,28,0.05)'}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  ADD TO BOX
+                  {selectedVariant?.stock > 0 ? 'ADD TO BOX' : 'OUT OF STOCK'}
                 </button>
                 <button 
                   onClick={handleBuyNow}
+                  disabled={!selectedVariant || selectedVariant.stock <= 0}
                   style={{ 
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: 'none',
-                    backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: isSoldOut ? 'not-allowed' : 'pointer',
+                    backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer',
                     transition: 'all 0.2s', boxShadow: '0 10px 20px rgba(10,31,28,0.2)'
                   }}
-                  disabled={isSoldOut}
                   onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                   onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >

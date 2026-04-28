@@ -1,160 +1,166 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Truck, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { Trash2, Truck, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Bookmark, Info, HelpCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
+import { getImageUrl } from '../utils/imageUtils';
 
 export default function Cart() {
-  const { cart, loading, updateItemQuantity, removeItem } = useCart();
+  const { cart, loading, updateItemQuantity, removeItem, GLOBAL_FREE_SHIPPING, PLANT_SINGLE_SELLER_FREE } = useCart();
+  const { addToWishlist } = useWishlist();
   const navigate = useNavigate();
 
   if (loading) {
-     return (
-       <div className="container" style={{ padding: '8rem 0', textAlign: 'center' }}>
-         <div className="fade-in" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Assembling your collection...</div>
-       </div>
-     );
+    return (
+      <div className="container" style={{ padding: '8rem 0', textAlign: 'center' }}>
+        <div className="fade-in" style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: 800 }}>Analyzing Logistics...</div>
+      </div>
+    );
   }
 
   if (!cart || !cart.items || cart.items.length === 0) {
     return (
-      <div className="container" style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
+      <div className="container" style={{ padding: '8rem 1.5rem', textAlign: 'center' }}>
         <div className="slide-up">
-          <div style={{ backgroundColor: 'var(--bg-secondary)', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: 'var(--brand-gold)' }}>
-            <ShoppingBag size={32} />
+          <div style={{ backgroundColor: '#f8fafc', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', color: '#cbd5e1' }}>
+            <ShoppingBag size={32} strokeWidth={1} />
           </div>
-          <h1 style={{ fontSize: '3.5rem', marginBottom: '1.5rem' }}>Your Collection</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '3.5rem', fontSize: '1.125rem', maxWidth: '500px', margin: '0 auto 3.5rem' }}>Your boutique collection is currently empty. Discover rare specimens in our seasonal gallery.</p>
-          <Link to="/shop" className="btn btn-primary" style={{ padding: '1.125rem 3.5rem' }}>Explore Gallery</Link>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', fontFamily: 'var(--font-serif)', color: 'var(--bg-deep)' }}>Your Sanctuary is Empty</h1>
+          <Link to="/shop" className="btn btn-primary" style={{ padding: '1rem 3rem', borderRadius: '100px' }}>Explore Gallery</Link>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="container" style={{ padding: '6rem 1rem 10rem' }}>
-      <div className="slide-up" style={{ marginBottom: '4.5rem' }}>
-        <h1 style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>The Collection</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>Your curated selections awaiting fulfillment.</p>
-      </div>
-      
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5rem', alignItems: 'start' }}>
-        {/* Cart Items */}
-        <div style={{ flex: '1 1 600px', display: 'flex', flexDirection: 'column', gap: '2rem' }} className="slide-up">
-          {cart.items.map((item, index) => (
-            (() => {
-              const stockLimitRaw = item?.variant?.stock ?? item?.product?.stock ?? null;
-              const stockLimit = typeof stockLimitRaw === 'number' ? stockLimitRaw : parseInt(stockLimitRaw ?? '', 10);
-              const hasStockLimit = Number.isFinite(stockLimit);
-              const canDecrement = (item.quantity || 0) > 0;
-              const canIncrement = !hasStockLimit || (item.quantity || 0) < stockLimit;
-              const lowStock = hasStockLimit && stockLimit > 0 && stockLimit < 10;
-              return (
-            <div key={item.id} style={{ 
-              backgroundColor: 'white',
-              padding: '2rem',
-              borderRadius: '24px',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex', 
-              gap: '2rem',
-              flexWrap: 'wrap',
-              transition: 'all 0.3s ease',
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ width: '140px', height: '140px', borderRadius: '16px', overflow: 'hidden', flexShrink: 0, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }}>
-                <img src={item.product?.image_url || item.product?.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={item.product?.name} />
-              </div>
-              <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div>
-                     <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>
-                        <Link to={`/product/${item.product?.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>{item.product?.name || item.product?.title}</Link>
-                     </h3>
-                     <p style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>
-                        {item.product?.category || 'Rare Specimen'}
-                     </p>
-                     {lowStock && (
-                       <p style={{ marginTop: '0.4rem', color: '#ef4444', fontWeight: 800, fontSize: '0.8rem' }}>
-                         only {stockLimit} left
-                       </p>
-                     )}
-                  </div>
-                  <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--bg-deep)' }}>₹{item.product?.price}</div>
-                </div>
-                
-                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '100px', padding: '0.35rem' }}>
-                    <button
-                      onClick={() => updateItemQuantity(index, -1)}
-                      disabled={!canDecrement}
-                      style={{
-                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)',
-                        cursor: canDecrement ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: canDecrement ? 1 : 0.4
-                      }}
-                    >-</button>
-                    <span style={{ padding: '0 1.25rem', fontWeight: 800, fontSize: '0.95rem', minWidth: '40px', textAlign: 'center' }}>{item.quantity}</span>
-                    <button
-                      onClick={() => updateItemQuantity(index, 1)}
-                      disabled={!canIncrement}
-                      style={{
-                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'white', borderRadius: '50%', border: '1px solid var(--border-subtle)',
-                        cursor: canIncrement ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: canIncrement ? 1 : 0.4
-                      }}
-                    >+</button>
-                  </div>
-                  <button onClick={() => removeItem(index)} style={{ background: 'none', border: 'none', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    <Trash2 size={16} /> Remove
-                  </button>
-                </div>
-              </div>
-            </div>
-              );
-            })()
-          ))}
+  const sellerGroups = cart.seller_groups || {};
 
-          <Link to="/shop" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginTop: '2rem', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 700, textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            <ArrowLeft size={18} /> Continue Discovery
-          </Link>
+  return (
+    <div className="container" style={{ padding: '3rem 1rem 10rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '3rem', alignItems: 'start' }}>
+
+        {/* Main Cart Content */}
+        <div className="slide-up">
+          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '24px', border: '1px solid #f1f5f9', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1.5rem' }}>
+              <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Shopping Cart</h1>
+              <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Price</span>
+            </div>
+
+            {/* Seller Grouping */}
+            {Object.entries(sellerGroups).map(([sellerId, group]) => (
+              <div key={sellerId} style={{ marginBottom: '4rem' }}>
+                {/* Seller Header & Progress */}
+                <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#fcfdfc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sold by: {group.seller?.seller_profile?.store_name || "Botanical Studio"}</span>
+                      <div style={{ height: '12px', width: '1px', backgroundColor: '#e2e8f0' }}></div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#10b981' }}>Verified Grower</span>
+                    </div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Group Subtotal: ₹{group.subtotal.toLocaleString()}</span>
+                  </div>
+
+                  {/* Logistics Indicator */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ flexGrow: 1, height: '4px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, (group.subtotal / PLANT_SINGLE_SELLER_FREE) * 100)}%`, backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
+                    </div>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: group.subtotal >= PLANT_SINGLE_SELLER_FREE ? '#10b981' : '#64748b' }}>
+                      {group.subtotal >= PLANT_SINGLE_SELLER_FREE ? 'FREE DELIVERY UNLOCKED' : `Add ₹${(PLANT_SINGLE_SELLER_FREE - group.subtotal).toLocaleString()} for Free Shipping`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Items in this group */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                  {group.items.map((item, idx) => {
+                    const product = item.product || {};
+                    const variant = item.variant || {};
+                    return (
+                      <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 100px', gap: '2rem' }}>
+                        <div style={{ width: '180px', height: '180px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+                          <img src={getImageUrl(variant.image_url || product.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--bg-deep)' }}>{product.name}</h3>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#10b981', fontSize: '0.75rem', fontWeight: 700 }}>
+                            In Stock • Rare Specimen
+                          </div>
+                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Variant: {variant.name || 'Standard'} • {variant.weight || 0.5}kg</span>
+
+                          {/* Controls Row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: 'auto', paddingBottom: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.2rem' }}>
+                              <button onClick={() => updateItemQuantity(cart.items.indexOf(item), -1)} style={{ padding: '0.25rem 0.75rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800 }}>-</button>
+                              <span style={{ padding: '0 0.5rem', fontSize: '0.9rem', fontWeight: 800 }}>{item.quantity}</span>
+                              <button onClick={() => updateItemQuantity(cart.items.indexOf(item), 1)} style={{ padding: '0.25rem 0.75rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800 }}>+</button>
+                            </div>
+                            <div style={{ height: '16px', width: '1px', backgroundColor: '#e2e8f0' }}></div>
+                            <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#007185', fontSize: '0.8rem', cursor: 'pointer' }}>Delete</button>
+                            <div style={{ height: '16px', width: '1px', backgroundColor: '#e2e8f0' }}></div>
+                            <button onClick={() => addToWishlist(product.id)} style={{ background: 'none', border: 'none', color: '#007185', fontSize: '0.8rem', cursor: 'pointer' }}>Save for later</button>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', fontWeight: 800, fontSize: '1.25rem' }}>
+                          ₹{((variant.price || product.price || 0) * item.quantity).toLocaleString()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Order Summary */}
-        <aside style={{ flex: '1 1 380px', position: 'sticky', top: '8rem' }} className="slide-up">
-          <div style={{ backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-lg)' }}>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '2.5rem' }}>Concierge Summary</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                <span>Subtotal</span>
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{cart.subtotal.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                <span>GST (18%)</span>
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{cart.tax_total.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: 'var(--text-secondary)' }}>
-                <span>Shipping</span>
-                <span style={{ fontWeight: 700, color: cart.shipping_total === 0 ? 'var(--brand-green)' : 'var(--text-primary)' }}>
-                   {cart.shipping_total === 0 ? 'FREE' : `₹${cart.shipping_total.toFixed(2)}`}
-                </span>
-              </div>
-            </div>
-            
-            <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '2.5rem 0' }}></div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3rem', fontWeight: 800, fontSize: '1.75rem' }}>
-              <span>Total</span>
-              <span>₹{cart.grand_total.toFixed(2)}</span>
+        {/* Amazon-Style Sidebar */}
+        <aside style={{ position: 'sticky', top: '2rem' }}>
+          {/* Subtotal Card */}
+          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '12px', border: '1px solid #f1f5f9', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10b981', marginBottom: '1rem' }}>
+              <CheckCircle size={18} fill="#10b981" color="white" />
+              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Your order qualifies for FREE Delivery.</span>
             </div>
 
-            <button onClick={() => navigate('/checkout')} className="btn btn-primary" style={{ width: '100%', padding: '1.25rem', fontSize: '1.125rem' }}>
-              SECURE CHECKOUT
+            <div style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>
+              Subtotal ({cart.total_items} items): <strong style={{ fontWeight: 800 }}>₹{cart.subtotal.toLocaleString()}</strong>
+            </div>
+
+            <button onClick={() => navigate('/checkout')} style={{
+              width: '100%',
+              padding: '0.85rem',
+              backgroundColor: '#ffd814',
+              border: '1px solid #fcd200',
+              borderRadius: '100px',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 5px rgba(213,217,217,.5)'
+            }}>
+              Proceed to Buy
             </button>
-            
-            <div style={{ marginTop: '2.5rem', padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '20px', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-              <Truck size={20} color="var(--brand-gold)" style={{ flexShrink: 0, marginTop: '0.2rem' }} />
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                <strong style={{ color: 'var(--bg-deep)' }}>Premium Live Packaging</strong>. Each specimen is thermal-locked for safe delivery to your collection.
-              </p>
+
+            <div style={{ marginTop: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+              <span style={{ fontSize: '0.85rem' }}>EMI Available</span>
+              <ChevronRight size={18} />
+            </div>
+          </div>
+
+          {/* Related Specimens (Mock Discovery) */}
+          <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.25rem' }}>Recommended for your Collection</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {[1, 2].map(i => (
+                <div key={i} style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ width: '80px', height: '80px', backgroundColor: '#f8fafc', borderRadius: '8px', flexShrink: 0 }}></div>
+                  <div>
+                    <h5 style={{ fontSize: '0.8rem', color: '#007185', margin: '0 0 0.25rem', cursor: 'pointer' }}>Rare Monstera Adansonii Variegata</h5>
+                    <div style={{ color: '#c45500', fontSize: '0.75rem', fontWeight: 700 }}>₹2,499.00</div>
+                    <button style={{ marginTop: '0.5rem', padding: '0.25rem 0.75rem', fontSize: '0.7rem', backgroundColor: 'white', border: '1px solid #d5d9d9', borderRadius: '100px', cursor: 'pointer' }}>Add to Cart</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </aside>
@@ -163,3 +169,11 @@ export default function Cart() {
   );
 }
 
+function CheckCircle({ size, fill, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>
+  );
+}
