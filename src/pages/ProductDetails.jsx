@@ -440,7 +440,7 @@ export default function ProductDetails() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button 
                   onClick={async () => {
-                    await addItemToCart(id, quantity);
+                    await addItemToCart(id, quantity, selectedVariant?.id);
                     alert("Specimen secured in Box.");
                   }}
                   style={{ 

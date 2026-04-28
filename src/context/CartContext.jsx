@@ -88,6 +88,10 @@ export function CartProvider({ children }) {
       } catch (error) {
         console.error("Failed to update quantity:", error);
       }
+    } else if (newQuantity === 0) {
+      if (window.confirm("Do you want to remove this item from your Box?")) {
+        removeItem(itemIndex);
+      }
     }
   };
 

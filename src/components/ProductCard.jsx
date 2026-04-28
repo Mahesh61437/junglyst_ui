@@ -104,7 +104,6 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
                e.preventDefault();
                e.stopPropagation();
                addItemToCart(id, 1);
-               alert(`${name} secured in Box.`);
              }}
              style={{ 
                 backgroundColor: brandColor || 'rgba(10, 48, 41, 0.95)', 
@@ -123,7 +122,6 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
                 textTransform: 'uppercase',
                 letterSpacing: '0.12em',
                 cursor: 'pointer',
-                pointerEvents: 'auto',
                 boxShadow: `0 10px 20px ${(brandColor || '#0a3029')}30`
              }}
           >
@@ -232,6 +230,7 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         .product-card:hover .card-actions {
           opacity: 1;
           transform: translateY(0);
+          pointer-events: auto;
         }
       `}</style>
     </div>
