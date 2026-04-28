@@ -441,7 +441,6 @@ export default function ProductDetails() {
                 <button 
                   onClick={async () => {
                     await addItemToCart(id, quantity, selectedVariant?.id);
-                    alert("Specimen secured in Box.");
                   }}
                   style={{ 
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: '2px solid var(--bg-deep)',
