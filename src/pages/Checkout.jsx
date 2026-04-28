@@ -156,12 +156,8 @@ export default function Checkout() {
             <div style={{ borderTop: '1px solid #f1f5f9', padding: '1.5rem 0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
-                  <span>Subtotal</span>
+                  <span>Subtotal <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>(GST Incl.)</span></span>
                   <span style={{ fontWeight: 700, color: 'var(--bg-deep)' }}>₹{cart.subtotal.toLocaleString()}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
-                  <span>Botanical GST (18%)</span>
-                  <span style={{ fontWeight: 700, color: 'var(--bg-deep)' }}>₹{cart.tax_total.toLocaleString()}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
                   <span>Priority Packaging</span>

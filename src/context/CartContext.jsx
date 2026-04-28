@@ -79,7 +79,10 @@ export function CartProvider({ children }) {
     }
 
     const subtotal = adjustedItems.reduce((acc, curr) => acc + (parseFloat(curr.variant?.price || curr.product?.price || 0) * curr.quantity), 0);
-    const tax_total = Math.round(subtotal * GST_RATE);
+
+    // Calculate GST internally (18% inclusive) for future filing/reporting
+    // Formula for inclusive GST: (Amount * 18) / 118
+    const tax_total = Math.round((subtotal * 18) / 118);
 
     // 3. Calculate Global Logistics Fee
     let shipping_total = 0;
@@ -108,14 +111,15 @@ export function CartProvider({ children }) {
       shipping_total = allRulesMet ? 0 : FLAT_SHIPPING_FEE;
     }
 
-    const grand_total = subtotal + tax_total + shipping_total;
+    // Grand total is subtotal + shipping (tax is already inside subtotal)
+    const grand_total = subtotal + shipping_total;
     const total_items = adjustedItems.reduce((acc, curr) => acc + (curr?.quantity || 0), 0);
 
     return {
       items: adjustedItems,
       total_items,
       subtotal,
-      tax_total,
+      tax_total, // Maintained for internal order logging
       shipping_total,
       grand_total,
       seller_groups,
