@@ -94,6 +94,7 @@ export default function Home() {
                 reviews={product.rating || 4.8}
                 stockStatus={product.stock > 0 ? "In Stock" : "Sold Out"}
                 seller={{ name: product.seller?.name || "Verified Grower" }}
+                stock={product.stock}
               />
             ))}
           </div>

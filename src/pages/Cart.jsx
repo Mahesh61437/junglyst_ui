@@ -96,7 +96,7 @@ export default function Cart() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#64748b' }}>
                               <span style={{ fontWeight: 800, color: 'var(--bg-deep)' }}>Weight:</span> {variant.weight || 0.5}kg
                             </div>
-                            {stock < 5 && (
+                            {stock > 0 && stock < 10 && (
                               <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 800 }}>
                                 Only {stock} specimens remaining
                               </div>

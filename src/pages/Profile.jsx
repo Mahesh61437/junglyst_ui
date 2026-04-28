@@ -7,13 +7,14 @@ import {
   LayoutDashboard, ShoppingBag, Store, ExternalLink,
   Camera, Settings, CheckCircle2, Save, X, Bell, Loader2
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 
 export default function Profile() {
   const { user, logout, updateUser } = useAuth();
   const { wishlist } = useWishlist();
-  const [activeTab, setActiveTab] = useState('identity');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'identity');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -27,6 +28,12 @@ export default function Profile() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state?.tab]);
+
+  useEffect(() => {
     if (user) {
       setFormData({
         full_name: user.full_name || '',
@@ -36,12 +43,6 @@ export default function Profile() {
       });
     }
   }, [user]);
-
-  useEffect(() => {
-    if (user && activeTab === 'history') {
-      fetchOrders();
-    }
-  }, [user, activeTab]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -54,6 +55,12 @@ export default function Profile() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user && activeTab === 'history') {
+      fetchOrders();
+    }
+  }, [user, activeTab]);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -128,14 +135,6 @@ export default function Profile() {
 
   const isSeller = user.role === 'grower' || user.is_verified_seller || user.username === 'aquaticexotica';
 
-  const sidebarItems = [
-    { id: 'identity', icon: <User size={20} />, label: 'Identity Details' },
-    { id: 'history', icon: <Package size={20} />, label: 'Acquisition History' },
-    { id: 'wishlist', icon: <Heart size={20} />, label: 'Curated Wishlist' },
-    { id: 'notifications', icon: <Bell size={20} />, label: 'Studio Updates' },
-    { id: 'security', icon: <ShieldCheck size={20} />, label: 'Security & Access' }
-  ];
-
   const defaultAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name || user.username}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`;
 
   return (
@@ -183,99 +182,8 @@ export default function Profile() {
         </div>
       </header>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5rem', alignItems: 'start' }}>
-        {/* Navigation / Actions */}
-        <aside style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }} className="slide-up">
-           <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid var(--border-subtle)', padding: '1.5rem', marginBottom: '1rem' }}>
-             <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', paddingLeft: '1rem' }}>Collector Hub</p>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {sidebarItems.map((item) => (
-                <button 
-                  key={item.id} 
-                  onClick={() => setActiveTab(item.id)}
-                  style={{ 
-                    display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.25rem 1.5rem', 
-                    backgroundColor: activeTab === item.id ? 'var(--bg-deep)' : 'transparent', 
-                    color: activeTab === item.id ? 'white' : 'var(--text-primary)', 
-                    border: 'none', 
-                    borderRadius: '16px', 
-                    fontWeight: 700, 
-                    cursor: 'pointer', 
-                    textAlign: 'left', 
-                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}>
-                  <div style={{ color: activeTab === item.id ? 'var(--brand-gold)' : 'inherit' }}>{item.icon}</div>
-                  <span style={{ flexGrow: 1 }}>{item.label}</span>
-                  {activeTab === item.id && <ChevronRight size={16} />}
-                </button>
-              ))}
-             </div>
-           </div>
-
-           {isSeller && (
-             <div style={{ backgroundColor: 'rgba(10, 48, 41, 0.03)', borderRadius: '24px', border: '1px solid rgba(10, 48, 41, 0.1)', padding: '1.5rem' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingLeft: '1rem' }}>
-                 <Award size={18} color="var(--brand-gold)" />
-                 <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Grower Studio Tools</p>
-               </div>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                 <button 
-                   onClick={() => navigate('/seller/dashboard')}
-                   style={{ 
-                    display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.25rem 1.5rem', 
-                    backgroundColor: 'var(--bg-deep)', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '16px', 
-                    fontWeight: 700, 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 10px 20px rgba(10, 48, 41, 0.15)'
-                  }}>
-                   <LayoutDashboard size={20} color="var(--brand-gold)" /> 
-                   <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                     <span style={{ fontSize: '0.9rem' }}>Seller Dashboard</span>
-                     <span style={{ fontSize: '0.65rem', opacity: 0.7, fontWeight: 500 }}>Manage Specimens & Orders</span>
-                   </div>
-                   <ExternalLink size={16} style={{ marginLeft: 'auto' }} />
-                 </button>
-                 <button 
-                   onClick={() => navigate(`/store/${user.username}`)}
-                   style={{ 
-                    display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.25rem 1.5rem', 
-                    backgroundColor: 'white', 
-                    color: 'var(--bg-deep)', 
-                    border: '1px solid var(--border-subtle)', 
-                    borderRadius: '16px', 
-                    fontWeight: 700, 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}>
-                   <Store size={20} color="var(--brand-gold)" /> 
-                   <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                     <span style={{ fontSize: '0.9rem' }}>View Public Store</span>
-                     <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 500 }}>How collectors see you</span>
-                   </div>
-                   <ChevronRight size={16} style={{ marginLeft: 'auto' }} />
-                 </button>
-               </div>
-             </div>
-           )}
-
-           <button onClick={logout} style={{ 
-             display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.5rem 2rem', backgroundColor: 'transparent', 
-             color: '#ef4444', border: '1px solid #fee2e2', borderRadius: '24px', 
-             fontWeight: 700, cursor: 'pointer', textAlign: 'left', marginTop: '2rem', transition: 'all 0.2s'
-           }}
-           onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fff5f5'}
-           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-           >
-             <LogOut size={20} /> Sign Out
-           </button>
-        </aside>
-
         {/* Content Area */}
-        <div style={{ flex: '1 1 600px', display: 'flex', flexDirection: 'column', gap: '4rem' }} className="slide-up">
+        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: 'clamp(2rem, 5vw, 4rem)', minWidth: 0, maxWidth: '800px', margin: '0 auto' }} className="slide-up">
           
           {activeTab === 'identity' && (
             <div className="fade-in">
@@ -518,6 +426,8 @@ export default function Profile() {
             </div>
           )}
 
+
+
           {/* Botanical Partner Section (Always visible at bottom of content) */}
           <section style={{ backgroundColor: 'var(--bg-deep)', borderRadius: '48px', padding: '5rem', color: 'white', position: 'relative', overflow: 'hidden', marginTop: '2rem' }}>
              <div style={{ position: 'relative', zIndex: 1 }}>
@@ -535,7 +445,6 @@ export default function Profile() {
              <div style={{ position: 'absolute', right: '-40px', bottom: '-40px', fontSize: '20rem', opacity: 0.05, transform: 'rotate(-15deg)' }}>🌿</div>
           </section>
         </div>
-      </div>
 
       <style>{`
         @keyframes spin {

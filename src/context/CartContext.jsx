@@ -34,14 +34,14 @@ export const CartProvider = ({ children }) => {
   // High-Performance Logistics Engine
   const calculateFinancials = useCallback((items = []) => {
     if (!Array.isArray(items)) return { items: [], total_items: 0, subtotal: 0, tax_total: 0, shipping_total: 0, grand_total: 0, seller_groups: {}, remaining_for_free: 0 };
-    
+
     // 1. Enforce Specimen Policy (Stock and Max Quantity)
     let adjustedItems = items.map(item => {
       const product = item.product || {};
       const variant = item.variant || {};
       const stock = variant.stock ?? 999;
       const maxAllowed = Math.min(MAX_ITEM_QUANTITY, stock);
-      
+
       if (item.quantity > maxAllowed) {
         return { ...item, quantity: maxAllowed, note: stock === 0 ? "Out of stock" : "Quantity adjusted" };
       }
@@ -52,11 +52,11 @@ export const CartProvider = ({ children }) => {
     const seller_groups = {};
     adjustedItems.forEach(item => {
       if (item.note === "Out of stock") return;
-      
+
       const product = item.product || {};
       const variant = item.variant || {};
       const sellerId = product.seller?.id || 'unknown';
-      
+
       if (!seller_groups[sellerId]) {
         seller_groups[sellerId] = {
           seller: product.seller || {},
@@ -67,14 +67,14 @@ export const CartProvider = ({ children }) => {
           has_accessories: false
         };
       }
-      
+
       const price = parseFloat(variant.price || product.price || 0);
       const weight = parseFloat(variant.weight || 0.5) * item.quantity;
-      
+
       seller_groups[sellerId].items.push(item);
       seller_groups[sellerId].subtotal += (price * item.quantity);
       seller_groups[sellerId].weight += weight;
-      
+
       // Category Detection
       const catType = product.categories?.[0]?.shipping_type || 'plant';
       if (catType === 'plant') seller_groups[sellerId].has_plants = true;
@@ -82,17 +82,17 @@ export const CartProvider = ({ children }) => {
     });
 
     const subtotal = adjustedItems.reduce((acc, curr) => {
-       const p = parseFloat(curr.variant?.price || curr.product?.price || 0);
-       return acc + (p * curr.quantity);
+      const p = parseFloat(curr.variant?.price || curr.product?.price || 0);
+      return acc + (p * curr.quantity);
     }, 0);
-    
+
     // Internal GST Component
     const tax_total = Math.round((subtotal * 18) / 118);
-    
+
     // 3. Multi-Tier Logistics Calculation
     let shipping_total = 0;
     const sellerIds = Object.keys(seller_groups);
-    
+
     if (subtotal >= GLOBAL_FREE_SHIPPING || subtotal === 0) {
       shipping_total = 0;
     } else {
@@ -144,7 +144,7 @@ export const CartProvider = ({ children }) => {
         }
         localStorage.removeItem('junglyst_cart');
       }
-      
+
       const finalData = await CartService.getCart();
       setCart(calculateFinancials(finalData.items || []));
     } catch (error) {
@@ -180,17 +180,17 @@ export const CartProvider = ({ children }) => {
   const addItemToCart = async (productId, quantity = 1, variantId = null) => {
     const existing = cart.items.find(i => i.product.id === productId && (!variantId || i.variant?.id === variantId));
     const currentQty = existing ? existing.quantity : 0;
-    
+
     if (currentQty + quantity > MAX_ITEM_QUANTITY) {
       alert(`Policy Limit: You can only acquire up to ${MAX_ITEM_QUANTITY} units of this specimen.`);
       return false;
     }
 
     setCart(prev => {
-      const existingIndex = prev.items.findIndex(i => 
+      const existingIndex = prev.items.findIndex(i =>
         i.product.id === productId && (!variantId || i.variant?.id === variantId)
       );
-      
+
       let newItems = [...prev.items];
       if (existingIndex > -1) {
         newItems[existingIndex].quantity = Math.min(MAX_ITEM_QUANTITY, newItems[existingIndex].quantity + quantity);
@@ -219,7 +219,7 @@ export const CartProvider = ({ children }) => {
   const updateItemQuantity = async (itemIndex, change) => {
     const item = cart.items[itemIndex];
     if (!item) return;
-    
+
     const newQuantity = item.quantity + change;
     const stock = item.variant?.stock ?? 999;
     const maxAllowed = Math.min(MAX_ITEM_QUANTITY, stock);
@@ -228,7 +228,7 @@ export const CartProvider = ({ children }) => {
       alert(`Availability Limit: Only ${maxAllowed} units can be acquired.`);
       return;
     }
-    
+
     if (newQuantity < 1) return;
 
     setCart(prev => {
@@ -237,7 +237,6 @@ export const CartProvider = ({ children }) => {
       return calculateFinancials(newItems);
     });
 
-    const newQuantity = item.quantity + change;
     if (newQuantity > 0) {
       try {
         const updatedCart = await CartService.updateItem(item.id, newQuantity);
@@ -273,13 +272,13 @@ export const CartProvider = ({ children }) => {
   };
 
   return (
-    <CartContext.Provider value={{ 
-      cart, 
-      loading, 
-      addItemToCart, 
-      updateItemQuantity, 
-      removeItem, 
-      clearCart, 
+    <CartContext.Provider value={{
+      cart,
+      loading,
+      addItemToCart,
+      updateItemQuantity,
+      removeItem,
+      clearCart,
       fetchCart: syncCartWithBackend,
       // Logistical Constants
       GLOBAL_FREE_SHIPPING,
