@@ -15,10 +15,19 @@ const isLight = (color) => {
   return luminance > 0.6;
 };
 
-export default function ProductCard({ id, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants }) {
+export default function ProductCard({ id, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants, stock }) {
   const { addItemToCart, cart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const sellerInfo = seller?.seller_profile || {};
+
+  const rawStock = stock ?? variants?.[0]?.stock;
+  const parsedStock = typeof rawStock === 'number' ? rawStock : parseInt(rawStock ?? '', 10);
+  const stockLimit = Number.isFinite(parsedStock) ? parsedStock : null;
+  const hasStockLimit = stockLimit !== null;
+  const isSoldOut = hasStockLimit && stockLimit <= 0;
+  const isLowStock = hasStockLimit && stockLimit > 0 && stockLimit < 10;
+  const stockCount = stockLimit;
+  const computedStockStatus = isSoldOut ? 'Sold Out' : (stockStatus || 'In Stock');
   const sellerName = sellerInfo.store_name || seller?.full_name || 'Aqueous Exotica';
   const sellerSlug = sellerInfo.slug || encodeURIComponent(sellerName);
   const isSaved = isInWishlist(id);

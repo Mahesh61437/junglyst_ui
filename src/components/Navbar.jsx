@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -80,10 +80,11 @@ export default function Navbar() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '5.5rem'
+        height: '5.5rem',
+        gap: '0.5rem'
       }}>
         {/* Left: Hamburger / Search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             style={{
@@ -122,9 +123,9 @@ export default function Navbar() {
         {/* Center: Brand Logo */}
         <Link to="/" style={{
           textDecoration: 'none',
-          flex: 1,
           display: 'flex',
           justifyContent: 'center',
+          flexGrow: 1,
           transform: scrolled ? 'scale(0.9)' : 'scale(1)',
           transition: 'transform var(--transition-base)'
         }}>
@@ -136,8 +137,8 @@ export default function Navbar() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          gap: '1.5rem',
-          flex: 1,
+          gap: 'clamp(0.75rem, 2vw, 1.5rem)',
+          flexShrink: 0,
           color: 'var(--text-primary)'
         }}>
           {user ? (
@@ -207,43 +208,9 @@ export default function Navbar() {
                         onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                         onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <User size={16} /> View Profile
+                        <User size={16} /> Collector Hub
                       </Link>
 
-                      {isGrower && (
-                        <Link
-                          to="/seller/dashboard"
-                          onClick={() => setIsProfileOpen(false)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                            padding: '0.85rem 1rem', borderRadius: '10px',
-                            color: '#0A3029', textDecoration: 'none',
-                            fontSize: '0.875rem', fontWeight: 600,
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseOver={e => e.currentTarget.style.background = '#edf7f3'}
-                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <LayoutDashboard size={16} color="#10b981" /> Seller Dashboard
-                        </Link>
-                      )}
-
-                      <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0.5rem 0' }} />
-
-                      <button
-                        onClick={() => { setIsProfileOpen(false); logout(); navigate('/'); }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '0.75rem',
-                          padding: '0.85rem 1rem', borderRadius: '10px',
-                          color: '#ef4444', background: 'none', border: 'none',
-                          fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
-                          width: '100%', textAlign: 'left', transition: 'background 0.15s'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.background = '#fff5f5'}
-                        onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <LogOut size={16} /> Sign Out
-                      </button>
                     </div>
                   </div>
                 )}
@@ -327,8 +294,8 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       <div style={{
-        position: 'fixed', top: 0, left: isMobileMenuOpen ? 0 : '-320px',
-        width: '300px', height: '100vh', backgroundColor: 'white',
+        position: 'fixed', top: 0, left: isMobileMenuOpen ? 0 : '-100vw',
+        width: '100vw', height: '100vh', backgroundColor: 'white',
         zIndex: 2001, transition: 'left 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
         display: 'flex', flexDirection: 'column',
         boxShadow: '10px 0 30px rgba(0,0,0,0.1)'
@@ -344,6 +311,7 @@ export default function Navbar() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '3rem' }}>
             <Link
               to="/"
+              onClick={() => setIsMobileMenuOpen(false)}
               style={{
                 fontSize: '1.125rem', fontFamily: 'var(--font-serif)', fontWeight: 700,
                 color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '1rem'
@@ -359,6 +327,7 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 to={link.path}
+                onClick={() => setIsMobileMenuOpen(false)}
                 style={{
                   fontSize: '1.125rem', fontFamily: 'var(--font-serif)', fontWeight: 700,
                   color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -367,35 +336,52 @@ export default function Navbar() {
                 {link.name} <ChevronRight size={18} color="var(--border-subtle)" />
               </Link>
             ))}
+
+            {location.pathname.startsWith('/shop') && (
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  window.dispatchEvent(new Event('openMobileFilter'));
+                }}
+                style={{
+                  fontSize: '1.125rem', fontFamily: 'var(--font-serif)', fontWeight: 700,
+                  color: 'var(--brand-green)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
+                  marginTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem'
+                }}
+              >
+                Filter Catalog <SlidersHorizontal size={18} />
+              </button>
+            )}
           </div>
 
-          <div style={{ marginTop: '4rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Account</p>
+          <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {user ? (
               <>
-                <Link
-                  to="/profile"
-                  style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-                >
-                  <User size={18} /> View Profile
-                </Link>
-                {isGrower && (
-                  <Link
-                    to="/seller/dashboard"
-                    style={{ fontSize: '1rem', fontWeight: 600, color: '#0A3029', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-                  >
-                    <LayoutDashboard size={18} color="#10b981" /> Seller Dashboard
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Collector Hub</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <Link to="/profile" state={{ tab: 'identity' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <User size={18} /> Identity Details
                   </Link>
-                )}
-                <button
-                  onClick={() => { logout(); navigate('/'); }}
-                  style={{ textAlign: 'left', background: 'none', border: 'none', fontSize: '1rem', fontWeight: 600, color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: 0, cursor: 'pointer' }}
-                >
-                  <LogOut size={18} /> Sign Out
-                </button>
+                  <Link to="/profile" state={{ tab: 'history' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Package size={18} /> Acquisition History
+                  </Link>
+                  <Link to="/profile" state={{ tab: 'wishlist' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Heart size={18} /> Curated Wishlist
+                  </Link>
+                  <Link to="/profile" state={{ tab: 'notifications' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Bell size={18} /> Studio Updates
+                  </Link>
+                  <Link to="/profile" state={{ tab: 'security' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <ShieldCheck size={18} /> Security & Access
+                  </Link>
+                </div>
               </>
             ) : (
-              <Link to="/login" style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--brand-gold)' }}>Member Sign In</Link>
+              <>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Account</p>
+                <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--brand-gold)' }}>Member Sign In</Link>
+              </>
             )}
           </div>
         </div>

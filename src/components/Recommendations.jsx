@@ -55,6 +55,7 @@ export default function Recommendations({ category, currentProductId }) {
             reviews={product.rating || 4.8}
             stockStatus={product.stock > 0 ? "In Stock" : "Listing Soon"}
             seller={product.seller}
+            stock={product.stock}
           />
         ))}
       </div>

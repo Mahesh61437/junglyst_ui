@@ -12,6 +12,12 @@ export default function Shop() {
   const [sortBy, setSortBy] = useState('Featured');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
+  useEffect(() => {
+    const handleOpenFilter = () => setIsMobileFilterOpen(true);
+    window.addEventListener('openMobileFilter', handleOpenFilter);
+    return () => window.removeEventListener('openMobileFilter', handleOpenFilter);
+  }, []);
+
   const [categories, setCategories] = useState({
     'Aquatic Plants': false,
     'Hardscape': false,
