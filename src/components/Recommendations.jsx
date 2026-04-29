@@ -40,11 +40,7 @@ export default function Recommendations({ category, currentProductId }) {
       }}>
         Specimens You May Highly Value
       </h3>
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(4, 1fr)', 
-        gap: '2rem' 
-      }}>
+      <div className="grid-responsive">
         {products.map(product => (
           <ProductCard 
             key={product.id} 

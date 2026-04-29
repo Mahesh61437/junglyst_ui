@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { OrderService } from '../services/OrderService';
 import { Package, Truck, CheckCircle, Clock, ArrowLeft, MapPin, ExternalLink, ShieldCheck } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 
 export default function OrderTracking() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,9 +52,9 @@ export default function OrderTracking() {
   return (
     <div className="container" style={{ padding: '4rem 1rem 10rem' }}>
       <div style={{ marginBottom: '3rem' }}>
-        <Link to="/orders" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
-           <ArrowLeft size={14} /> Back to History
-        </Link>
+        <button onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+           <ArrowLeft size={14} /> Go Back
+        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '4rem', alignItems: 'start' }}>
@@ -105,9 +106,9 @@ export default function OrderTracking() {
                       <MapPin size={16} /> Delivery Sanctuary
                    </h4>
                    <div style={{ fontSize: '0.95rem', color: '#475569', lineHeight: 1.8 }}>
-                      <strong>{order.shipping_address.firstName} {order.shipping_address.lastName}</strong><br />
-                      {order.shipping_address.address}<br />
-                      {order.shipping_address.city}, {order.shipping_address.zip}
+                      <strong>{order.shipping_address?.firstName} {order.shipping_address?.lastName}</strong><br />
+                      {order.shipping_address?.address}<br />
+                      {order.shipping_address?.city}, {order.shipping_address?.zip}
                    </div>
                 </div>
                 <div>
@@ -138,7 +139,7 @@ export default function OrderTracking() {
                {order.items.map(item => (
                  <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px', gap: '1.5rem', alignItems: 'center' }}>
                     <div style={{ width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-                       <img src={getImageUrl(item.product?.image_url || item.product?.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                       <img src={getImageUrl(item.product_image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={item.product_name} />
                     </div>
                     <div>
                        <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{item.product_name}</h4>
@@ -159,8 +160,12 @@ export default function OrderTracking() {
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '2rem', fontFamily: 'var(--font-serif)' }}>Financial Transcript</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem' }}>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
-                    <span>Subtotal <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>(GST Incl.)</span></span>
+                    <span>Product Subtotal</span>
                     <span style={{ fontWeight: 700 }}>₹{parseFloat(order.subtotal).toLocaleString()}</span>
+                 </div>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+                    <span>Tax (GST)</span>
+                    <span style={{ fontWeight: 700 }}>₹{parseFloat(order.gst_total).toLocaleString()}</span>
                  </div>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
                     <span>Thermal Logistics</span>

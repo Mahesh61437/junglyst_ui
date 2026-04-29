@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { OrderService } from '../services/OrderService';
-import { Package, ChevronRight, Truck, CheckCircle, Clock, Search } from 'lucide-react';
+import { Package, ChevronRight, Truck, CheckCircle, Clock, Search, ShoppingBag } from 'lucide-react';
 
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);

@@ -210,6 +210,23 @@ export default function Navbar() {
                       >
                         <User size={16} /> Collector Hub
                       </Link>
+                      {(user.is_staff || user.role === 'admin') && (
+                        <Link
+                          to="/super-admin"
+                          onClick={() => setIsProfileOpen(false)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            padding: '0.85rem 1rem', borderRadius: '10px',
+                            color: 'var(--text-primary)', textDecoration: 'none',
+                            fontSize: '0.875rem', fontWeight: 600,
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <ShieldCheck size={16} /> Super Admin Dashboard
+                        </Link>
+                      )}
 
                     </div>
                   </div>
@@ -358,6 +375,16 @@ export default function Navbar() {
           <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {user ? (
               <>
+                {(user.is_staff || user.role === 'admin') && (
+                  <>
+                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Hub</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
+                      <Link to="/super-admin" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <ShieldCheck size={18} color="var(--brand-gold)" /> Super Admin Dashboard
+                      </Link>
+                    </div>
+                  </>
+                )}
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Collector Hub</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <Link to="/profile" state={{ tab: 'identity' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

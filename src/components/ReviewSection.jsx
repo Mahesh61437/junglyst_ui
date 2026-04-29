@@ -97,7 +97,7 @@ export default function ReviewSection({ productId }) {
 
   return (
     <div style={{ paddingTop: '1rem', marginTop: '2rem', borderTop: '1px solid var(--border-subtle)', fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontFamily: 'serif', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Customer Experience</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -117,10 +117,10 @@ export default function ReviewSection({ productId }) {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} style={{ backgroundColor: '#f8fafc', padding: '2rem', borderRadius: '12px', marginBottom: '2rem', border: '1px solid #e2e8f0' }}>
+        <form onSubmit={handleSubmit} style={{ backgroundColor: '#f8fafc', padding: 'clamp(1.25rem, 4vw, 2rem)', borderRadius: '12px', marginBottom: '2rem', border: '1px solid #e2e8f0' }}>
           <h3 style={{ fontSize: '1.125rem', fontFamily: 'serif', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Share your experience</h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '3rem' }}>
+          <div className="review-form-grid">
             <div>
               <div style={{ marginBottom: '1.5rem' }}>
                 <StarRatingInput label="Plant Quality & Health" value={plantsRating} onChange={setPlantsRating} />
@@ -169,7 +169,7 @@ export default function ReviewSection({ productId }) {
           <p style={{ color: 'var(--text-secondary)' }}>No reviews yet. Be the first to leave one!</p>
         ) : (
           reviews.map(review => (
-            <div key={review.id} style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '2rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.5rem' }}>
+            <div key={review.id} className="review-item-grid" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.5rem' }}>
               {/* Left side: Ratings Breakdown */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -210,6 +210,28 @@ export default function ReviewSection({ productId }) {
           ))
         )}
       </div>
+      <style>{`
+        .review-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 2fr;
+          gap: 3rem;
+        }
+        .review-item-grid {
+          display: grid;
+          grid-template-columns: 1fr 3fr;
+          gap: 2rem;
+        }
+        @media (max-width: 768px) {
+          .review-form-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+          .review-item-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+        }
+      `}</style>
     </div>
   );
 }
