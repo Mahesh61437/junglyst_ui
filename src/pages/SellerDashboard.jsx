@@ -6,15 +6,16 @@ import {
   Camera, CheckCircle2, Pencil, Archive, Trash2,
   ChevronRight, Menu, ExternalLink, Store, ShieldCheck,
   Save, Info, Image as ImageIcon, Palette, Upload, Loader2,
-  Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft, Download, ChevronDown, ChevronUp
+  Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft, Download, ChevronDown, ChevronUp, FileText, Calendar, IndianRupee
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import NaturalLogo from '../components/NaturalLogo';
+import ItemizedInvoiceModal from '../components/ItemizedInvoiceModal';
 import { ProductService } from '../services/ProductService';
 import { OrderService } from '../services/OrderService';
 import { getImageUrl } from '../utils/imageUtils';
@@ -89,6 +90,29 @@ export default function SellerDashboard() {
     images: [{ image_url: '', is_primary: true }]
   });
   const [uploadingImages, setUploadingImages] = useState({});
+
+  // GST State
+  const [gstData, setGstData] = useState(null);
+  const [gstLoading, setGstLoading] = useState(false);
+  const [gstError, setGstError] = useState(null);
+  const [selectedGstMonth, setSelectedGstMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [showItemizedInvoice, setShowItemizedInvoice] = useState(false);
+
+  const handleGenerateGst = async () => {
+    setGstLoading(true);
+    setGstError(null);
+    try {
+      const response = await api.get(`/analytics/seller/gst-invoice/?month=${selectedGstMonth}`);
+      setGstData(response.data.data);
+    } catch (err) {
+      setGstError(err.response?.data?.error || err.message);
+    } finally {
+      setGstLoading(false);
+    }
+  };
 
   useEffect(() => {
     const updatedVariants = newProduct.variants.map(v => {
@@ -491,7 +515,11 @@ export default function SellerDashboard() {
     );
   }
 
-  if (!user || !isApproved || (user.role !== 'grower' && user.role !== 'admin')) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isApproved || (user.role !== 'grower' && user.role !== 'admin')) {
     return (
       <div className="container" style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
         <div className="slide-up">
@@ -563,6 +591,7 @@ export default function SellerDashboard() {
     { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard size={20} /> },
     { id: 'products', label: 'Collection', icon: <Package size={20} /> },
     { id: 'orders', label: 'Fulfillment', icon: <ShoppingBag size={20} /> },
+    { id: 'gst', label: 'GST Invoices', icon: <FileText size={20} /> },
     { id: 'spotlight', label: 'Studio Identity', icon: <Palette size={20} /> },
     { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
   ];
@@ -664,7 +693,7 @@ export default function SellerDashboard() {
               ))}
             </nav>
 
-            <div style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <Link
                 to="/"
                 style={{
@@ -677,6 +706,22 @@ export default function SellerDashboard() {
               >
                 <ChevronRight size={18} /> Go to Store
               </Link>
+              <button
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '1rem', width: '100%', padding: '1rem 1.5rem',
+                  borderRadius: '16px', border: 'none', background: 'transparent',
+                  color: '#f87171', fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer',
+                  transition: 'all 0.2s', textAlign: 'left'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.color = '#ef4444'}
+                onMouseOut={(e) => e.currentTarget.style.color = '#f87171'}
+              >
+                <LogOut size={18} /> Sign Out
+              </button>
             </div>
           </div>
         </aside>
@@ -685,14 +730,19 @@ export default function SellerDashboard() {
         <main style={{ flexGrow: 1, padding: isMobile ? '1.5rem 1rem' : '4rem 5rem', maxWidth: '1600px', minWidth: 0, overflowX: 'hidden' }}>
           <header style={{ marginBottom: isMobile ? '1.5rem' : '4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
-              {/* Hamburger — only on mobile */}
+              {/* Hamburger and Mobile Logo */}
               {isMobile && (
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', flexShrink: 0, padding: '0.5rem', borderRadius: '10px' }}
-                >
-                  <Menu size={24} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', flexShrink: 0, padding: '0.5rem', borderRadius: '10px' }}
+                  >
+                    <Menu size={24} />
+                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <NaturalLogo size={32} />
+                  </div>
+                </div>
               )}
               <div style={{ minWidth: 0 }}>
                 <p style={{ color: spotlight.brand_color || '#E5C48B', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '0.25rem' }}>Grower Workspace</p>
@@ -736,6 +786,141 @@ export default function SellerDashboard() {
             </div>
           ) : (
             <div>
+              {activeTab === 'gst' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
+                    <div>
+                      <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                        Your GST Invoices
+                      </h2>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Settled payments and tax deductions for the selected month</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--bg-secondary)', padding: '0.5rem 1rem', borderRadius: '8px' }}>
+                        <Calendar size={18} color="var(--text-secondary)" />
+                        <input 
+                          type="month" 
+                          value={selectedGstMonth}
+                          onChange={(e) => {
+                            setSelectedGstMonth(e.target.value);
+                            setGstData(null);
+                          }}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem', fontWeight: 600 }}
+                        />
+                      </div>
+                      <button
+                        onClick={handleGenerateGst}
+                        disabled={gstLoading}
+                        style={{ padding: '0.5rem 1.5rem', backgroundColor: 'var(--brand-green)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: gstLoading ? 'not-allowed' : 'pointer' }}
+                      >
+                        Generate
+                      </button>
+                    </div>
+                  </div>
+
+                  {gstLoading ? (
+                    <div style={{ padding: '4rem', textAlign: 'center' }}>
+                      <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-subtle)', borderTopColor: 'var(--brand-gold)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }}></div>
+                      <p style={{ color: 'var(--text-secondary)' }}>Compiling invoices...</p>
+                    </div>
+                  ) : gstError ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '16px' }}>
+                      <p style={{ fontWeight: 700 }}>Failed to load GST data</p>
+                      <p>{gstError}</p>
+                    </div>
+                  ) : !gstData ? (
+                    <div style={{ padding: '4rem', textAlign: 'center', backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+                      <Calendar size={48} color="var(--border-subtle)" style={{ marginBottom: '1rem' }} />
+                      <p style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Select a month and click Generate to view your GST invoice.</p>
+                    </div>
+                  ) : gstData.total_orders === 0 ? (
+                    <div style={{ padding: '4rem', textAlign: 'center', backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+                      <FileText size={48} color="var(--border-subtle)" style={{ marginBottom: '1rem' }} />
+                      <p style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>No settled orders found for the selected month.</p>
+                    </div>
+                  ) : (
+                    <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                      <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                            <Store size={16} color="var(--brand-gold)" />
+                            {gstData.store_name}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{gstData.seller_email}</div>
+                        </div>
+                        <div style={{ backgroundColor: '#e2e8f0', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                          {gstData.total_orders} Orders
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '1.5rem' }}>
+                        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                          <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', fontWeight: 800, marginBottom: '0.25rem' }}>Gross Sales (Inc. GST)</p>
+                          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                            <IndianRupee size={32} /> {gstData.gross_sales.toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '1rem', maxWidth: '600px', margin: '0 auto' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Taxable Value</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{gstData.taxable_value.toLocaleString()}</span>
+                          </div>
+                          
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Total GST ({gstData.gst_percentage}%)</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{gstData.total_gst.toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            <span>CGST</span>
+                            <span>₹{gstData.cgst.toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                            <span>SGST</span>
+                            <span>₹{gstData.sgst.toLocaleString()}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Platform Fee</span>
+                            <span style={{ fontWeight: 700, color: '#ef4444' }}>-₹{gstData.platform_fee.toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>GST on Platform Fee (18%)</span>
+                            <span style={{ fontWeight: 700, color: '#ef4444' }}>-₹{gstData.platform_fee_gst.toLocaleString()}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0369a1' }}>
+                            <span style={{ fontWeight: 600 }}>TCS (1% under GST)</span>
+                            <span style={{ fontWeight: 800 }}>-₹{gstData.tcs_deducted.toLocaleString()}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#92400e', paddingBottom: '1rem', borderBottom: '1px dashed var(--border-subtle)' }}>
+                            <span style={{ fontWeight: 600 }}>TDS (1% u/s 194-O)</span>
+                            <span style={{ fontWeight: 800 }}>-₹{gstData.tds_deducted.toLocaleString()}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--brand-gold)', paddingTop: '0.5rem' }}>
+                            <span style={{ fontWeight: 800 }}>Net Settlement</span>
+                            <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>₹{gstData.net_settlement.toLocaleString()}</span>
+                          </div>
+
+                          <button 
+                            onClick={() => setShowItemizedInvoice(true)}
+                            style={{ marginTop: '1rem', width: '100%', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, color: '#334155', transition: 'background-color 0.2s' }}
+                          >
+                            <FileText size={16} /> View Itemized Invoice
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               {activeTab === 'dashboard' && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -1842,6 +2027,13 @@ export default function SellerDashboard() {
         .form-error-input { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
       `}</style>
       </div>
+
+      <ItemizedInvoiceModal 
+        isOpen={showItemizedInvoice} 
+        onClose={() => setShowItemizedInvoice(false)} 
+        data={gstData} 
+        month={selectedGstMonth}
+      />
     </DashboardErrorBoundary>
   );
 }

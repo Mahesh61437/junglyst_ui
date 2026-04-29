@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Package, Users, IndianRupee, Truck, CheckCircle, Clock, LayoutDashboard, Store, Mail, Phone, ChevronRight, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Package, Users, IndianRupee, Truck, CheckCircle, Clock, LayoutDashboard, Store, Mail, Phone, ChevronRight, ChevronDown, ChevronUp, User, Search } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -14,6 +14,7 @@ export default function SuperAdminDashboard() {
   const [expandedSeller, setExpandedSeller] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [sellerSearchTerm, setSellerSearchTerm] = useState('');
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -63,16 +64,26 @@ export default function SuperAdminDashboard() {
 
   const { overall_analytics, sellers, orders } = data;
 
+  const filteredSellers = sellers.filter(s => 
+    (s.store_name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
+    (s.name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
+    (s.email?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
+    (s.phone || '').includes(sellerSearchTerm)
+  );
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'var(--font-sans)', paddingBottom: '4rem' }}>
       {/* Header */}
       <header style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: '1.5rem 2rem', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <LayoutDashboard size={24} color="var(--brand-gold)" />
             <h1 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Super Admin Portal</h1>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <button onClick={() => navigate('/super-admin/gst')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+              GST INVOICES
+            </button>
             <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user?.full_name || user?.username}</span>
             <button onClick={() => navigate('/')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               EXIT
@@ -108,11 +119,23 @@ export default function SuperAdminDashboard() {
 
         {/* Sellers Overview */}
         <section>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Sellers Performance</h2>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Sellers Directory</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'white', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.5rem 1rem' }}>
+              <Search size={16} color="var(--text-secondary)" />
+              <input 
+                type="text" 
+                placeholder="Search sellers..." 
+                value={sellerSearchTerm}
+                onChange={(e) => setSellerSearchTerm(e.target.value)}
+                style={{ border: 'none', outline: 'none', width: isMobile ? '100%' : '250px', fontSize: '0.9rem' }}
+              />
+            </div>
+          </div>
           <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
             {isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {sellers.map(seller => (
+                {filteredSellers.map(seller => (
                   <div key={seller.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <div 
                       onClick={() => setExpandedSeller(expandedSeller === seller.id ? null : seller.id)}
@@ -151,8 +174,8 @@ export default function SuperAdminDashboard() {
                     )}
                   </div>
                 ))}
-                {sellers.length === 0 && (
-                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No sellers registered yet.</div>
+                {filteredSellers.length === 0 && (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No sellers found matching "{sellerSearchTerm}".</div>
                 )}
               </div>
             ) : (
@@ -168,7 +191,7 @@ export default function SuperAdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sellers.map(seller => (
+                    {filteredSellers.map(seller => (
                       <tr key={seller.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem' }}>
                         <td style={{ padding: '1.25rem' }}>
                           <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{seller.store_name}</div>
@@ -189,9 +212,9 @@ export default function SuperAdminDashboard() {
                         <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 700, color: 'var(--brand-green)' }}>₹{seller.total_revenue.toLocaleString()}</td>
                       </tr>
                     ))}
-                    {sellers.length === 0 && (
+                    {filteredSellers.length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No sellers registered yet.</td>
+                        <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No sellers found.</td>
                       </tr>
                     )}
                   </tbody>
@@ -262,7 +285,10 @@ export default function SuperAdminDashboard() {
                           <Clock size={14} /> <span style={{ color: 'var(--text-primary)' }}>{new Date(order.created_at).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                          <User size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{order.user__email || order.guest_email || 'Unknown'}</span>
+                          <User size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                          <Store size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>Seller: {order.seller_name} ({order.seller_contact})</span>
                         </div>
                         <button 
                           onClick={() => navigate(`/orders/${order.id}`)}
@@ -286,6 +312,8 @@ export default function SuperAdminDashboard() {
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Order ID</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Date</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Customer</th>
+                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller</th>
+                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller Contact</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Status</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700, textAlign: 'right' }}>Amount</th>
                     </tr>
@@ -295,7 +323,9 @@ export default function SuperAdminDashboard() {
                       <tr key={order.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem', transition: 'background 0.2s', cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'} onClick={() => navigate(`/orders/${order.id}`)}>
                         <td style={{ padding: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>#{order.order_number}</td>
                         <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{new Date(order.created_at).toLocaleDateString()}</td>
-                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.user__email || order.guest_email || 'Unknown'}</td>
+                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</td>
+                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_name}</td>
+                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_contact}</td>
                         <td style={{ padding: '1.25rem' }}>
                           <span style={{
                             backgroundColor: activeTab === 'pending' ? '#fef3c7' : activeTab === 'transit' ? '#e0f2fe' : '#dcfce7',
@@ -310,7 +340,7 @@ export default function SuperAdminDashboard() {
                     ))}
                     {orders[activeTab].length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</td>
+                        <td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</td>
                       </tr>
                     )}
                   </tbody>

@@ -418,7 +418,7 @@ export default function ProductDetails() {
 
             {/* Botanical Tabs Module */}
             <div style={{ marginTop: '3rem' }}>
-              <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', gap: '1.5rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem', overflowX: 'auto', whiteSpace: 'nowrap' }}>
                 {['description', 'care-guide', 'history'].map((tab) => (
                   <button
                     key={tab}

@@ -227,6 +227,25 @@ export default function Navbar() {
                           <ShieldCheck size={16} /> Super Admin Dashboard
                         </Link>
                       )}
+                      <button
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          logout();
+                          navigate('/login');
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.75rem',
+                          padding: '0.85rem 1rem', borderRadius: '10px',
+                          color: '#ef4444', textDecoration: 'none',
+                          fontSize: '0.875rem', fontWeight: 600,
+                          background: 'none', border: 'none', cursor: 'pointer', width: '100%',
+                          textAlign: 'left', transition: 'background 0.15s'
+                        }}
+                        onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                        onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <LogOut size={16} /> Secure Sign Out
+                      </button>
 
                     </div>
                   </div>
@@ -311,8 +330,8 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       <div style={{
-        position: 'fixed', top: 0, left: isMobileMenuOpen ? 0 : '-100vw',
-        width: '100vw', height: '100vh', backgroundColor: 'white',
+        position: 'fixed', top: 0, left: isMobileMenuOpen ? 0 : '-100%',
+        width: '100%', maxWidth: '350px', height: '100vh', backgroundColor: 'white',
         zIndex: 2001, transition: 'left 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
         display: 'flex', flexDirection: 'column',
         boxShadow: '10px 0 30px rgba(0,0,0,0.1)'
@@ -409,6 +428,24 @@ export default function Navbar() {
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Account</p>
                 <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--brand-gold)' }}>Member Sign In</Link>
               </>
+            )}
+            {user && (
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  logout();
+                  navigate('/login');
+                }}
+                style={{
+                  marginTop: 'auto',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  color: '#ef4444', fontSize: '1rem', fontWeight: 600,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '1rem 0'
+                }}
+              >
+                <LogOut size={18} /> Secure Sign Out
+              </button>
             )}
           </div>
         </div>
