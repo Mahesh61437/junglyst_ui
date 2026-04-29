@@ -18,6 +18,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import CareGuides from './pages/CareGuides';
 import AdminDashboard from './pages/AdminDashboard';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Success from './pages/Success';
 import Failure from './pages/Failure';
 import MyOrders from './pages/MyOrders';
@@ -63,6 +64,7 @@ function App() {
               <Route path="/seller/onboarding" element={<SellerOnboarding />} />
               <Route path="/seller/dashboard" element={<SellerDashboard />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/super-admin" element={<SuperAdminDashboard />} />
             </Routes>
           </BrowserRouter>
         </CartProvider>

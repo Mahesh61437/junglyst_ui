@@ -33,6 +33,7 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [activeTab, setActiveTab] = useState('description');
+  const [showFullDesc, setShowFullDesc] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState('Standard');
   const [isMobile, setIsMobile] = useState(false);
@@ -386,6 +387,114 @@ export default function ProductDetails() {
                 )}
               </div>
             )}
+
+            {/* Desktop Buy Box / Wishlist (below image) */}
+            {/* <div className="desktop-only" style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid var(--border-subtle)', borderRadius: '20px', backgroundColor: '#fff' }}>
+              <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', color: 'var(--text-secondary)', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Ships from</span>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Junglyst Distribution</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Certified Seller</span>
+                  <span style={{ fontWeight: 700, color: 'var(--brand-gold)' }}>{product.seller?.username || product.seller?.name || 'Aquatic Exotica'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Guarantee</span>
+                  <span style={{ fontWeight: 700, color: 'var(--brand-green)' }}>Live Arrival Secured</span>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => toggleWishlist({ id: product.id || product._id, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
+                style={{
+                  width: '100%', marginTop: '1.5rem', padding: '1rem', borderRadius: '14px', border: '1px dashed var(--brand-gold)',
+                  backgroundColor: 'transparent', fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', cursor: 'pointer'
+                }}
+              >
+                + SAVE TO SPECIMEN WISHLIST
+              </button>
+            </div> */}
+
+            {/* Botanical Tabs Module */}
+            <div style={{ marginTop: '3rem' }}>
+              <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
+                {['description', 'care-guide', 'history'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      padding: '0.75rem 0',
+                      borderBottom: activeTab === tab ? '2px solid var(--bg-deep)' : '2px solid transparent',
+                      color: activeTab === tab ? 'var(--bg-deep)' : 'var(--text-secondary)',
+                      backgroundColor: 'transparent',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.12em',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    {tab.replace('-', ' ')}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ minHeight: '180px' }}>
+                {activeTab === 'description' && (
+                  <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '1rem' }}>
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ maxHeight: showFullDesc ? 'none' : '450px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+                        <div dangerouslySetInnerHTML={{ __html: product.description || "A pristine specimen selected for its exceptional vigor and spectral vibrancy." }} />
+                        {!product.description && <p>Each {name} has been meticulously inspected by our studio team, ensuring that leaf health, root distribution, and metabolic activity are at their peak before being cleared for acquisition.</p>}
+                      </div>
+                      {!showFullDesc && (
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60px', background: 'linear-gradient(transparent, white)' }} />
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => setShowFullDesc(!showFullDesc)}
+                      style={{
+                        background: 'none', border: 'none', color: 'var(--brand-gold)', fontWeight: 800, padding: 0, marginTop: '1rem', cursor: 'pointer', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em'
+                      }}
+                    >
+                      {showFullDesc ? 'View Less' : 'Full View'}
+                    </button>
+                  </div>
+                )}
+
+                {activeTab === 'care-guide' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                    {[
+                      { label: 'Scientific Category', val: botanicalFacts.scientificName },
+                      { label: 'Temperature Range', val: botanicalFacts.temp },
+                      { label: 'pH Sensitivity', val: botanicalFacts.ph },
+                      { label: 'Photoprobe level', val: botanicalFacts.light },
+                      { label: 'CO2 Supplement', val: botanicalFacts.co2 },
+                      { label: 'Difficulty Grade', val: product.careLevel || product.care_level || 'Intermediate' }
+                    ].map((fact, idx) => (
+                      <div key={idx} style={{ padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px' }}>
+                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem' }}>{fact.label}</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{fact.val}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {activeTab === 'history' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: '0.95rem' }}>
+                      <p style={{ fontStyle: 'italic', marginBottom: '1rem', color: 'var(--bg-deep)', fontWeight: 600, fontSize: '1rem' }}>Origins: {botanicalFacts.origin}</p>
+                      <p>{botanicalFacts.history}</p>
+                    </div>
+                    <div style={{ padding: '1rem', borderLeft: '4px solid var(--brand-gold)', backgroundColor: 'var(--bg-secondary)' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)' }}>CURATOR'S NOTE:</span>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>Finding large colonies of this variety in the wild is increasingly rare. Our specimens represent sustainable nursery-propagated lines that protect these wild origins.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Column 2: Branded Meta Information & Botanical Tabs */}
@@ -400,7 +509,7 @@ export default function ProductDetails() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '2rem' }}>
-                <h1 style={{ fontSize: '2.5rem', fontFamily: 'var(--font-serif)', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.1, marginBottom: '1rem', flex: 1 }}>
+                <h1 style={{ fontSize: '2.5rem', fontFamily: 'var(--font-serif)', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.1, marginBottom: '1rem', flex: 1, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                   {name}
                 </h1>
                 <button
@@ -557,7 +666,7 @@ export default function ProductDetails() {
                   </div>
                 </div>
 
-                <button 
+                <button
                   onClick={() => toggleWishlist({ id: product.id || product._id, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
                   style={{
                     width: '100%', marginTop: '1.5rem', padding: '1rem', borderRadius: '14px', border: '1px dashed var(--brand-gold)',
@@ -570,72 +679,7 @@ export default function ProductDetails() {
 
             </div>
 
-            {/* Botanical Tabs Module */}
-            <div style={{ marginTop: '0.5rem' }}>
-              <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
-                {['description', 'care-guide', 'history'].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    style={{
-                      padding: '0.75rem 0',
-                      borderBottom: activeTab === tab ? '2px solid var(--bg-deep)' : '2px solid transparent',
-                      color: activeTab === tab ? 'var(--bg-deep)' : 'var(--text-secondary)',
-                      backgroundColor: 'transparent',
-                      fontSize: '0.8rem',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.12em',
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    {tab.replace('-', ' ')}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ minHeight: '180px' }}>
-                {activeTab === 'description' && (
-                  <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '1rem' }}>
-                    <div dangerouslySetInnerHTML={{ __html: product.description || "A pristine specimen selected for its exceptional vigor and spectral vibrancy." }} />
-                    {!product.description && <p>Each {name} has been meticulously inspected by our studio team, ensuring that leaf health, root distribution, and metabolic activity are at their peak before being cleared for acquisition.</p>}
-                  </div>
-                )}
-
-                {activeTab === 'care-guide' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                    {[
-                      { label: 'Scientific Category', val: botanicalFacts.scientificName },
-                      { label: 'Temperature Range', val: botanicalFacts.temp },
-                      { label: 'pH Sensitivity', val: botanicalFacts.ph },
-                      { label: 'Photoprobe level', val: botanicalFacts.light },
-                      { label: 'CO2 Supplement', val: botanicalFacts.co2 },
-                      { label: 'Difficulty Grade', val: product.careLevel || product.care_level || 'Intermediate' }
-                    ].map((fact, idx) => (
-                      <div key={idx} style={{ padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px' }}>
-                        <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.25rem' }}>{fact.label}</div>
-                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{fact.val}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {activeTab === 'history' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: '0.95rem' }}>
-                      <p style={{ fontStyle: 'italic', marginBottom: '1rem', color: 'var(--bg-deep)', fontWeight: 600, fontSize: '1rem' }}>Origins: {botanicalFacts.origin}</p>
-                      <p>{botanicalFacts.history}</p>
-                    </div>
-                    <div style={{ padding: '1rem', borderLeft: '4px solid var(--brand-gold)', backgroundColor: 'var(--bg-secondary)' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)' }}>CURATOR'S NOTE:</span>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>Finding large colonies of this variety in the wild is increasingly rare. Our specimens represent sustainable nursery-propagated lines that protect these wild origins.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0 }} />
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0, marginTop: '2rem' }} />
 
             {/* Quality Seals Rail */}
             <div style={{ padding: '1rem 0', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -664,39 +708,6 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          {/* Column 3: Branded Buy Box */}
-          <aside className="col-buy desktop-only" style={{
-            position: 'sticky', top: '100px',
-            padding: '2rem', border: '1px solid var(--border-subtle)', borderRadius: '24px', backgroundColor: '#fff',
-            boxShadow: 'var(--shadow-lg)'
-          }}>
-
-
-            <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', color: 'var(--text-secondary)', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Ships from</span>
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Junglyst Distribution</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Certified Seller</span>
-                <span style={{ fontWeight: 700, color: 'var(--brand-gold)' }}>{product.seller?.username || product.seller?.name || 'Aquatic Exotica'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Guarantee</span>
-                <span style={{ fontWeight: 700, color: 'var(--brand-green)' }}>Live Arrival Secured</span>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => toggleWishlist({ id: product.id || product._id, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
-              style={{
-                width: '100%', marginTop: '2.5rem', padding: '1rem', borderRadius: '14px', border: '1px dashed var(--brand-gold)',
-                backgroundColor: 'transparent', fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', cursor: 'pointer'
-              }}
-            >
-              + SAVE TO SPECIMEN WISHLIST
-            </button>
-          </aside>
         </div>
 
         {/* Branded Bottom Flow */}
@@ -714,29 +725,27 @@ export default function ProductDetails() {
 
         .product-layout-grid {
           display: grid;
-          grid-template-columns: 1.1fr 0.9fr 280px;
-          gap: 3rem;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+          gap: 4rem;
           align-items: start;
           max-width: 100%;
         }
         
         .col-media { order: 1; }
         .col-meta { order: 2; }
-        .col-buy { order: 3; }
 
         @media (max-width: 1024px) {
           .product-layout-grid {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 2rem;
           }
           .col-media { grid-column: 1 / 2; grid-row: 1; }
-          .col-buy { grid-column: 1 / 2; grid-row: 2; }
-          .col-meta { grid-column: 2 / 3; grid-row: 1 / 3; }
+          .col-meta { grid-column: 2 / 3; grid-row: 1; }
         }
 
         @media (max-width: 768px) {
           .product-layout-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
             gap: 2rem;
           }
           .col-media { grid-column: 1 / -1; grid-row: auto; order: 1; }
