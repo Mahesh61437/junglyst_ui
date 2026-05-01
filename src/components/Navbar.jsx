@@ -141,6 +141,12 @@ export default function Navbar() {
           flexShrink: 0,
           color: 'var(--text-primary)'
         }}>
+          {(user?.is_staff || user?.role === 'admin') && (
+            <Link to="/super-admin" style={{ color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}>
+              <ShieldCheck size={20} strokeWidth={1.5} color="var(--brand-gold)" />
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: window.innerWidth > 768 ? 'block' : 'none', color: 'var(--brand-gold)' }}>Admin</span>
+            </Link>
+          )}
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
               {/* Profile Dropdown */}
@@ -210,6 +216,23 @@ export default function Navbar() {
                       >
                         <User size={16} /> Collector Hub
                       </Link>
+                      {isGrower && (
+                        <Link
+                          to="/seller/dashboard"
+                          onClick={() => setIsProfileOpen(false)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            padding: '0.85rem 1rem', borderRadius: '10px',
+                            color: 'var(--text-primary)', textDecoration: 'none',
+                            fontSize: '0.875rem', fontWeight: 600,
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <Store size={16} /> Seller Dashboard
+                        </Link>
+                      )}
                       {(user.is_staff || user.role === 'admin') && (
                         <Link
                           to="/super-admin"
@@ -400,6 +423,16 @@ export default function Navbar() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
                       <Link to="/super-admin" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <ShieldCheck size={18} color="var(--brand-gold)" /> Super Admin Dashboard
+                      </Link>
+                    </div>
+                  </>
+                )}
+                {isGrower && (
+                  <>
+                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Seller Hub</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
+                      <Link to="/seller/dashboard" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Store size={18} color="var(--brand-green)" /> Seller Dashboard
                       </Link>
                     </div>
                   </>

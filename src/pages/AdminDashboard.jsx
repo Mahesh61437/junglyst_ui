@@ -15,7 +15,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -27,12 +27,13 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (authLoading) return;
+    if (!user || (!user.is_staff && user.role !== 'admin')) {
       navigate('/');
       return;
     }
     fetchDashboardData();
-  }, [user]);
+  }, [user, authLoading, navigate]);
 
   const fetchDashboardData = async () => {
     setLoading(true);

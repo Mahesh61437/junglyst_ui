@@ -15,6 +15,7 @@ export default function SuperAdminDashboard() {
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [sellerSearchTerm, setSellerSearchTerm] = useState('');
+  const [isSellerTableMinimized, setIsSellerTableMinimized] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -45,6 +46,35 @@ export default function SuperAdminDashboard() {
     fetchData();
   }, [user, authLoading, navigate]);
 
+  const authorizeSeller = async (sellerId) => {
+    try {
+      await api.post(`/analytics/super-admin/authorize-grower/${sellerId}/`);
+      // Update local state by removing from pending list
+      setData(prev => ({
+        ...prev,
+        sellers: prev.sellers.filter(s => s.id !== sellerId)
+      }));
+    } catch (err) {
+      console.error("Failed to authorize seller:", err);
+      alert("Failed to authorize seller. Please try again.");
+    }
+  };
+
+  const rejectSeller = async (sellerId) => {
+    if (!window.confirm("Are you sure you want to reject this grower application?")) return;
+    try {
+      await api.post(`/analytics/super-admin/reject-grower/${sellerId}/`);
+      // Update local state by removing from pending list
+      setData(prev => ({
+        ...prev,
+        sellers: prev.sellers.filter(s => s.id !== sellerId)
+      }));
+    } catch (err) {
+      console.error("Failed to reject seller:", err);
+      alert("Failed to reject seller. Please try again.");
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc' }}>
@@ -65,10 +95,11 @@ export default function SuperAdminDashboard() {
   const { overall_analytics, sellers, orders } = data;
 
   const filteredSellers = sellers.filter(s => 
-    (s.store_name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
+    !s.is_verified &&
+    ((s.store_name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
     (s.name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
     (s.email?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
-    (s.phone || '').includes(sellerSearchTerm)
+    (s.phone || '').includes(sellerSearchTerm))
   );
 
   return (
@@ -120,18 +151,30 @@ export default function SuperAdminDashboard() {
         {/* Sellers Overview */}
         <section>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Sellers Directory</h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'white', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.5rem 1rem' }}>
-              <Search size={16} color="var(--text-secondary)" />
-              <input 
-                type="text" 
-                placeholder="Search sellers..." 
-                value={sellerSearchTerm}
-                onChange={(e) => setSellerSearchTerm(e.target.value)}
-                style={{ border: 'none', outline: 'none', width: isMobile ? '100%' : '250px', fontSize: '0.9rem' }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Pending Sellers</h2>
+              <button 
+                onClick={() => setIsSellerTableMinimized(!isSellerTableMinimized)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.2rem' }}
+              >
+                {isSellerTableMinimized ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+              </button>
             </div>
+            {!isSellerTableMinimized && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'white', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.5rem 1rem' }}>
+                <Search size={16} color="var(--text-secondary)" />
+                <input 
+                  type="text" 
+                  placeholder="Search sellers..." 
+                  value={sellerSearchTerm}
+                  onChange={(e) => setSellerSearchTerm(e.target.value)}
+                  style={{ border: 'none', outline: 'none', width: isMobile ? '100%' : '250px', fontSize: '0.9rem' }}
+                />
+              </div>
+            )}
           </div>
+          
+          {!isSellerTableMinimized && (
           <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
             {isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -158,7 +201,15 @@ export default function SuperAdminDashboard() {
                           {seller.is_verified ? (
                             <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Verified</span>
                           ) : (
-                            <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
+                              <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                Authorize
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                Reject
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
@@ -205,7 +256,15 @@ export default function SuperAdminDashboard() {
                           {seller.is_verified ? (
                             <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Verified</span>
                           ) : (
-                            <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
+                              <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                Authorize
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                Reject
+                              </button>
+                            </div>
                           )}
                         </td>
                         <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 600 }}>{seller.total_orders}</td>
@@ -222,6 +281,7 @@ export default function SuperAdminDashboard() {
               </div>
             )}
           </div>
+          )}
         </section>
 
         {/* Orders Management */}
