@@ -188,7 +188,7 @@ export default function Signup() {
         <div style={{ marginTop: '2.5rem', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '16px', display: 'flex', gap: '1rem', alignItems: 'flex-start', textAlign: 'left' }}>
           <Heart size={20} color="var(--brand-gold)" style={{ flexShrink: 0, marginTop: '0.2rem' }} />
           <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            Joining the sanctuary gives you exclusive access to limited-edition specimens and certified studio-safe shipping.
+            Joining the sanctuary gives you exclusive access to limited-edition specimens and premium studio-safe shipping.
           </p>
         </div>
 

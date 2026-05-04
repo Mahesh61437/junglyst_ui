@@ -165,7 +165,7 @@ export default function VerifiedSellers() {
                 <div style={{ width: '40px', height: '40px', backgroundColor: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ShieldCheck size={20} color="#10b981" />
                 </div>
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>Certified Purity</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>Verified Purity</span>
               </motion.div>
             </div>
           </motion.div>
@@ -282,12 +282,12 @@ export default function VerifiedSellers() {
       <section style={{ backgroundColor: '#1a1a1a', padding: '10rem 0', color: 'white', textAlign: 'center' }}>
         <div className="container">
           <Sparkles size={48} color="#E5C48B" style={{ marginBottom: '3rem' }} />
-          <h2 style={{ fontSize: '4rem', fontFamily: 'serif', marginBottom: '2rem' }}>Become a Certified Curator</h2>
-          <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', margin: '0 auto 4rem' }}>
-            Join our exclusive network of master growers and showcase your botanical artistry to a global audience.
+          <h2 style={{ fontSize: '4rem', fontFamily: 'serif', marginBottom: '2rem' }}>Join the Verified Network</h2>
+          <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', margin: '0 auto 4rem', lineHeight: 1.6 }}>
+            Partner with us to uphold the highest standards of botanical quality and showcase your cultivated collection to a community of serious enthusiasts.
           </p>
           <Link to="/seller/onboarding" style={{ padding: '1.5rem 4rem', backgroundColor: 'white', color: '#1a1a1a', textDecoration: 'none', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Apply for Certification
+            Apply for Verification
           </Link>
         </div>
       </section>

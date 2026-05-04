@@ -11,12 +11,12 @@ export default function Terms() {
       <section style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', color: 'var(--text-primary)', lineHeight: 1.8 }}>
         <div>
           <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', marginBottom: '1.25rem' }}>1. Botanical Acquisition</h2>
-          <p>By purchasing from Junglyst, you acknowledge that you are acquiring live biological specimens. While we guarantee "Live Arrival" for all studio-certified specimens, the long-term health of the plant is subject to the conditions of your specific aquatic environment.</p>
+          <p>By purchasing from Junglyst, you acknowledge that you are acquiring live biological specimens. While we guarantee "Live Arrival" for all studio-verified specimens, the long-term health of the plant is subject to the conditions of your specific aquatic environment.</p>
         </div>
 
         <div>
            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', marginBottom: '1.25rem' }}>2. Marketplace Role</h2>
-           <p>Junglyst acts as a curated boutique marketplace connecting certified master growers with collectors. We perform rigorous quality audits on all sellers, but specific specimen variations (leaf count, rhizome size) are natural and expected.</p>
+           <p>Junglyst acts as a curated boutique marketplace connecting verified master growers with collectors. We perform rigorous quality audits on all sellers, but specific specimen variations (leaf count, rhizome size) are natural and expected.</p>
         </div>
 
         <div>
@@ -26,7 +26,7 @@ export default function Terms() {
 
         <div>
            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', marginBottom: '1.25rem' }}>4. Seller Obligations</h2>
-           <p>Sellers on Junglyst must maintain "Pest-Free" certification for their nurseries. Failure to adhere to quality standards results in immediate removal from the platform and suspension of acquisition rights.</p>
+           <p>Sellers on Junglyst must maintain "Pest-Free" standards for their nurseries. Failure to adhere to quality standards results in immediate removal from the platform and suspension of acquisition rights.</p>
         </div>
 
         <div style={{ marginTop: '2rem', padding: '2rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>

@@ -59,7 +59,7 @@ export default function SellerStore() {
             rating: parseFloat(profile.rating) || 5.0,
             reviews: parseInt(profile.total_sales) || 0,
             founded: new Date(profile.created_at).getFullYear(),
-            badges: profile.identity_verified ? ['Identity Verified', 'Verified Sanctuary', 'Master Grower'] : ['Verified Sanctuary', 'Purity Certified', 'Premium Logistics'],
+            badges: profile.identity_verified ? ['Identity Verified', 'Verified Sanctuary', 'Master Grower'] : ['Verified Sanctuary', 'Purity Verified', 'Premium Logistics'],
             expertise_tags: profile.expertise_tags || [],
             infrastructure: profile.infrastructure_details || '',
             experience: profile.experience_years || 0,
@@ -284,6 +284,95 @@ export default function SellerStore() {
             <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>This grower is currently nurturing their next batch of rare specimens.</p>
           </div>
         )}
+      </div>
+
+      {/* 4. Verified Excellence / Commitment */}
+      <div className="container" style={{ marginTop: '12rem', marginBottom: '4rem' }}>
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          style={{ 
+            backgroundColor: 'var(--bg-deep, #1b2d2a)', 
+            borderRadius: '40px', 
+            padding: '6rem 4rem', 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1.2fr', 
+            gap: '6rem',
+            alignItems: 'center',
+            color: 'white', 
+            position: 'relative', 
+            overflow: 'hidden',
+            boxShadow: '0 40px 100px -20px rgba(27, 45, 42, 0.4)'
+          }}
+        >
+          {/* Decorative background elements */}
+          <div style={{ position: 'absolute', top: '-10%', right: '-5%', opacity: 0.03, transform: 'rotate(15deg)' }}><Leaf size={400} /></div>
+          <div style={{ position: 'absolute', bottom: '0', left: '0', width: '100%', height: '50%', background: 'linear-gradient(to top, rgba(16, 185, 129, 0.05), transparent)' }} />
+          
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ width: '50px', height: '1px', backgroundColor: 'var(--brand-gold, #c5a059)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--brand-gold, #c5a059)' }}>The Standard</span>
+            </div>
+            
+            <h2 style={{ fontSize: '4rem', fontFamily: 'serif', lineHeight: 1.1, marginBottom: '2rem', color: 'white' }}>Verified<br/>Excellence</h2>
+            
+            <p style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, marginBottom: '3rem', fontFamily: 'serif', fontStyle: 'italic' }}>
+              Every specimen from {sellerInfo.name} has passed our rigorous botanical screening process. We guarantee health, purity, and sustainable cultivation practices from farm to display.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '2rem', padding: '2rem 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <div>
+                <p style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>100%</p>
+                <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em' }}>Purity Guarantee</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>0</p>
+                <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em' }}>Harmful Chemicals</p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ position: 'relative', zIndex: 2 }}>
+             {/* We use a custom layout for TrustBadges here to make it look dense and premium */}
+             <div style={{ 
+               display: 'grid', 
+               gridTemplateColumns: 'repeat(2, 1fr)', 
+               gap: '1.5rem',
+               backgroundColor: 'rgba(255,255,255,0.03)',
+               padding: '3rem',
+               borderRadius: '24px',
+               border: '1px solid rgba(255,255,255,0.05)',
+               backdropFilter: 'blur(10px)'
+             }}>
+                {[
+                  { title: 'Farm-Direct Dispatch', icon: <ShieldCheck size={20} /> },
+                  { title: 'Pathogen-Free Guarantee', icon: <Leaf size={20} /> },
+                  { title: 'Eco-Friendly Packaging', icon: <Package size={20} /> },
+                  { title: 'Species-Specific Guarantee', icon: <Award size={20} /> },
+                  { title: 'Sustainably Cultivated', icon: <Heart size={20} /> },
+                  { title: 'Expert Horticultural Support', icon: <Sparkles size={20} /> }
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ 
+                      width: '48px', 
+                      height: '48px', 
+                      borderRadius: '14px', 
+                      backgroundColor: 'rgba(197, 160, 89, 0.1)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      color: 'var(--brand-gold, #c5a059)'
+                    }}>
+                      {item.icon}
+                    </div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>{item.title}</span>
+                  </div>
+                ))}
+             </div>
+          </div>
+        </motion.div>
       </div>
 
       <style>{`

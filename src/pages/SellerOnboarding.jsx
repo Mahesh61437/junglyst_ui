@@ -90,8 +90,15 @@ export default function SellerOnboarding() {
   }
 
   const [formData, setFormData] = useState(() => {
-    const saved = localStorage.getItem('junglyst_onboarding_draft');
-    return saved ? JSON.parse(saved) : {
+    try {
+      const saved = localStorage.getItem('junglyst_onboarding_draft');
+      if (saved && saved !== 'undefined' && saved !== 'null') {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to parse onboarding draft', e);
+    }
+    return {
       storeName: '',
       tagline: '',
       description: '',
@@ -114,7 +121,8 @@ export default function SellerOnboarding() {
 
   const [currentStep, setCurrentStep] = useState(() => {
     const saved = localStorage.getItem('junglyst_onboarding_step');
-    return saved ? parseInt(saved, 10) : 1;
+    const parsed = parseInt(saved, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 1;
   });
 
   const [loading, setLoading] = useState(false);

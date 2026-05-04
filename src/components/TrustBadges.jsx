@@ -4,7 +4,7 @@ import { ShieldCheck, Leaf, Heart, Recycle, Award, Sparkles } from 'lucide-react
 export default function TrustBadges({ brandColor = '#0A3029', column = true, showTitle = true, darkMode = false }) {
   const items = [
     { title: 'Farm-Direct Dispatch', icon: <ShieldCheck size={16} /> },
-    { title: 'Pathogen-Free Certification', icon: <Leaf size={16} /> },
+    { title: 'Pathogen-Free Guarantee', icon: <Leaf size={16} /> },
     { title: 'Eco-Friendly Packaging', icon: <Recycle size={16} /> },
     { title: 'Species-Specific Guarantee', icon: <Award size={16} /> },
     { title: 'Sustainably Cultivated', icon: <Heart size={16} /> },
