@@ -8,30 +8,12 @@ import { getImageUrl } from '../utils/imageUtils';
 const PROMOTED_SELLERS = [
   {
     id: 'p1',
-    store_name: "The Aquatic Collective",
-    tagline: "Masters of Rare Bucephalandra & Microsorum",
-    image: "https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&q=80&w=2000",
+    store_name: "Botanical Sanctuary",
+    tagline: "Curated Rare Specimens",
+    image: "/assets/default-banner.jpg",
     brand_color: "#10b981",
-    slug: "aquatic-collective",
-    location: "Bangalore, India"
-  },
-  {
-    id: 'p2',
-    store_name: "Emerald Sanctuary",
-    tagline: "Ethically Sourced Tropical Ferns & Mosses",
-    image: "https://images.unsplash.com/photo-1466781783364-391e954ef2b6?auto=format&fit=crop&q=80&w=2000",
-    brand_color: "#E5C48B",
-    slug: "emerald-sanctuary",
-    location: "Kerala, India"
-  },
-  {
-    id: 'p3',
-    store_name: "Hardscape Studio",
-    tagline: "Curated Seiryu Stone & Ancient Driftwood",
-    image: "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&q=80&w=2000",
-    brand_color: "#64748b",
-    slug: "hardscape-studio",
-    location: "Pune, India"
+    slug: "",
+    location: "Loading..."
   }
 ];
 
@@ -56,9 +38,10 @@ export default function VerifiedSellers() {
             id: p.id,
             store_name: p.store_name,
             tagline: p.tagline || 'Excellence in Botanical Curation',
-            image: getImageUrl(p.banner_url) || 'https://images.unsplash.com/photo-1466721594955-2d185c3c59bc?auto=format&fit=crop&q=80&w=2000',
+            image: getImageUrl(p.banner_url) || '/assets/default-banner.jpg',
+            logo: getImageUrl(p.logo_url) || '/assets/default-logo.jpg',
             slug: p.slug,
-            brand_color: '#10b981'
+            brand_color: p.brand_color || '#10b981'
           }));
           setPromotedSellers(mappedPromoted);
         }
@@ -149,6 +132,25 @@ export default function VerifiedSellers() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   alt="Spotlight"
                 />
+                
+                {/* Hero Logo Overlay */}
+                {promotedSellers[activeSlide].logo && (
+                  <div style={{ 
+                    position: 'absolute', bottom: '3rem', right: '3rem',
+                    width: '120px', height: '120px', borderRadius: '32px', backgroundColor: 'white',
+                    padding: '12px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                    zIndex: 2, border: '1px solid rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <img 
+                      src={promotedSellers[activeSlide].logo} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '24px' }}
+                      alt="Brand Logo"
+                    />
+                  </div>
+                )}
+                
                 <div style={{ position: 'absolute', inset: 0, border: '20px solid rgba(255,255,255,0.1)' }} />
               </motion.div>
               
@@ -233,13 +235,37 @@ export default function VerifiedSellers() {
                 <div style={{ order: idx % 2 === 0 ? 0 : 1, position: 'relative' }}>
                   <div style={{ 
                     aspectRatio: '4/5', backgroundColor: '#e5e7eb', borderRadius: '40px', 
-                    overflow: 'hidden', boxShadow: '0 30px 60px rgba(0,0,0,0.05)' 
+                    overflow: 'hidden', position: 'relative', boxShadow: '0 30px 60px rgba(0,0,0,0.05)' 
                   }}>
                     <img 
-                      src={getImageUrl(seller.logo_url) || `https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=1000`} 
+                      src={getImageUrl(seller.banner_url) || '/assets/default-banner.jpg'} 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       alt={seller.store_name}
                     />
+
+                    {/* Logo Overlay */}
+                    <div style={{ 
+                      position: 'absolute', 
+                      bottom: '2.5rem', 
+                      [idx % 2 === 0 ? 'right' : 'left']: '2.5rem',
+                      width: '90px', 
+                      height: '90px', 
+                      borderRadius: '24px', 
+                      backgroundColor: 'white',
+                      padding: '10px', 
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      overflow: 'hidden',
+                      zIndex: 2
+                    }}>
+                      <img 
+                        src={getImageUrl(seller.logo_url) || '/assets/default-logo.jpg'} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }}
+                        alt={`${seller.store_name} Logo`}
+                      />
+                    </div>
                   </div>
                   {/* Decorative Number */}
                   <span style={{ 
