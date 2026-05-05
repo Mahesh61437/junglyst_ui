@@ -203,7 +203,7 @@ export default function Navbar() {
                         <User size={16} /> Collector Hub
                       </Link>
 
-                      {user.role === 'grower' ? (
+                      {user.role === 'grower' && (
                         <Link
                           to="/seller/dashboard"
                           onClick={() => setIsProfileOpen(false)}
@@ -217,23 +217,7 @@ export default function Navbar() {
                           onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                           onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <LayoutDashboard size={16} /> Grower Dashboard
-                        </Link>
-                      ) : (
-                        <Link
-                          to="/seller/onboarding"
-                          onClick={() => setIsProfileOpen(false)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                            padding: '0.85rem 1rem', borderRadius: '10px',
-                            color: 'var(--brand-gold)', textDecoration: 'none',
-                            fontSize: '0.875rem', fontWeight: 700,
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <Store size={16} /> Sell on Junglyst
+                          <LayoutDashboard size={16} /> Seller Dashboard
                         </Link>
                       )}
 
@@ -447,14 +431,10 @@ export default function Navbar() {
                   <Link to="/profile" state={{ tab: 'security' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <ShieldCheck size={18} /> Security & Access
                   </Link>
-                  {/* Sell on Junglyst — shown to all logged-in users in side drawer */}
-                  {user.role === 'grower' ? (
+                  {/* Seller Dashboard — only for verified growers */}
+                  {user.role === 'grower' && (
                     <Link to="/seller/dashboard" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-green)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <LayoutDashboard size={18} /> Grower Dashboard
-                    </Link>
-                  ) : (
-                    <Link to="/seller/onboarding" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-gold)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <Store size={18} /> Sell on Junglyst
+                      <LayoutDashboard size={18} /> Seller Dashboard
                     </Link>
                   )}
                 </div>
@@ -463,9 +443,6 @@ export default function Navbar() {
               <>
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Account</p>
                 <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--brand-gold)' }}>Member Sign In</Link>
-                <Link to="/seller/onboarding" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Store size={18} color="var(--brand-gold)" /> Sell on Junglyst
-                </Link>
               </>
             )}
             {user && (
