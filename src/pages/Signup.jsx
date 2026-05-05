@@ -39,7 +39,7 @@ export default function Signup() {
       const msg = err.response?.data?.email?.[0] ||
         err.response?.data?.username?.[0] ||
         err.response?.data?.error ||
-        "Registration failed. Please check your details.";
+        (formData.role === 'grower' ? "Your email is not yet in our Curator Registry. Please contact support for an invitation." : "Registration failed. Please check your details.");
       setError(msg);
     } finally {
       setLoading(false);

@@ -428,19 +428,36 @@ export default function Profile() {
 
 
 
-          {/* Botanical Partner Section (Always visible at bottom of content) */}
+          {/* Botanical Partner Section / Seller CTA */}
           <section style={{ backgroundColor: 'var(--bg-deep)', borderRadius: '48px', padding: '5rem', color: 'white', position: 'relative', overflow: 'hidden', marginTop: '2rem' }}>
              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
-                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '2px solid var(--brand-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)' }}>
-                    <Award size={32} />
-                  </div>
-                  <h3 style={{ fontSize: '3rem', fontFamily: 'var(--font-serif)' }}>Botanical Partner</h3>
-                </div>
-                <p style={{ opacity: 0.8, fontSize: '1.25rem', maxWidth: '550px', marginBottom: '3.5rem', lineHeight: 1.8, fontWeight: 300 }}>
-                  You have successfully curated <strong style={{ color: 'var(--brand-gold)', fontWeight: 800 }}>{orders.length} ARCHIVED SPECIMENS</strong>. Reach 10 to unlock exclusive first-access to rare seasonal imports and private studio tours.
-                </p>
-                <button className="btn btn-primary" style={{ backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', padding: '1.25rem 3.5rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>View Reward Status</button>
+                {!isSeller ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
+                      <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '2px solid var(--brand-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)' }}>
+                        <Store size={32} />
+                      </div>
+                      <h3 style={{ fontSize: '3rem', fontFamily: 'var(--font-serif)' }}>Become a Seller</h3>
+                    </div>
+                    <p style={{ opacity: 0.8, fontSize: '1.25rem', maxWidth: '550px', marginBottom: '3.5rem', lineHeight: 1.8, fontWeight: 300 }}>
+                      Join our elite community of botanical artisans. If your email is in our Curator Registry, you can start building your digital nursery today.
+                    </p>
+                    <Link to="/seller/onboarding" className="btn btn-primary" style={{ backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', padding: '1.25rem 3.5rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', textDecoration: 'none', display: 'inline-block' }}>Start Onboarding</Link>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
+                      <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '2px solid var(--brand-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)' }}>
+                        <Award size={32} />
+                      </div>
+                      <h3 style={{ fontSize: '3rem', fontFamily: 'var(--font-serif)' }}>Botanical Partner</h3>
+                    </div>
+                    <p style={{ opacity: 0.8, fontSize: '1.25rem', maxWidth: '550px', marginBottom: '3.5rem', lineHeight: 1.8, fontWeight: 300 }}>
+                      You have successfully curated <strong style={{ color: 'var(--brand-gold)', fontWeight: 800 }}>{orders.length} ARCHIVED SPECIMENS</strong>. Reach 10 to unlock exclusive first-access to rare seasonal imports and private studio tours.
+                    </p>
+                    <button className="btn btn-primary" style={{ backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', padding: '1.25rem 3.5rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>View Reward Status</button>
+                  </>
+                )}
              </div>
              <div style={{ position: 'absolute', right: '-40px', bottom: '-40px', fontSize: '20rem', opacity: 0.05, transform: 'rotate(-15deg)' }}>🌿</div>
           </section>

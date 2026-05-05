@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
@@ -14,8 +15,17 @@ export default function Shop() {
 
   useEffect(() => {
     const handleOpenFilter = () => setIsMobileFilterOpen(true);
+    const handleResize = () => {
+      if (window.innerWidth > 1024) {
+        setIsMobileFilterOpen(false);
+      }
+    };
     window.addEventListener('openMobileFilter', handleOpenFilter);
-    return () => window.removeEventListener('openMobileFilter', handleOpenFilter);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('openMobileFilter', handleOpenFilter);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   const [categories, setCategories] = useState({
@@ -205,64 +215,49 @@ export default function Shop() {
   );
 
   return (
-    <div className="container" style={{ padding: '4rem 1rem', minHeight: '80vh', fontFamily: 'var(--font-sans)' }}>
+    <div className="container" style={{ padding: '2rem 1rem', minHeight: '80vh', fontFamily: 'var(--font-sans)' }}>
 
       {/* ── Page Header ── */}
-      <div style={{ marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', marginBottom: '0.5rem', fontFamily: 'var(--font-serif)' }}>
-              The Collection
-            </h1>
-            <p style={{ color: '#6b7280', fontSize: '1rem' }}>
-              Discover {totalCount} high-fidelity specimens
-            </p>
-          </div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h1 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-serif)', margin: 0 }}>
+            The Collection
+          </h1>
 
-          <div style={{ display: 'flex', gap: '0.75rem', flexGrow: 1, justifyContent: 'flex-end', maxWidth: '560px' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'center' }}>
             {/* Mobile filter trigger */}
             <button
               onClick={() => setIsMobileFilterOpen(true)}
               className="mobile-only"
               style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.65rem 1.1rem', borderRadius: '12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '40px', height: '40px', borderRadius: '10px',
                 border: activeFilterCount > 0 ? '1.5px solid #10b981' : '1.5px solid #e2e8f0',
                 backgroundColor: activeFilterCount > 0 ? '#ecfdf5' : 'white',
                 color: activeFilterCount > 0 ? '#065f46' : '#374151',
-                fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', flexShrink: 0,
-                fontFamily: 'var(--font-sans)',
+                cursor: 'pointer', flexShrink: 0,
+                position: 'relative'
               }}
             >
-              <SlidersHorizontal size={16} />
-              Filters
-              {activeFilterCount > 0 && (
-                <span style={{
-                  backgroundColor: '#10b981', color: 'white',
-                  borderRadius: '50%', width: '18px', height: '18px',
-                  fontSize: '0.65rem', fontWeight: 900,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {activeFilterCount}
-                </span>
-              )}
+              <SlidersHorizontal size={18} />
             </button>
 
             {/* Search bar */}
-            <div style={{ position: 'relative', flexGrow: 1, maxWidth: '350px' }}>
+            <div style={{ position: 'relative', flexGrow: 1 }}>
               <input
                 type="text"
                 placeholder="Find a specimen…"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 style={{
-                  width: '100%', padding: '0.7rem 1rem 0.7rem 2.75rem',
-                  borderRadius: '12px', border: '1.5px solid #e2e8f0',
-                  fontSize: '0.875rem', outline: 'none', backgroundColor: 'white',
+                  width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem',
+                  borderRadius: '10px', border: '1.5px solid #e2e8f0',
+                  fontSize: '0.85rem', outline: 'none', backgroundColor: 'white',
                   fontFamily: 'var(--font-sans)',
+                  height: '40px'
                 }}
               />
-              <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              <Search size={16} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             </div>
           </div>
         </div>
@@ -276,107 +271,118 @@ export default function Shop() {
         </aside>
 
         {/* ── Mobile Bottom-Sheet Filter ── */}
-        {isMobileFilterOpen && (
-          <>
-            {/* Backdrop */}
-            <div
-              onClick={() => setIsMobileFilterOpen(false)}
-              style={{
-                position: 'fixed', inset: 0, zIndex: 1200,
-                backgroundColor: 'rgba(10,20,18,0.55)', backdropFilter: 'blur(4px)',
-              }}
-            />
+        <AnimatePresence>
+          {isMobileFilterOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsMobileFilterOpen(false)}
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 1200,
+                  backgroundColor: 'rgba(10,20,18,0.55)', backdropFilter: 'blur(4px)',
+                }}
+              />
 
-            {/* Sheet panel */}
-            <div style={{
-              position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1300,
-              backgroundColor: 'white',
-              borderRadius: '24px 24px 0 0',
-              boxShadow: '0 -20px 60px rgba(0,0,0,0.2)',
-              maxHeight: '88vh',
-              display: 'flex', flexDirection: 'column',
-              animation: 'slideUpSheet 0.3s cubic-bezier(0.16,1,0.3,1) forwards',
-            }}>
-              {/* Drag handle */}
-              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '0.875rem', paddingBottom: '0.25rem' }}>
-                <div style={{ width: '40px', height: '4px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
-              </div>
-
-              {/* Sheet header */}
-              <div style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '0.5rem 1.5rem 0.875rem',
-                borderBottom: '1px solid #f1f5f1',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <SlidersHorizontal size={18} color="#10b981" />
-                  <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-serif)', color: '#0A3029', margin: 0 }}>
-                    Filter Collection
-                  </h3>
+              {/* Sheet panel */}
+              <motion.div 
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                drag="y"
+                dragConstraints={{ top: 0 }}
+                dragElastic={0.2}
+                onDragEnd={(_, info) => {
+                  if (info.offset.y > 150) {
+                    setIsMobileFilterOpen(false);
+                  }
+                }}
+                style={{
+                  position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1300,
+                  backgroundColor: 'white',
+                  borderRadius: '24px 24px 0 0',
+                  boxShadow: '0 -20px 60px rgba(0,0,0,0.2)',
+                  maxHeight: '90vh',
+                  display: 'flex', flexDirection: 'column',
+                  touchAction: 'none'
+                }}
+              >
+                {/* Drag handle */}
+                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
+                  <div style={{ width: '40px', height: '5px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
                 </div>
-                <button
-                  onClick={() => setIsMobileFilterOpen(false)}
-                  style={{
-                    background: '#f1f5f4', border: 'none', borderRadius: '50%',
-                    width: '34px', height: '34px', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#6b7280',
-                  }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
 
-              {/* Scrollable body */}
-              <div style={{ overflowY: 'auto', padding: '1.25rem 1.5rem', flex: 1 }}>
-                <FilterContent />
-              </div>
-
-              {/* Sticky footer */}
-              <div style={{
-                padding: '1rem 1.5rem',
-                borderTop: '1px solid #f1f5f1',
-                backgroundColor: 'white',
-                display: 'flex', gap: '0.75rem',
-              }}>
-                {hasActiveFilters && (
+                {/* Sheet header */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.5rem 1.5rem 1rem',
+                  borderBottom: '1px solid #f1f5f1',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <SlidersHorizontal size={18} color="#10b981" />
+                    <h3 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-serif)', color: '#0A3029', margin: 0 }}>
+                      Filter Collection
+                    </h3>
+                  </div>
                   <button
-                    onClick={() => { clearAllFilters(); }}
+                    onClick={() => setIsMobileFilterOpen(false)}
                     style={{
-                      flex: 1, padding: '0.875rem', borderRadius: '12px',
-                      border: '1.5px solid #e2e8f0', backgroundColor: 'white',
-                      color: '#4b5563', fontWeight: 700, fontSize: '0.875rem',
-                      cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                      background: '#f1f5f4', border: 'none', borderRadius: '50%',
+                      width: '34px', height: '34px', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', color: '#6b7280',
                     }}
                   >
-                    Clear all
+                    <X size={18} />
                   </button>
-                )}
-                <button
-                  onClick={() => setIsMobileFilterOpen(false)}
-                  style={{
-                    flex: 2, padding: '0.875rem', borderRadius: '12px',
-                    border: 'none', backgroundColor: '#0A3029',
-                    color: 'white', fontWeight: 700, fontSize: '0.875rem',
-                    cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                  }}
-                >
-                  {activeFilterCount > 0
-                    ? `Show ${displayedProducts.length} result${displayedProducts.length !== 1 ? 's' : ''}`
-                    : 'Show all results'}
-                </button>
-              </div>
-            </div>
+                </div>
 
-            <style>{`
-              @keyframes slideUpSheet {
-                from { transform: translateY(100%); opacity: 0.7; }
-                to   { transform: translateY(0);    opacity: 1; }
-              }
-            `}</style>
-          </>
-        )}
+                {/* Scrollable body */}
+                <div style={{ overflowY: 'auto', padding: '1.5rem', flex: 1, touchAction: 'pan-y' }}>
+                  <FilterContent />
+                </div>
+
+                {/* Sticky footer */}
+                <div style={{
+                  padding: '1.25rem 1.5rem 2rem',
+                  borderTop: '1px solid #f1f5f1',
+                  backgroundColor: 'white',
+                  display: 'flex', gap: '0.75rem',
+                }}>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={() => { clearAllFilters(); }}
+                      style={{
+                        flex: 1, padding: '1rem', borderRadius: '14px',
+                        border: '1.5px solid #e2e8f0', backgroundColor: 'white',
+                        color: '#4b5563', fontWeight: 700, fontSize: '0.875rem',
+                        cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsMobileFilterOpen(false)}
+                    style={{
+                      flex: 2, padding: '1rem', borderRadius: '14px',
+                      border: 'none', backgroundColor: '#0A3029',
+                      color: 'white', fontWeight: 700, fontSize: '0.875rem',
+                      cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      boxShadow: '0 10px 20px rgba(10,48,41,0.2)'
+                    }}
+                  >
+                    Show Results
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* ── Product Grid ── */}
         <div style={{ flexGrow: 1, minWidth: 0 }}>

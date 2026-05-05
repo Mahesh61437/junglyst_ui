@@ -134,6 +134,7 @@ export default function SellerStore() {
               src={sellerInfo.heroImage}
               alt="Studio View"
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              onError={(e) => { e.target.src = '/assets/default-banner.jpg' }}
             />
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 50%, #f3f4f1 100%)' }} />
           </motion.div>
@@ -175,9 +176,10 @@ export default function SellerStore() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
                 <img
-                  src={sellerInfo.logoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${sellerInfo.name}&backgroundColor=1b2d2a`}
+                  src={sellerInfo.logoUrl || '/assets/default-logo.jpg'}
                   style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
                   alt="Logo"
+                  onError={(e) => { e.target.src = '/assets/default-logo.jpg' }}
                 />
               </div>
               <div>

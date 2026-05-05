@@ -48,29 +48,23 @@ export default function Navbar() {
     { name: 'Plants', path: '/shop/Aquatic Plants' },
     { name: 'Hardscape', path: '/shop/Hardscape' },
     { name: 'Verified Sellers', path: '/sellers' },
+    { name: 'Sell', path: '/seller/onboarding' },
     { name: 'Care Guides', path: '/guides' },
   ];
 
   return (
-    <header style={{
-      backgroundColor: 'white',
-      borderBottom: '1px solid var(--border-subtle)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000,
-      fontFamily: 'var(--font-sans)',
-      transition: 'all var(--transition-base)',
+    <header className="navbar" style={{
       boxShadow: scrolled ? 'var(--shadow-md)' : 'none'
     }}>
       {/* Top Utility Bar */}
-      <div style={{
+      <div className="desktop-only" style={{
         backgroundColor: 'var(--bg-deep)',
         color: 'white',
-        fontSize: '0.7rem',
+        fontSize: '0.65rem',
         textAlign: 'center',
-        padding: '0.6rem 0',
+        padding: '0.5rem 0',
         fontWeight: 600,
-        letterSpacing: '0.12em',
+        letterSpacing: '0.15em',
         textTransform: 'uppercase'
       }}>
         Free Expert Packaging on All Orders Above ₹999
@@ -80,7 +74,7 @@ export default function Navbar() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '5.5rem',
+        height: 'var(--nav-height-mobile)',
         gap: '0.5rem'
       }}>
         {/* Left: Hamburger / Search */}
@@ -95,10 +89,9 @@ export default function Navbar() {
             <Menu size={24} />
           </button>
 
-          <div style={{
+          <div className="desktop-only" style={{
             position: 'relative',
-            width: '240px',
-            display: window.innerWidth > 768 ? 'block' : 'none'
+            width: '240px'
           }}>
             <input
               type="text"
@@ -126,10 +119,10 @@ export default function Navbar() {
           display: 'flex',
           justifyContent: 'center',
           flexGrow: 1,
-          transform: scrolled ? 'scale(0.9)' : 'scale(1)',
+          transform: scrolled ? 'scale(0.85)' : 'scale(1)',
           transition: 'transform var(--transition-base)'
         }}>
-          <NaturalLogo textColor="var(--text-primary)" size={scrolled ? 42 : 48} />
+          <NaturalLogo textColor="var(--text-primary)" size={scrolled ? 36 : 42} />
         </Link>
 
         {/* Right: Actions */}
@@ -210,6 +203,41 @@ export default function Navbar() {
                       >
                         <User size={16} /> Collector Hub
                       </Link>
+
+                      {user.role === 'grower' ? (
+                        <Link
+                          to="/seller/dashboard"
+                          onClick={() => setIsProfileOpen(false)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            padding: '0.85rem 1rem', borderRadius: '10px',
+                            color: 'var(--brand-green)', textDecoration: 'none',
+                            fontSize: '0.875rem', fontWeight: 700,
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <LayoutDashboard size={16} /> Grower Dashboard
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/seller/onboarding"
+                          onClick={() => setIsProfileOpen(false)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            padding: '0.85rem 1rem', borderRadius: '10px',
+                            color: 'var(--brand-gold)', textDecoration: 'none',
+                            fontSize: '0.875rem', fontWeight: 700,
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <Store size={16} /> Sell on Junglyst
+                        </Link>
+                      )}
+
                       {(user.is_staff || user.role === 'admin') && (
                         <Link
                           to="/super-admin"
@@ -224,7 +252,7 @@ export default function Navbar() {
                           onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                           onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <ShieldCheck size={16} /> Super Admin Dashboard
+                          <ShieldCheck size={16} /> Super Admin Portal
                         </Link>
                       )}
                       <button
@@ -286,10 +314,9 @@ export default function Navbar() {
       </div>
 
       {/* Desktop Sub-nav */}
-      <nav style={{
+      <nav className="desktop-only" style={{
         borderTop: '1px solid var(--border-subtle)',
-        backgroundColor: 'white',
-        display: window.innerWidth > 768 ? 'block' : 'none'
+        backgroundColor: 'white'
       }}>
         <div className="container" style={{
           display: 'flex',
