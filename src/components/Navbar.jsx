@@ -48,7 +48,6 @@ export default function Navbar() {
     { name: 'Plants', path: '/shop/Aquatic Plants' },
     { name: 'Hardscape', path: '/shop/Hardscape' },
     { name: 'Verified Sellers', path: '/sellers' },
-    { name: 'Sell', path: '/seller/onboarding' },
     { name: 'Care Guides', path: '/guides' },
   ];
 
@@ -448,12 +447,25 @@ export default function Navbar() {
                   <Link to="/profile" state={{ tab: 'security' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <ShieldCheck size={18} /> Security & Access
                   </Link>
+                  {/* Sell on Junglyst — shown to all logged-in users in side drawer */}
+                  {user.role === 'grower' ? (
+                    <Link to="/seller/dashboard" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-green)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <LayoutDashboard size={18} /> Grower Dashboard
+                    </Link>
+                  ) : (
+                    <Link to="/seller/onboarding" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-gold)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <Store size={18} /> Sell on Junglyst
+                    </Link>
+                  )}
                 </div>
               </>
             ) : (
               <>
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Account</p>
                 <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--brand-gold)' }}>Member Sign In</Link>
+                <Link to="/seller/onboarding" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Store size={18} color="var(--brand-gold)" /> Sell on Junglyst
+                </Link>
               </>
             )}
             {user && (
