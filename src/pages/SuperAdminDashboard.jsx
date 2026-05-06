@@ -27,7 +27,7 @@ export default function SuperAdminDashboard() {
     if (authLoading) return;
     
     // Check if user is staff or admin
-    if (!user || (!user.is_staff && user.role !== 'admin')) {
+    if (!user || !user.is_superuser) {
       navigate('/');
       return;
     }

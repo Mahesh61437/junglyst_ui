@@ -506,7 +506,7 @@ export default function SellerDashboard() {
     checkApproval();
   }, [user]);
 
-  if (authLoading || isApproved === null) {
+  if (authLoading) {
     return (
       <div style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid #edf2ed', borderTopColor: '#1b2d2a', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 2rem' }}></div>
@@ -519,7 +519,7 @@ export default function SellerDashboard() {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isApproved || (user.role !== 'grower' && user.role !== 'admin')) {
+  if (!user.is_staff || (user.role !== 'grower' && user.role !== 'admin')) {
     return (
       <div className="container" style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
         <div className="slide-up">

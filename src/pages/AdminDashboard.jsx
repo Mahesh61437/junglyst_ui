@@ -28,7 +28,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || (!user.is_staff && user.role !== 'admin')) {
+    if (!user || !user.is_superuser) {
       navigate('/');
       return;
     }

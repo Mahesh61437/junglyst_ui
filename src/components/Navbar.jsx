@@ -18,7 +18,7 @@ export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
-  const isGrower = user?.role === 'grower' || user?.role === 'admin';
+  const isGrower = user?.is_staff && (user?.role === 'grower' || user?.role === 'admin');
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -133,7 +133,7 @@ export default function Navbar() {
           flexShrink: 0,
           color: 'var(--text-primary)'
         }}>
-          {(user?.is_staff || user?.role === 'admin') && (
+          {user?.is_superuser && (
             <Link to="/super-admin" style={{ color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}>
               <ShieldCheck size={20} strokeWidth={1.5} color="var(--brand-gold)" />
               <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: window.innerWidth > 768 ? 'block' : 'none', color: 'var(--brand-gold)' }}>Admin</span>
@@ -209,7 +209,7 @@ export default function Navbar() {
                         <User size={16} /> Collector Hub
                       </Link>
 
-                      {user.role === 'grower' && (
+                      {isGrower && (
                         <Link
                           to="/seller/dashboard"
                           onClick={() => setIsProfileOpen(false)}
@@ -227,7 +227,7 @@ export default function Navbar() {
                         </Link>
                       )}
 
-                      {(user.is_staff || user.role === 'admin') && (
+                      {user.is_superuser && (
                         <Link
                           to="/super-admin"
                           onClick={() => setIsProfileOpen(false)}
@@ -410,7 +410,7 @@ export default function Navbar() {
           <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {user ? (
               <>
-                {(user.is_staff || user.role === 'admin') && (
+                {user.is_superuser && (
                   <>
                     <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Hub</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
@@ -448,7 +448,7 @@ export default function Navbar() {
                     <ShieldCheck size={18} /> Security & Access
                   </Link>
                   {/* Seller Dashboard — only for verified growers */}
-                  {user.role === 'grower' && (
+                  {isGrower && (
                     <Link to="/seller/dashboard" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-green)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <LayoutDashboard size={18} /> Seller Dashboard
                     </Link>
