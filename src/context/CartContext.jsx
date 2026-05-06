@@ -32,13 +32,15 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // High-Performance Logistics Engine
-  const calculateFinancials = useCallback((items = []) => {
-    if (!Array.isArray(items)) return { items: [], total_items: 0, subtotal: 0, tax_total: 0, shipping_total: 0, grand_total: 0, seller_groups: {}, remaining_for_free: 0 };
+  const calculateFinancials = useCallback((items = [], cartId = null) => {
+    // Ensure we don't overwrite an existing ID with null unless explicitly intended
+    const finalId = cartId || null;
+    if (!Array.isArray(items)) return { id: finalId, items: [], total_items: 0, subtotal: 0, tax_total: 0, shipping_total: 0, grand_total: 0, seller_groups: {}, remaining_for_free: 0 };
 
     // 1. Enforce Specimen Policy (Stock and Max Quantity)
     let adjustedItems = items.map(item => {
-      const product = item.product || {};
-      const variant = item.variant || {};
+      const product = item.product_details || (typeof item.product === 'object' ? item.product : {});
+      const variant = item.variant_details || (typeof item.variant === 'object' ? item.variant : {});
       const stock = variant.stock ?? 999;
       const maxAllowed = Math.min(MAX_ITEM_QUANTITY, stock);
 
@@ -53,8 +55,8 @@ export const CartProvider = ({ children }) => {
     adjustedItems.forEach(item => {
       if (item.note === "Out of stock") return;
 
-      const product = item.product || {};
-      const variant = item.variant || {};
+      const product = item.product_details || (typeof item.product === 'object' ? item.product : {});
+      const variant = item.variant_details || (typeof item.variant === 'object' ? item.variant : {});
       const sellerId = product.seller?.id || 'unknown';
 
       if (!seller_groups[sellerId]) {
@@ -82,7 +84,7 @@ export const CartProvider = ({ children }) => {
     });
 
     const subtotal = adjustedItems.reduce((acc, curr) => {
-      const p = parseFloat(curr.variant?.price || curr.product?.price || 0);
+      const p = parseFloat(curr.variant_details?.price || curr.variant?.price || curr.product_details?.price || curr.product?.price || 0);
       return acc + (p * curr.quantity);
     }, 0);
 
@@ -120,6 +122,7 @@ export const CartProvider = ({ children }) => {
     const total_items = adjustedItems.reduce((acc, curr) => acc + (curr?.quantity || 0), 0);
 
     return {
+      id: cartId,
       items: adjustedItems,
       total_items,
       subtotal,
@@ -133,22 +136,31 @@ export const CartProvider = ({ children }) => {
 
   // Sync Strategy
   const syncCartWithBackend = useCallback(async () => {
-    if (!isAuthenticated) return;
     try {
-      const backendData = await CartService.getCart();
       const localItems = JSON.parse(localStorage.getItem('junglyst_cart') || '[]');
 
       if (localItems.length > 0) {
         for (const item of localItems) {
-          await CartService.addToCart(item.product.id, item.quantity, item.variant?.id);
+          try {
+            const productId = item.product?.id || (typeof item.product === 'string' ? item.product : null);
+            const variantId = item.variant?.id || (typeof item.variant === 'string' ? item.variant : null);
+            if (productId) {
+              await CartService.addToCart(productId, item.quantity, variantId);
+            }
+          } catch (itemErr) {
+            console.warn("Failed to sync individual item:", itemErr);
+          }
         }
+        // Always clear local storage after attempting sync to prevent infinite crash loops
         localStorage.removeItem('junglyst_cart');
       }
 
+      // Always fetch the true backend state
       const finalData = await CartService.getCart();
-      setCart(calculateFinancials(finalData.items || []));
+      console.log("Cart Registry Synced:", finalData?.id);
+      setCart(prev => calculateFinancials(finalData?.items || [], finalData?.id || prev.id));
     } catch (error) {
-      console.error("Cart sync failed:", error);
+      console.error("Cart sync failed entirely:", error);
     } finally {
       setLoading(false);
     }
@@ -159,10 +171,10 @@ export const CartProvider = ({ children }) => {
     const initCart = async () => {
       const localItems = JSON.parse(localStorage.getItem('junglyst_cart') || '[]');
       if (localItems.length > 0) {
-        setCart(calculateFinancials(localItems));
+        setCart(calculateFinancials(localItems, null));
       }
 
-      if (isAuthenticated) {
+      if (isAuthenticated || true) { // Always sync, backend handles session-based carts
         await syncCartWithBackend();
       } else {
         setLoading(false);
@@ -202,16 +214,15 @@ export const CartProvider = ({ children }) => {
           quantity: quantity
         });
       }
-      return calculateFinancials(newItems);
+      return calculateFinancials(newItems, prev.id);
     });
 
-    if (isAuthenticated) {
-      try {
-        const updatedCart = await CartService.addToCart(productId, quantity, variantId);
-        setCart(calculateFinancials(updatedCart.items || []));
-      } catch (error) {
-        console.error("Backend sync failed:", error);
-      }
+    // Always try to sync with backend to get full metadata
+    try {
+      const updatedCart = await CartService.addToCart(productId, quantity, variantId);
+      setCart(prev => calculateFinancials(updatedCart.items || [], updatedCart.id || prev.id));
+    } catch (error) {
+      console.error("Backend sync failed:", error);
     }
     return true;
   };
@@ -234,13 +245,13 @@ export const CartProvider = ({ children }) => {
     setCart(prev => {
       const newItems = [...prev.items];
       newItems[itemIndex].quantity = newQuantity;
-      return calculateFinancials(newItems);
+      return calculateFinancials(newItems, prev.id);
     });
 
     if (newQuantity > 0) {
       try {
         const updatedCart = await CartService.updateItem(item.id, newQuantity);
-        setCart(calculateFinancials(updatedCart.items || []));
+        setCart(prev => calculateFinancials(updatedCart.items || [], updatedCart.id || prev.id));
       } catch (error) {
         console.error("Failed to update quantity:", error);
       }
@@ -253,13 +264,13 @@ export const CartProvider = ({ children }) => {
 
     setCart(prev => {
       const newItems = prev.items.filter((_, i) => i !== itemIndex);
-      return calculateFinancials(newItems);
+      return calculateFinancials(newItems, prev.id);
     });
 
     if (isAuthenticated && !item.id.toString().startsWith('temp-')) {
       try {
         const updatedCart = await CartService.updateItem(item.id, 0);
-        setCart(calculateFinancials(updatedCart.items || []));
+        setCart(prev => calculateFinancials(updatedCart.items || [], updatedCart.id || prev.id));
       } catch (error) {
         console.error("Failed to sync removal:", error);
       }

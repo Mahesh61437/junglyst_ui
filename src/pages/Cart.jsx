@@ -63,8 +63,8 @@ export default function Cart() {
                 {/* Items in this group */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {group.items.map((item, idx) => {
-                    const product = item.product || {};
-                    const variant = item.variant || {};
+                    const product = item.product_details || item.product || {};
+                    const variant = item.variant_details || item.variant || {};
                     const stock = variant.stock || 0;
                     return (
                       <div key={item.id} style={{
@@ -78,7 +78,7 @@ export default function Cart() {
                         boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
                       }}>
                         <div style={{ width: '140px', height: '140px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc', flexShrink: 0 }}>
-                          <img src={getImageUrl(variant.image_url || product.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={product.name} />
+                          <img src={getImageUrl(variant.image_url || product.image_url || product.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={product.name || 'Specimen'} />
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
