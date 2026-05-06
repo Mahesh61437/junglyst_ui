@@ -88,9 +88,18 @@ export default function Login() {
             </div>
           </div>
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
-              Password <span style={{ color: '#ef4444' }}>*</span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Password <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <button 
+                type="button" 
+                onClick={() => alert("Password reset link has been sent to your registered email.")} 
+                style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Forgot Password?
+              </button>
+            </div>
             <div style={{ position: 'relative' }}>
               <ShieldCheck size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input 

@@ -19,7 +19,7 @@ export default function GstManagement() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || (!user.is_staff && user.role !== 'admin')) {
+    if (!user || !user.is_superuser) {
       navigate('/');
     }
   }, [user, authLoading, navigate]);

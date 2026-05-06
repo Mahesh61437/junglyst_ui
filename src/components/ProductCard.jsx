@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Star, ShoppingCart, Heart, CheckCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -18,6 +18,7 @@ const isLight = (color) => {
 
 export default function ProductCard({ id, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants, stock }) {
   const { addItemToCart, cart } = useCart();
+  const navigate = useNavigate();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const sellerInfo = seller?.seller_profile || {};
 
@@ -45,7 +46,7 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
   const quantityInCart = cartItem ? cartItem.quantity : 0;
 
   return (
-    <div className="product-card product-card-layout" style={{
+    <div className="product-card product-card-layout" onClick={() => navigate(`/product/${id}`)} style={{
       background: 'white',
       borderRadius: '24px',
       overflow: 'hidden',
