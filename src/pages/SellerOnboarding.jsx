@@ -28,70 +28,21 @@ export default function SellerOnboarding() {
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    const fetchCats = async () => {
-      try {
-        const data = await ProductService.getCategories();
-        setCategories(Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : []));
-      } catch (err) {
-        console.error("Failed to fetch categories:", err);
-      }
-    };
-    fetchCats();
-  }, []);
-
   const [isApproved, setIsApproved] = useState(null);
-
-  // 1. Auth & Approval Protection
-  useEffect(() => {
-    const checkAccess = async () => {
-      if (!user) {
-        navigate('/login?redirect=/seller/onboarding');
-        return;
-      }
-
-      try {
-        const res = await api.get('/sellers/check-approval/');
-        setIsApproved(res.data.is_approved);
-        console.log(res.data);
-      } catch (error) {
-        setIsApproved(false);
-      }
-    };
-    checkAccess();
-  }, [user, navigate]);
-
-  if (isApproved === false) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfdfc', padding: '2rem' }}>
-        <div style={{ maxWidth: '500px', textAlign: 'center', animation: 'fadeIn 0.5s ease' }}>
-          <div style={{ backgroundColor: '#fff5f5', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: '#ef4444' }}>
-            <ShieldCheck size={32} />
-          </div>
-          <h1 style={{ fontSize: '2.5rem', fontFamily: 'serif', marginBottom: '1.5rem' }}>Access Denied</h1>
-          <p style={{ color: '#64748b', marginBottom: '3rem', lineHeight: 1.6 }}>
-            Your credentials are not in our master curator registry. We currently only onboard growers who have been pre-screened for botanical excellence.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button onClick={() => navigate('/')} style={{ padding: '1rem 2rem', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer' }}>Back to Shop</button>
-            <button onClick={() => navigate('/login')} style={{ padding: '1rem 2rem', borderRadius: '12px', background: '#0A3029', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Switch Account</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isApproved === null) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: '40px', height: '40px', border: '3px solid #edf2ed', borderTopColor: '#0A3029', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-      </div>
-    );
-  }
+  const [checkedEmail, setCheckedEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(null);
 
   const [formData, setFormData] = useState(() => {
-    const saved = localStorage.getItem('junglyst_onboarding_draft');
-    return saved ? JSON.parse(saved) : {
+    try {
+      const saved = localStorage.getItem('junglyst_onboarding_draft');
+      if (saved && saved !== 'undefined' && saved !== 'null') {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to parse onboarding draft', e);
+    }
+    return {
       storeName: '',
       tagline: '',
       description: '',
@@ -114,11 +65,77 @@ export default function SellerOnboarding() {
 
   const [currentStep, setCurrentStep] = useState(() => {
     const saved = localStorage.getItem('junglyst_onboarding_step');
-    return saved ? parseInt(saved, 10) : 1;
+    const parsed = parseInt(saved, 10);
+    return !isNaN(parsed) && parsed > 0 ? parsed : 1;
   });
 
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(null);
+  // 1. Auth & Approval Protection
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!user) {
+        navigate('/login?redirect=/seller/onboarding');
+        return;
+      }
+
+      try {
+        const res = await api.get('/sellers/check-approval/');
+        setIsApproved(res.data.is_approved);
+        setCheckedEmail(res.data.email_checked);
+        console.log("Approval check result:", res.data);
+      } catch (error) {
+        setIsApproved(false);
+      }
+    };
+    checkAccess();
+  }, [user, navigate]);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const data = await ProductService.getCategories();
+        setCategories(Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : []));
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('junglyst_onboarding_draft', JSON.stringify(formData));
+    localStorage.setItem('junglyst_onboarding_step', currentStep.toString());
+  }, [formData, currentStep]);
+
+  if (isApproved === false) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fcfdfc', padding: '2rem' }}>
+        <div style={{ maxWidth: '500px', textAlign: 'center', animation: 'fadeIn 0.5s ease' }}>
+          <div style={{ backgroundColor: '#fff5f5', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: '#ef4444' }}>
+            <ShieldCheck size={32} />
+          </div>
+          <h1 style={{ fontSize: '2.5rem', fontFamily: 'serif', marginBottom: '1.5rem' }}>Access Denied</h1>
+          <p style={{ color: '#64748b', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+            The account <strong>{checkedEmail || user?.email}</strong> is not in our master curator registry.
+          </p>
+          <p style={{ color: '#64748b', marginBottom: '3rem', fontSize: '0.9rem' }}>
+            We currently only onboard growers who have been pre-screened for botanical excellence. Please contact the administrator to have this email whitelisted.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button onClick={() => navigate('/')} style={{ padding: '1rem 2rem', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer' }}>Back to Shop</button>
+            <button onClick={() => window.location.reload()} style={{ padding: '1rem 2rem', borderRadius: '12px', background: '#0A3029', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Retry Check</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isApproved === null) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid #edf2ed', borderTopColor: '#0A3029', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+      </div>
+    );
+  }
 
   const presets = [
     // Botanical Greens
@@ -152,11 +169,6 @@ export default function SellerOnboarding() {
     { name: 'Ink', color: '#020617' }
   ];
 
-  useEffect(() => {
-    localStorage.setItem('junglyst_onboarding_draft', JSON.stringify(formData));
-    localStorage.setItem('junglyst_onboarding_step', currentStep.toString());
-  }, [formData, currentStep]);
-
   const validateStep = () => {
     switch (currentStep) {
       case 2:
@@ -164,7 +176,7 @@ export default function SellerOnboarding() {
       case 3:
         return formData.brandColor && formData.logoUrl;
       case 4:
-        return formData.description.trim().length >= 20;
+        return formData.description.trim().length >= 10;
       case 5:
         return formData.taxId.trim().length >= 5 && formData.payoutBank.trim().length >= 5;
       case 6:
@@ -374,8 +386,16 @@ export default function SellerOnboarding() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Name <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input name="storeName" value={formData.storeName} onChange={handleInputChange} placeholder="e.g. Rare Greens Nursery" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Studio Name <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={{ color: formData.storeName.trim().length < 3 ? '#ef4444' : '#10b981', fontSize: '0.7rem' }}>
+                      {formData.storeName.trim().length}/3 min
+                    </span>
+                  </label>
+                  <input name="storeName" value={formData.storeName} onChange={handleInputChange} placeholder="e.g. Rare Greens Nursery" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: formData.storeName.trim().length > 0 && formData.storeName.trim().length < 3 ? '1px solid #fecaca' : '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
+                  {formData.storeName.trim().length > 0 && formData.storeName.trim().length < 3 && (
+                    <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '0.5rem', fontWeight: 600 }}>Name must be at least 3 characters.</p>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Signature Tagline</label>
@@ -445,7 +465,10 @@ export default function SellerOnboarding() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Logo <span style={{ color: '#ef4444' }}>*</span></label>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Studio Logo <span style={{ color: '#ef4444' }}>*</span></span>
+                      {!formData.logoUrl && <span style={{ color: '#ef4444', fontSize: '0.7rem' }}>Required to continue</span>}
+                    </label>
                     <div style={{ position: 'relative' }}>
                       <input type="file" accept="image/*" id="logo-upload" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, 'logo')} />
                       <label htmlFor="logo-upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '120px', border: uploading === 'logo' ? '2px solid #E5C48B' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
@@ -493,8 +516,23 @@ export default function SellerOnboarding() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Philosophy <span style={{ color: '#ef4444' }}>*</span></label>
-                  <textarea name="description" value={formData.description} onChange={handleInputChange} rows="4" placeholder="Describe your cultivation methods and commitment to specimen purity..." style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', resize: 'none' }} />
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Studio Philosophy <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={{ color: formData.description.length < 10 ? '#ef4444' : '#10b981', fontSize: '0.7rem' }}>
+                      {formData.description.length}/10 min
+                    </span>
+                  </label>
+                  <textarea 
+                    name="description" 
+                    value={formData.description} 
+                    onChange={handleInputChange} 
+                    rows="4" 
+                    placeholder="Describe your cultivation methods and commitment to specimen purity..." 
+                    style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: formData.description.length > 0 && formData.description.length < 10 ? '1px solid #fecaca' : '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', resize: 'none', backgroundColor: formData.description.length > 0 && formData.description.length < 10 ? '#fffefc' : 'white' }} 
+                  />
+                  {formData.description.length > 0 && formData.description.length < 10 && (
+                    <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '0.5rem', fontWeight: 600 }}>Please share a bit more about your studio (at least 10 characters).</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -508,14 +546,24 @@ export default function SellerOnboarding() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tax Identification (GST/PAN) <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input name="taxId" value={formData.taxId} onChange={handleInputChange} placeholder="Enter your business tax ID" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Tax Identification (GST/PAN) <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={{ color: formData.taxId.trim().length < 5 ? '#ef4444' : '#10b981', fontSize: '0.7rem' }}>
+                      {formData.taxId.trim().length}/5 min
+                    </span>
+                  </label>
+                  <input name="taxId" value={formData.taxId} onChange={handleInputChange} placeholder="Enter your business tax ID" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: formData.taxId.trim().length > 0 && formData.taxId.trim().length < 5 ? '1px solid #fecaca' : '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payout Account <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Payout Account <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={{ color: formData.payoutBank.trim().length < 5 ? '#ef4444' : '#10b981', fontSize: '0.7rem' }}>
+                      {formData.payoutBank.trim().length}/5 min
+                    </span>
+                  </label>
                   <div style={{ position: 'relative' }}>
                     <CreditCard size={18} style={{ position: 'absolute', left: '1.125rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                    <input name="payoutBank" value={formData.payoutBank} onChange={handleInputChange} placeholder="UPI ID or Bank Account" style={{ width: '100%', padding: '1.125rem 1.125rem 1.125rem 3.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
+                    <input name="payoutBank" value={formData.payoutBank} onChange={handleInputChange} placeholder="UPI ID or Bank Account" style={{ width: '100%', padding: '1.125rem 1.125rem 1.125rem 3.5rem', borderRadius: '12px', border: formData.payoutBank.trim().length > 0 && formData.payoutBank.trim().length < 5 ? '1px solid #fecaca' : '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
                   </div>
                 </div>
               </div>
@@ -530,13 +578,19 @@ export default function SellerOnboarding() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Specimen Name <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input name="firstProductName" value={formData.firstProductName} onChange={handleInputChange} placeholder="e.g. Monstera Albo Variegata" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Specimen Name <span style={{ color: '#ef4444' }}>*</span></span>
+                    {!formData.firstProductName && <span style={{ color: '#ef4444', fontSize: '0.7rem' }}>Required</span>}
+                  </label>
+                  <input name="firstProductName" value={formData.firstProductName} onChange={handleInputChange} placeholder="e.g. Monstera Albo Variegata" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: !formData.firstProductName ? '1px solid #e2e8f0' : '1px solid #10b981', fontSize: '1rem', outline: 'none' }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Launch Price (₹) <span style={{ color: '#ef4444' }}>*</span></label>
-                    <input name="firstProductPrice" type="number" value={formData.firstProductPrice} onChange={handleInputChange} placeholder="4999" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Launch Price (₹) <span style={{ color: '#ef4444' }}>*</span></span>
+                      {(!formData.firstProductPrice || formData.firstProductPrice <= 0) && <span style={{ color: '#ef4444', fontSize: '0.7rem' }}>Must be {'>'} 0</span>}
+                    </label>
+                    <input name="firstProductPrice" type="number" value={formData.firstProductPrice} onChange={handleInputChange} placeholder="4999" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: (!formData.firstProductPrice || formData.firstProductPrice <= 0) ? '1px solid #e2e8f0' : '1px solid #10b981', fontSize: '1rem', outline: 'none' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stock</label>

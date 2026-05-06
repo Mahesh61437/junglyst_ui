@@ -396,7 +396,7 @@ export default function ProductDetails() {
                   <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Junglyst Distribution</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Certified Seller</span>
+                  <span>Verified Seller</span>
                   <span style={{ fontWeight: 700, color: 'var(--brand-gold)' }}>{product.seller?.username || product.seller?.name || 'Aquatic Exotica'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -502,7 +502,7 @@ export default function ProductDetails() {
             <header>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-gold)', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
                 <Link to={`/store/${encodeURIComponent(product.seller?.username || product.seller?.name || 'Aquatic Exotica')}`} style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Award size={14} /> Certified Botanical Studio
+                  <Award size={14} /> Verified Botanical Studio
                 </Link>
                 <span style={{ color: 'var(--border-subtle)' }}>•</span>
                 <span style={{ color: 'var(--brand-green)' }}>Verified Seller</span>
@@ -657,7 +657,7 @@ export default function ProductDetails() {
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Junglyst Distribution</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Certified Seller</span>
+                    <span>Verified Seller</span>
                     <span style={{ fontWeight: 700, color: 'var(--brand-gold)' }}>{product.seller?.username || product.seller?.name || 'Aquatic Exotica'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>

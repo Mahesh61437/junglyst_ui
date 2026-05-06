@@ -8,6 +8,7 @@ import Checkout from './pages/Checkout';
 import SellerDashboard from './pages/SellerDashboard';
 import SellerOnboarding from './pages/SellerOnboarding';
 import SellerStore from './pages/SellerStore';
+import VerifiedSellers from './pages/VerifiedSellers';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Wishlist from './pages/Wishlist';
@@ -45,6 +46,7 @@ function App() {
                 <Route path="checkout" element={<Checkout />} />
                 <Route path="wishlist" element={<Wishlist />} />
                 <Route path="store/:sellerName" element={<SellerStore />} />
+                <Route path="sellers" element={<VerifiedSellers />} />
                 <Route path="terms" element={<Terms />} />
                 <Route path="privacy" element={<Privacy />} />
                 <Route path="profile" element={<Profile />} />

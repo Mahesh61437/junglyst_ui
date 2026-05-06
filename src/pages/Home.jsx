@@ -2,27 +2,35 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { ProductService } from '../services/ProductService';
-import { ShieldCheck, ArrowRight, Star, Leaf, Award, Truck } from 'lucide-react';
+import { SellerService } from '../services/SellerService';
+import { getImageUrl } from '../utils/imageUtils';
+import { ShieldCheck, ArrowRight, Leaf, Award, Truck } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 
 export default function Home() {
   const [products, setProducts] = useState([]);
+  const [featuredGrower, setFeaturedGrower] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const data = await ProductService.getProducts();
-        const results = data.results || data || [];
+        const [productData, growerData] = await Promise.all([
+          ProductService.getProducts(),
+          SellerService.getFeaturedCurator()
+        ]);
+        
+        const results = productData.results || productData || [];
         const activeResults = results.filter((p) => p?.is_active !== false);
-        setProducts(activeResults.slice(0, 8)); // Only show top 8 on home
+        setProducts(activeResults.slice(0, 8));
+        setFeaturedGrower(growerData);
       } catch (error) {
-        console.error("Failed to fetch products API:", error);
+        console.error("Failed to fetch home data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
+    fetchData();
   }, []);
 
   return (
@@ -107,69 +115,86 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Grower Spotlight */}
-      <section style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: 'clamp(4rem, 8vw, 10rem) 0', overflow: 'hidden' }}>
-        <div className="container" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-          gap: 'clamp(2.5rem, 5vw, 6rem)',
-          alignItems: 'center'
-        }}>
-          {/* Image block */}
-          <div className="slide-up" style={{ position: 'relative' }}>
-            <div style={{
-              position: 'absolute', top: '-20px', left: '-20px', right: '20px', bottom: '20px',
-              border: '1px solid rgba(255,255,255,0.08)', zIndex: 0,
-              display: 'none' // hide on mobile via inline; we'll show on desktop via the media rule below
-            }} />
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <img
-                src="https://images.unsplash.com/photo-1616645391185-36f78fecadad?w=800&q=80"
-                alt="Grower Studio"
-                style={{
-                  width: '100%',
-                  aspectRatio: '4 / 3',
-                  objectFit: 'cover',
-                  display: 'block',
-                  boxShadow: '20px 20px 60px rgba(0,0,0,0.3)'
-                }}
-              />
-              {/* Gold overlay card — sits inside the image bounds */}
-              <div style={{
-                position: 'absolute',
-                bottom: '1.25rem',
-                right: '1.25rem',
-                backgroundColor: 'var(--brand-gold)',
-                padding: 'clamp(0.875rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem)',
-                color: 'white',
-                zIndex: 2,
-                boxShadow: 'var(--shadow-lg)',
-                maxWidth: '65%'
-              }}>
-                <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: '0.4rem', opacity: 0.9 }}>Studio Profile</p>
-                <p style={{ fontSize: 'clamp(1rem, 3vw, 1.4rem)', fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>Aquatic Exotica</p>
+      {featuredGrower && (
+        <section style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: 'clamp(4rem, 8vw, 10rem) 0', overflow: 'hidden' }}>
+          <div className="container" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+            gap: 'clamp(2.5rem, 5vw, 6rem)',
+            alignItems: 'center'
+          }}>
+            {/* Image block */}
+            <div className="slide-up" style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <img
+                  src={getImageUrl(featuredGrower.banner_url)}
+                  alt={featuredGrower.store_name}
+                  style={{
+                    width: '100%',
+                    aspectRatio: '4 / 3',
+                    objectFit: 'cover',
+                    display: 'block',
+                    boxShadow: '20px 20px 60px rgba(0,0,0,0.3)'
+                  }}
+                />
+                {/* Gold overlay card */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '1.25rem',
+                  right: '1.25rem',
+                  backgroundColor: 'var(--brand-gold)',
+                  padding: 'clamp(0.875rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem)',
+                  color: 'white',
+                  zIndex: 2,
+                  boxShadow: 'var(--shadow-lg)',
+                  maxWidth: '65%'
+                }}>
+                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: '0.4rem', opacity: 0.9 }}>Master Curator</p>
+                  <p style={{ fontSize: 'clamp(1rem, 3vw, 1.4rem)', fontFamily: 'var(--font-serif)', fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{featuredGrower.store_name}</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Text block */}
-          <div className="slide-up" style={{ animationDelay: '0.2s' }}>
-            <span style={{ color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.25em' }}>Featured Grower</span>
-            <h2 style={{ fontSize: 'clamp(1.75rem, 5vw, 3.75rem)', margin: '1.25rem 0 1.5rem', lineHeight: 1.1 }}>Cultivating the Extraordinary</h2>
-            <p style={{ fontSize: 'clamp(0.95rem, 2vw, 1.2rem)', opacity: 0.8, lineHeight: 1.8, marginBottom: '2.5rem', fontWeight: 300 }}>
-              Based in the lush Western Ghats, Aquatic Exotica specializes in rare Bucephalandra and mosses. Every specimen is grown with precision in proprietary water-scapes, ensuring seamless transition to your aquarium.
+            {/* Text block */}
+            <div className="slide-up" style={{ animationDelay: '0.2s' }}>
+              <span style={{ color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.25em' }}>Featured Grower</span>
+              <h2 style={{ fontSize: 'clamp(1.75rem, 5vw, 3.75rem)', margin: '1.25rem 0 1.5rem', lineHeight: 1.1 }}>{featuredGrower.tagline || 'Cultivating the Extraordinary'}</h2>
+              <p style={{ fontSize: 'clamp(0.95rem, 2vw, 1.2rem)', opacity: 0.8, lineHeight: 1.8, marginBottom: '2.5rem', fontWeight: 300 }}>
+                {featuredGrower.bio}
+              </p>
+              <Link to={`/store/${featuredGrower.slug}`} style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                color: 'var(--brand-gold)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                textDecoration: 'none'
+              }}>
+                Shop the Collection <ArrowRight size={18} />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Become a Seller CTA */}
+      <section style={{ padding: '8rem 0', backgroundColor: '#f9f8f4' }}>
+        <div className="container slide-up" style={{ textAlign: 'center' }}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ width: '40px', height: '1px', backgroundColor: 'var(--brand-gold)' }}></div>
+              <Leaf size={24} color="var(--brand-gold)" />
+              <div style={{ width: '40px', height: '1px', backgroundColor: 'var(--brand-gold)' }}></div>
+            </div>
+            <h2 style={{ fontSize: '3rem', fontFamily: 'var(--font-serif)', marginBottom: '1.5rem' }}>Are you a Master Grower?</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', lineHeight: 1.8, marginBottom: '3.5rem' }}>
+              Junglyst is looking for dedicated curators to join our verified partner network. Showcase your cultivated collection to discerning collectors across India.
             </p>
-            <Link to="/shop" style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              color: 'var(--brand-gold)',
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase'
-            }}>
-              Shop the Collection <ArrowRight size={18} />
+            <Link to="/seller/onboarding" className="btn btn-primary" style={{ padding: '1.25rem 4rem', textDecoration: 'none', display: 'inline-block' }}>
+              Apply to Sell
             </Link>
           </div>
         </div>

@@ -31,6 +31,25 @@ export default function Footer() {
             </p>
           </div>
 
+          {/* Quick Links */}
+          <div>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', color: 'var(--brand-gold)' }}>The Collection</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <Link to="/shop" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>All Specimens</Link>
+              <Link to="/sellers" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Verified Sellers</Link>
+              <Link to="/guides" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Care Guides</Link>
+            </div>
+          </div>
+
+          {/* Marketplace */}
+          <div>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', color: 'var(--brand-gold)' }}>Marketplace</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <Link to="/seller/onboarding" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 700 }}>Become a Seller</Link>
+              <Link to="/seller/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Seller Login</Link>
+              <Link to="/contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Partner Inquiry</Link>
+            </div>
+          </div>
         </div>
 
         <div style={{ 

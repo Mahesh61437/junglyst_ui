@@ -80,6 +80,37 @@ button {
 }
 
 /* Layout Utilities */
+/* ── Layout & Navbar ── */
+:root {
+  --nav-height-desktop: 110px;
+  --nav-height-mobile: 70px;
+  --nav-z-index: 1000;
+  --modal-z-index: 2000;
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--nav-z-index);
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all var(--transition-base);
+}
+
+.main-content {
+  padding-top: var(--nav-height-desktop);
+  min-height: 100vh;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    padding-top: var(--nav-height-mobile);
+  }
+}
+
 .container {
   max-width: var(--max-w-screen);
   margin: 0 auto;
@@ -90,6 +121,31 @@ button {
   .container {
     padding: 0 1rem;
   }
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .desktop-only {
+    display: none;
+  }
+  .mobile-only {
+    display: block;
+  }
+}
+
+.img-fill {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 /* Buttons */
@@ -221,66 +277,70 @@ button {
   padding: 1.5rem;
 }
 
-/* ── Mobile (≤ 768 px): horizontal card ── */
+/* ── Mobile (≤ 768 px): Compact Grid ── */
 @media (max-width: 768px) {
 
-  /* Single-column grid so cards span full width */
+  /* 2-column grid for better scannability */
   .grid-responsive {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 0.75rem !important;
   }
 
-  /* Card flips to row */
+  /* Card reverts to vertical stack but compact */
   .product-card-layout {
-    flex-direction: row !important;
-    align-items: stretch;
-    border-radius: 16px !important;
-    height: auto !important;
-  }
-
-  /* Fixed-width square thumbnail on the left */
-  .product-card-img-wrapper {
-    width: 130px !important;
-    min-width: 130px !important;
-    aspect-ratio: 1 / 1 !important;
-    flex-shrink: 0;
-  }
-
-  /* Right-side content */
-  .product-card-content {
-    padding: 0.75rem 1rem !important;
-    display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
-    gap: 0.15rem;
+    border-radius: 20px !important;
   }
 
-  /* Product name */
+  /* Compact image wrapper */
+  .product-card-img-wrapper {
+    width: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+
+  /* Compact content */
+  .product-card-content {
+    padding: 0.75rem !important;
+    gap: 0.25rem;
+  }
+
+  /* Product name - smaller and more compact */
   .product-card-title {
-    font-size: 0.95rem !important;
-    min-height: auto !important;
-    margin-bottom: 0.2rem !important;
+    font-size: 0.875rem !important;
+    min-height: 2.2rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 0.25rem !important;
     -webkit-line-clamp: 2;
   }
 
-  /* Price row – no top border, flush to name */
+  /* Price & Footer - Clean and aligned */
   .product-card-footer {
-    margin-top: 0.25rem !important;
-    padding-top: 0 !important;
-    border-top: none !important;
-    justify-content: flex-start !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.5rem !important;
+    border-top: 1px solid rgba(0,0,0,0.04) !important;
+    justify-content: space-between !important;
+  }
+
+  /* Seller name */
+  .product-card-seller {
+    margin-bottom: 0.2rem !important;
+  }
+
+  /* Hide specific elements on very small screens if needed */
+  .mobile-hide { display: none !important; }
+}
+
+/* ── Small phones (≤ 420 px) ── */
+@media (max-width: 420px) {
+  .grid-responsive {
     gap: 0.5rem !important;
   }
-
-  /* Seller name row – moves below price */
-  .product-card-seller {
-    order: 10;
-    margin-bottom: 0 !important;
-    margin-top: 0.3rem !important;
+  .product-card-content {
+    padding: 0.6rem !important;
   }
-
-  /* Hide secondary info on mobile */
-  .mobile-hide { display: none !important; }
+  .product-card-title {
+    font-size: 0.8rem !important;
+  }
 }
 
 /* ── Small phones (≤ 420 px) ── */

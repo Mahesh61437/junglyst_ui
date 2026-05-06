@@ -57,20 +57,15 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
     }}>
       {/* Visual Area */}
       <div className="product-card-img-wrapper" style={{ position: 'relative', backgroundColor: '#f8fafc', overflow: 'hidden' }}>
-        <Link to={`/product/${id}`} style={{ display: 'block', height: '100%' }}>
+        <Link to={`/product/${id}`} style={{ display: 'block', height: '100%', position: 'relative' }}>
           <img
-            src={finalImage}
+            src={finalImage || '/assets/default-product.jpg'}
             alt={name}
             loading="lazy"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transition: 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-            className="card-image"
-            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+            className="img-fill card-image"
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
             onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onError={(e) => { e.target.src = '/assets/default-product.jpg' }}
           />
         </Link>
 
