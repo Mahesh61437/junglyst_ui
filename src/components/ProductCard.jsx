@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, ShoppingCart, Heart, ShieldCheck } from 'lucide-react';
+import { Star, ShoppingCart, Heart, CheckCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
+import { trackAddToCart, trackAddToWishlist } from '../utils/metaPixel';
 
 const isLight = (color) => {
   if (!color) return false;
@@ -75,6 +76,7 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
             e.preventDefault();
             e.stopPropagation();
             toggleWishlist({ id, name, price, image, seller });
+            if (!isSaved) trackAddToWishlist({ productId: id, name, price });
           }}
           style={{
             position: 'absolute',
@@ -99,7 +101,7 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
           <Heart size={18} fill={isSaved ? (brandColor || "var(--brand-gold)") : "none"} strokeWidth={2} />
         </button>
 
-        {/* Boutique Overlay Actions (Glassmorphic) */}
+        {/* Boutique Overlay Actions — visible on hover (desktop) or always (touch) */}
         <div className="card-actions" style={{
           position: 'absolute',
           bottom: '1rem',
@@ -110,20 +112,26 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
           opacity: 0,
           transform: 'translateY(15px)',
           transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          pointerEvents: 'none'
+          /* pointer-events overridden to 'all' on touch via @media (hover: none) in index.css */
         }}>
 
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const vid = variants?.length > 0 ? variants[0].id : null;
-              addItemToCart(id, 1, vid);
+              if (!isSoldOut) {
+                const vid = variants?.length > 0 ? variants[0].id : null;
+                addItemToCart(id, 1, vid);
+                trackAddToCart({ productId: id, name, price });
+              }
             }}
-            className="quick-add-btn"
+            className={`quick-add-btn${quantityInCart > 0 ? ' in-cart' : ''}`}
+            disabled={isSoldOut}
           >
             {quantityInCart > 0 ? (
-              <><ShieldCheck size={14} color="#10b981" /> {quantityInCart} In Box</>
+              <><CheckCircle size={14} /> {quantityInCart} in cart</>
+            ) : isSoldOut ? (
+              'Out of Stock'
             ) : (
               <><ShoppingCart size={14} /> Add to Cart</>
             )}
@@ -245,19 +253,35 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         }
         .quick-add-btn {
           width: 100%;
-          background-color: #2196F3;
+          background-color: var(--bg-deep);
           color: white;
           border: none;
-          border-radius: 8px;
-          padding: 0.8rem;
-          font-size: 0.8rem;
-          font-weight: 700;
+          border-radius: 10px;
+          padding: 0.85rem;
+          font-size: 0.78rem;
+          font-weight: 800;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 0.6rem;
+          gap: 0.5rem;
           cursor: pointer;
-          box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+          box-shadow: 0 6px 16px rgba(10, 48, 41, 0.25);
+          letter-spacing: 0.03em;
+          transition: all 0.2s ease;
+        }
+        .quick-add-btn:hover {
+          background-color: var(--brand-green);
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px rgba(41, 127, 84, 0.3);
+        }
+        .quick-add-btn.in-cart {
+          background-color: #ecfdf5;
+          color: #065f46;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+        }
+        .quick-add-btn.in-cart:hover {
+          background-color: #d1fae5;
+          transform: none;
         }
         .product-card:hover .card-image {
           transform: scale(1.1);
@@ -269,6 +293,12 @@ export default function ProductCard({ id, name, scientific_name, care_level, ori
         .product-card:hover {
           transform: translateY(-8px);
           box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+        }
+        /* Show action bar on card hover (desktop) */
+        .product-card:hover .card-actions {
+          opacity: 1;
+          transform: translateY(0);
+          pointer-events: all;
         }
       `}</style>
     </div>

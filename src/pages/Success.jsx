@@ -1,10 +1,18 @@
+import { useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, Package, Truck, Calendar, ShoppingBag, ArrowRight } from 'lucide-react';
+import { trackPurchase } from '../utils/metaPixel';
 
 export default function Success() {
   const location = useLocation();
   const navigate = useNavigate();
   const order = location.state?.order;
+
+  useEffect(() => {
+    if (order) {
+      trackPurchase({ orderId: order.order_number, value: order.grand_total });
+    }
+  }, [order]);
 
   if (!order) {
     return (

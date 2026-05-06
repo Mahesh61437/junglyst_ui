@@ -6,7 +6,8 @@ import {
   Camera, CheckCircle2, Pencil, Archive, Trash2,
   ChevronRight, Menu, ExternalLink, Store, ShieldCheck,
   Save, Info, Image as ImageIcon, Palette, Upload, Loader2,
-  Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft, Download, ChevronDown, ChevronUp, FileText, Calendar, IndianRupee
+  Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft, Download, ChevronDown, ChevronUp, FileText, Calendar, IndianRupee,
+  Truck, CheckSquare, Square, ImagePlus, Eye
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -161,6 +162,12 @@ export default function SellerDashboard() {
 
   const [uploading, setUploading] = useState(null);
 
+  // Fulfillment state
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [bulkShipping, setBulkShipping] = useState(false);
+  const [packageUploading, setPackageUploading] = useState({});
+
   const presets = [
     // Botanical Greens
     { name: 'Deep Forest', color: '#0A3029' },
@@ -226,14 +233,14 @@ export default function SellerDashboard() {
 
       // ── Background path: orders, profile metrics, categories (lazy) ──
       const [ordsData, profileData, catsData] = await Promise.all([
-        OrderService.getOrders().catch(() => ({ results: [] })),
+        api.get('/orders/seller/').catch(() => ({ data: [] })),
         api.get('/sellers/dashboard/').catch(() => ({ data: null })),
         categories.length === 0
           ? api.get('/core/categories/').catch(() => ({ data: { results: [] } }))
           : Promise.resolve({ data: { results: categories } }),  // use cached
       ]);
 
-      const ordsArray = Array.isArray(ordsData.results) ? ordsData.results : (Array.isArray(ordsData) ? ordsData : []);
+      const ordsArray = Array.isArray(ordsData.data?.results) ? ordsData.data.results : (Array.isArray(ordsData.data) ? ordsData.data : []);
       setOrders(ordsArray);
 
       if (categories.length === 0) {
@@ -475,16 +482,43 @@ export default function SellerDashboard() {
     });
   };
 
-  const handleCreateShipment = async (orderId) => {
-    setSaving(true);
+  const handleShipNow = async (orderIds) => {
+    if (!orderIds || orderIds.length === 0) return;
+    setBulkShipping(true);
+    let successCount = 0;
+    const errors = [];
+    for (const orderId of orderIds) {
+      try {
+        await api.post('/orders/ship-now/', { order_id: orderId });
+        successCount++;
+      } catch (err) {
+        errors.push(orderId);
+      }
+    }
+    setBulkShipping(false);
+    setSelectedOrders(new Set());
+    if (successCount > 0) setSuccess(`${successCount} shipment${successCount > 1 ? 's' : ''} initiated — labels will be ready shortly.`);
+    if (errors.length > 0) setFormError(`Failed to initiate ${errors.length} shipment(s). Please retry.`);
+    fetchData();
+  };
+
+  const handlePackageImageUpload = async (orderId, file) => {
+    if (!file) return;
+    setPackageUploading(prev => ({ ...prev, [orderId]: true }));
     try {
-      await api.post('/shipping/logistics/create-shipment/', { order_id: orderId });
-      setSuccess("Sanctuary shipment initiated via Nimbuspost");
-      fetchData();
-    } catch (error) {
-      setFormError("Failed to initiate shipment");
+      const imageUrl = await ProductService.uploadImage(file, 'package');
+      await api.post('/shipping/package-image/', { order_id: orderId, image_url: imageUrl });
+      setSuccess('Package photo saved successfully.');
+      // Update local state
+      setOrders(prev => prev.map(o =>
+        o.id === orderId
+          ? { ...o, my_shipment: { ...(o.my_shipment || {}), package_image_url: imageUrl } }
+          : o
+      ));
+    } catch (err) {
+      setFormError('Failed to upload package photo. Please try again.');
     } finally {
-      setSaving(false);
+      setPackageUploading(prev => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -1379,79 +1413,228 @@ export default function SellerDashboard() {
               )}
 
               {activeTab === 'orders' && (
-                <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse' }}>
-                    <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
-                      <tr>
-                        <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Order</th>
-                        <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Status</th>
-                        <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Items</th>
-                        <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Amount</th>
-                        <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Destination</th>
-                        <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Logistics</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.length > 0 ? orders.map(o => (
-                        <tr key={o.id} style={{ borderBottom: '1px solid #edf2ed' }}>
-                          <td style={{ padding: '1.5rem 2rem' }}>
-                            <p style={{ fontWeight: 700, margin: 0 }}>{o.order_number}</p>
-                            <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.25rem 0 0' }}>{new Date(o.created_at).toLocaleDateString()}</p>
-                          </td>
-                          <td style={{ padding: '1.5rem 2rem' }}>
-                            <span style={{
-                              padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase',
-                              backgroundColor: o.status === 'placed' ? '#e0f2fe' : o.status === 'shipped' ? '#fef3c7' : '#f3f4f6',
-                              color: o.status === 'placed' ? '#0369a1' : o.status === 'shipped' ? '#92400e' : '#4b5563'
-                            }}>
-                              {o.status}
-                            </span>
-                          </td>
-                          <td style={{ padding: '1.5rem 2rem', fontWeight: 700 }}>
-                            {o.items?.filter(i => i.seller?.id === user.id).length} Specimens
-                          </td>
-                          <td style={{ padding: '1.5rem 2rem', fontWeight: 700 }}>
-                            ₹{o.items?.filter(i => i.seller?.id === user.id).reduce((acc, i) => acc + (parseFloat(i.unit_price) * i.quantity), 0).toLocaleString()}
-                          </td>
-                          <td style={{ padding: '1.5rem 2rem', color: '#64748b', fontSize: '0.85rem' }}>
-                            {o.shipping_address?.city || 'Local Pickup'}
-                          </td>
-                          <td style={{ padding: '1.5rem 2rem' }}>
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                              {o.status === 'placed' && !o.shipments?.some(s => s.seller === user.id) && (
-                                <button
-                                  onClick={() => handleCreateShipment(o.id)}
-                                  style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
-                                >
-                                  Ship Now
-                                </button>
-                              )}
-                              {o.shipments?.find(s => s.seller === user.id)?.label_url && (
-                                <a
-                                  href={o.shipments.find(s => s.seller === user.id).label_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}
-                                >
-                                  <Download size={14} /> Label
-                                </a>
-                              )}
-                              {o.shipments?.find(s => s.seller === user.id) && !o.shipments?.find(s => s.seller === user.id)?.label_url && (
-                                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>In Transit...</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan="5" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
-                            <ShoppingBag size={48} style={{ opacity: 0.2, marginBottom: '1.5rem' }} />
-                            <p>No fulfillments pending in your sanctuary.</p>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Bulk action toolbar */}
+                  {selectedOrders.size > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.5rem', backgroundColor: '#1b2d2a', borderRadius: '16px', color: 'white' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{selectedOrders.size} order{selectedOrders.size > 1 ? 's' : ''} selected</span>
+                      <button
+                        onClick={() => handleShipNow([...selectedOrders])}
+                        disabled={bulkShipping}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: '10px', backgroundColor: '#4ade80', color: '#14532d', border: 'none', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
+                      >
+                        {bulkShipping ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Truck size={14} />}
+                        Ship Now ({selectedOrders.size})
+                      </button>
+                      <button
+                        onClick={() => setSelectedOrders(new Set())}
+                        style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', minWidth: '820px', borderCollapse: 'collapse' }}>
+                        <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
+                          <tr>
+                            <th style={{ padding: '1.25rem 1rem 1.25rem 1.5rem', width: '40px' }}>
+                              <input
+                                type="checkbox"
+                                checked={orders.length > 0 && selectedOrders.size === orders.filter(o => !['shipped','delivered','cancelled'].includes(o.status)).length}
+                                onChange={e => {
+                                  const shippable = orders.filter(o => !['shipped','delivered','cancelled'].includes(o.status));
+                                  setSelectedOrders(e.target.checked ? new Set(shippable.map(o => o.id)) : new Set());
+                                }}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
+                              />
+                            </th>
+                            {['Order', 'Status', 'Items', 'Amount', 'Destination', 'Actions'].map(h => (
+                              <th key={h} style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orders.length > 0 ? orders.map(o => {
+                            const shipment = o.my_shipment;
+                            const isShippable = !['shipped','delivered','cancelled'].includes(o.status) && !shipment;
+                            const isExpanded = expandedOrderId === o.id;
+                            const statusColors = {
+                              placed: { bg: '#e0f2fe', fg: '#0369a1' },
+                              processing: { bg: '#fef9c3', fg: '#854d0e' },
+                              shipped: { bg: '#d1fae5', fg: '#065f46' },
+                              delivered: { bg: '#dcfce7', fg: '#14532d' },
+                              cancelled: { bg: '#fee2e2', fg: '#991b1b' },
+                            };
+                            const sc = statusColors[o.status] || { bg: '#f3f4f6', fg: '#4b5563' };
+                            return (
+                              <React.Fragment key={o.id}>
+                                <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #edf2ed', backgroundColor: isExpanded ? '#f8faf8' : 'white' }}>
+                                  <td style={{ padding: '1.25rem 1rem 1.25rem 1.5rem' }}>
+                                    {isShippable && (
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedOrders.has(o.id)}
+                                        onChange={e => {
+                                          setSelectedOrders(prev => {
+                                            const next = new Set(prev);
+                                            e.target.checked ? next.add(o.id) : next.delete(o.id);
+                                            return next;
+                                          });
+                                        }}
+                                        onClick={e => e.stopPropagation()}
+                                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
+                                      />
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '1.25rem 1.5rem', cursor: 'pointer' }} onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}>
+                                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.85rem' }}>{o.order_number}</p>
+                                    <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>{new Date(o.created_at).toLocaleDateString()}</p>
+                                  </td>
+                                  <td style={{ padding: '1.25rem 1.5rem' }}>
+                                    <span style={{ padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: sc.bg, color: sc.fg }}>
+                                      {o.status}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                                    {o.my_item_count ?? o.items?.length ?? 0} Specimens
+                                  </td>
+                                  <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                                    ₹{(o.my_total ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                  </td>
+                                  <td style={{ padding: '1.25rem 1.5rem', color: '#64748b', fontSize: '0.85rem' }}>
+                                    {o.shipping_address?.city || 'N/A'}
+                                  </td>
+                                  <td style={{ padding: '1.25rem 1.5rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                      {isShippable && (
+                                        <button
+                                          onClick={() => handleShipNow([o.id])}
+                                          disabled={bulkShipping}
+                                          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                        >
+                                          <Truck size={12} /> Ship Now
+                                        </button>
+                                      )}
+                                      {shipment?.label_url && (
+                                        <a
+                                          href={shipment.label_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}
+                                        >
+                                          <Download size={12} /> Label
+                                        </a>
+                                      )}
+                                      {shipment && !shipment.label_url && (
+                                        <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Label generating...</span>
+                                      )}
+                                      <button
+                                        onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.45rem' }}
+                                        title={isExpanded ? 'Collapse' : 'Expand'}
+                                      >
+                                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+
+                                {/* Expanded row — items + package image */}
+                                {isExpanded && (
+                                  <tr style={{ borderBottom: '1px solid #edf2ed' }}>
+                                    <td colSpan={7} style={{ padding: '0 1.5rem 1.5rem 4rem', backgroundColor: '#f8faf8' }}>
+                                      <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                                        {/* Items list */}
+                                        <div style={{ flex: '1', minWidth: '280px' }}>
+                                          <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>Your Items in This Order</p>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {(o.items || []).map(item => (
+                                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #edf2ed' }}>
+                                                {item.product_image && (
+                                                  <img src={item.product_image} alt={item.product_name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px' }} />
+                                                )}
+                                                <div style={{ flex: 1 }}>
+                                                  <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem' }}>{item.product_name}</p>
+                                                  <p style={{ margin: '0.1rem 0 0', fontSize: '0.7rem', color: '#64748b' }}>{item.variant_name} × {item.quantity}</p>
+                                                </div>
+                                                <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem' }}>₹{(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Package image + shipment info */}
+                                        <div style={{ minWidth: '240px' }}>
+                                          <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>Package Photo</p>
+                                          {shipment?.package_image_url ? (
+                                            <div style={{ position: 'relative' }}>
+                                              <img src={shipment.package_image_url} alt="Package" style={{ width: '100%', maxWidth: '200px', borderRadius: '10px', border: '1px solid #edf2ed' }} />
+                                              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', fontSize: '0.7rem', color: '#64748b', cursor: 'pointer' }}>
+                                                <ImagePlus size={14} /> Replace Photo
+                                                <input
+                                                  type="file"
+                                                  accept="image/*"
+                                                  style={{ display: 'none' }}
+                                                  onChange={e => handlePackageImageUpload(o.id, e.target.files[0])}
+                                                />
+                                              </label>
+                                            </div>
+                                          ) : (
+                                            <label style={{
+                                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                              gap: '0.5rem', padding: '1.5rem', borderRadius: '12px', border: '2px dashed #d1fae5',
+                                              backgroundColor: 'white', cursor: 'pointer', width: '180px', color: '#64748b', fontSize: '0.75rem', textAlign: 'center'
+                                            }}>
+                                              {packageUploading[o.id]
+                                                ? <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', color: '#1b2d2a' }} />
+                                                : <ImagePlus size={24} style={{ color: '#4ade80' }} />}
+                                              <span>{packageUploading[o.id] ? 'Uploading...' : 'Upload Package Photo'}</span>
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                style={{ display: 'none' }}
+                                                disabled={packageUploading[o.id]}
+                                                onChange={e => handlePackageImageUpload(o.id, e.target.files[0])}
+                                              />
+                                            </label>
+                                          )}
+
+                                          {/* Shipment details */}
+                                          {shipment && (
+                                            <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #edf2ed', fontSize: '0.75rem' }}>
+                                              <p style={{ margin: 0, fontWeight: 700, marginBottom: '0.5rem' }}>Shipment Details</p>
+                                              {shipment.awb_number && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>AWB: <strong style={{ color: '#1b2d2a' }}>{shipment.awb_number}</strong></p>}
+                                              {shipment.courier_name && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>Courier: <strong style={{ color: '#1b2d2a' }}>{shipment.courier_name}</strong></p>}
+                                              <p style={{ margin: '0.25rem 0', color: '#64748b' }}>Status: <strong style={{ color: '#1b2d2a', textTransform: 'capitalize' }}>{shipment.status}</strong></p>
+                                              {shipment.manifest_url && (
+                                                <a href={shipment.manifest_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem', color: '#1b2d2a', fontWeight: 700, textDecoration: 'none' }}>
+                                                  <FileText size={12} /> Manifest
+                                                </a>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          }) : (
+                            <tr>
+                              <td colSpan="7" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
+                                <ShoppingBag size={48} style={{ opacity: 0.2, marginBottom: '1.5rem', display: 'block', margin: '0 auto 1.5rem' }} />
+                                <p>No fulfillments pending in your sanctuary.</p>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
 

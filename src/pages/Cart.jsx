@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { trackInitiateCheckout } from '../utils/metaPixel';
 import { Trash2, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Bookmark, Info, Star, Package } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -35,7 +36,7 @@ export default function Cart() {
 
   return (
     <div className="container" style={{ padding: '3rem 1rem 10rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '3rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(1.5rem, 3vw, 3rem)', alignItems: 'start' }}>
 
         {/* Main Cart Content */}
         <div className="slide-up">
@@ -69,15 +70,15 @@ export default function Cart() {
                     return (
                       <div key={item.id} style={{
                         display: 'grid',
-                        gridTemplateColumns: '140px 1fr 120px',
-                        gap: '2rem',
-                        padding: '1.5rem',
+                        gridTemplateColumns: 'clamp(90px, 20vw, 140px) 1fr',
+                        gap: 'clamp(0.75rem, 2vw, 2rem)',
+                        padding: 'clamp(0.75rem, 2vw, 1.5rem)',
                         borderRadius: '16px',
                         backgroundColor: '#fff',
                         border: '1px solid #f8fafc',
                         boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
                       }}>
-                        <div style={{ width: '140px', height: '140px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc', flexShrink: 0 }}>
+                        <div style={{ width: 'clamp(90px, 20vw, 140px)', height: 'clamp(90px, 20vw, 140px)', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc', flexShrink: 0 }}>
                           <img src={getImageUrl(variant.image_url || product.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={product.name} />
                         </div>
 
@@ -165,7 +166,7 @@ export default function Cart() {
               </div>
             </div>
 
-            <button onClick={() => navigate('/checkout')} style={{
+            <button onClick={() => { trackInitiateCheckout({ value: cart.grand_total, numItems: cart.total_items }); navigate('/checkout'); }} style={{
               width: '100%',
               padding: '1.25rem',
               backgroundColor: 'var(--bg-deep)',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../context/WishlistContext';
 import { Mail, ShieldCheck, ArrowRight } from 'lucide-react';
 import NaturalLogo from '../components/NaturalLogo';
 
@@ -9,6 +10,7 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const { login } = useAuth();
+  const { syncAfterLogin } = useWishlist();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -17,6 +19,7 @@ export default function Login() {
     setError(null);
     try {
       await login(formData);
+      syncAfterLogin().catch(() => null);
       navigate('/');
     } catch (err) {
       console.error(err);

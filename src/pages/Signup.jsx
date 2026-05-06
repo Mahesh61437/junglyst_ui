@@ -29,11 +29,7 @@ export default function Signup() {
         role: formData.role
       });
 
-      if (formData.role === 'grower') {
-        navigate('/seller/onboarding');
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.email?.[0] ||
@@ -139,25 +135,6 @@ export default function Signup() {
             </div>
           </div>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>I am joining as a</label>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, role: 'collector' })}
-                style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', border: formData.role === 'collector' ? '2px solid var(--bg-deep)' : '1px solid var(--border-subtle)', backgroundColor: formData.role === 'collector' ? 'var(--bg-secondary)' : 'transparent', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                Collector
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, role: 'grower' })}
-                style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', border: formData.role === 'grower' ? '2px solid var(--bg-deep)' : '1px solid var(--border-subtle)', backgroundColor: formData.role === 'grower' ? 'var(--bg-secondary)' : 'transparent', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-              >
-                Grower
-              </button>
-            </div>
-          </div>
 
           <button
             type="submit"

@@ -21,6 +21,7 @@ import {
 import { ProductService } from '../services/ProductService';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { trackViewContent, trackAddToCart, trackAddToWishlist } from '../utils/metaPixel';
 import ReviewSection from '../components/ReviewSection';
 import Recommendations from '../components/Recommendations';
 import TrustBadges from '../components/TrustBadges';
@@ -135,6 +136,7 @@ export default function ProductDetails() {
         if (data.variants && data.variants.length > 0) {
           setSelectedVariant(data.variants[0]);
         }
+        trackViewContent({ productId: id, name: data.name, price: data.variants?.[0]?.price || data.price });
       } catch (error) {
         console.error("Failed to fetch product:", error);
       } finally {
@@ -621,6 +623,7 @@ export default function ProductDetails() {
                 <button
                   onClick={async () => {
                     await addItemToCart(id, quantity);
+                    trackAddToCart({ productId: id, name, price: displayPrice });
                     alert("Specimen secured in Box.");
                   }}
                   disabled={!selectedVariant || selectedVariant.stock <= 0}

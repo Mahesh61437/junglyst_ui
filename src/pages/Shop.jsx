@@ -28,20 +28,24 @@ export default function Shop() {
     };
   }, []);
 
-  const [categories, setCategories] = useState({
-    'Aquatic Plants': false,
-    'Hardscape': false,
-    'Substrate': false,
-    'Terrarium Plants': false,
-    'Equipment': false,
-    'Indoor Plants': false,
-  });
-
+  const [categories, setCategories] = useState({});
   const [difficulties, setDifficulties] = useState({
     'Easy': false,
     'Medium': false,
     'Advanced': false,
   });
+
+  // Load categories from API
+  useEffect(() => {
+    ProductService.getCategories().then(data => {
+      const cats = data.results || data || [];
+      setCategories(prev => {
+        const merged = {};
+        cats.forEach(c => { merged[c.name] = prev[c.name] ?? false; });
+        return merged;
+      });
+    }).catch(() => {});
+  }, []);
 
   const [page, setPage] = useState(1);
 
