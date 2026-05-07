@@ -1,5 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
 :root {
   /* Premium Boutique Palette */
   --bg-primary: #ffffff;
@@ -351,5 +356,81 @@ button {
   }
   .product-card-title {
     font-size: 0.875rem !important;
+  }
+}
+
+/* ── Touch devices: always show add-to-cart action bar ── */
+/* On mobile there is no hover; the .card-actions overlay stays hidden forever.
+   @media (hover: none) targets all touch-primary devices correctly. */
+@media (hover: none) {
+  .card-actions {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    pointer-events: all !important;
+  }
+  /* Disable the card lift on touch (no hover intent) */
+  .product-card:hover {
+    transform: none !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.02) !important;
+  }
+}
+
+/* ── Category rail: hide scrollbar cross-browser ── */
+.category-rail-scroll::-webkit-scrollbar { display: none; }
+.category-rail-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── VerifiedSellers stats: wrap gracefully on small screens ── */
+@media (max-width: 480px) {
+  .stats-bar-grid {
+    flex-direction: column !important;
+  }
+  .stats-bar-grid > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .stats-bar-grid > div:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ── Hero sections: prevent overflow on mobile ── */
+@media (max-width: 768px) {
+  /* Prevent huge serif titles from bleeding outside viewport */
+  h1, h2 {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Give sections sensible vertical padding on mobile */
+  section {
+    overflow-x: hidden;
+  }
+
+  /* Quick add button: larger tap target on mobile */
+  .quick-add-btn {
+    padding: 0.9rem !important;
+    font-size: 0.75rem !important;
+    min-height: 44px;
+  }
+}
+
+/* ── Shop page: filter sidebar stacking ── */
+@media (max-width: 1024px) {
+  .shop-layout {
+    flex-direction: column !important;
+  }
+  .shop-sidebar {
+    width: 100% !important;
+    position: static !important;
+  }
+}
+
+/* ── Checkout / Cart: stack form and summary on mobile ── */
+@media (max-width: 768px) {
+  .checkout-grid {
+    flex-direction: column !important;
+  }
+  .checkout-summary {
+    width: 100% !important;
   }
 }

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
-import { 
-  User, Mail, MapPin, Package, Heart, LogOut, 
-  ChevronRight, ShieldCheck, Clock, Award, 
+import {
+  User, Mail, MapPin, Package, Heart, LogOut,
+  ChevronRight, ShieldCheck, Clock, Award,
   LayoutDashboard, ShoppingBag, Store, ExternalLink,
-  Camera, Settings, CheckCircle2, Save, X, Bell, Loader2
+  Camera, Settings, CheckCircle2, Save, X, Bell, Loader2,
+  Plus, Trash2, Home, Edit3
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
@@ -26,6 +27,17 @@ export default function Profile() {
     location: 'Kerala, India'
   });
   const navigate = useNavigate();
+
+  // Address management state
+  const [addresses, setAddresses] = useState([]);
+  const [addrLoading, setAddrLoading] = useState(false);
+  const [addrForm, setAddrForm] = useState({
+    full_name: '', email: '', phone: '',
+    address_line1: '', address_line2: '',
+    city: '', state: '', pincode: '', is_default: false
+  });
+  const [editingAddrId, setEditingAddrId] = useState(null);
+  const [showAddrForm, setShowAddrForm] = useState(false);
 
   useEffect(() => {
     if (location.state?.tab) {
@@ -61,6 +73,82 @@ export default function Profile() {
       fetchOrders();
     }
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (user && activeTab === 'addresses') {
+      fetchAddresses();
+    }
+  }, [user, activeTab]);
+
+  const fetchAddresses = async () => {
+    setAddrLoading(true);
+    try {
+      const res = await api.get('/shipping/addresses/');
+      const list = res.data.results ?? (Array.isArray(res.data) ? res.data : []);
+      setAddresses(list);
+    } catch (e) {
+      console.error('Failed to fetch addresses:', e);
+    } finally {
+      setAddrLoading(false);
+    }
+  };
+
+  const openNewAddrForm = () => {
+    setEditingAddrId(null);
+    setAddrForm({
+      full_name: user?.full_name || '', email: user?.email || '', phone: user?.phone || '',
+      address_line1: '', address_line2: '', city: '', state: '', pincode: '', is_default: false
+    });
+    setShowAddrForm(true);
+  };
+
+  const openEditAddrForm = (addr) => {
+    setEditingAddrId(addr.id);
+    setAddrForm({ ...addr });
+    setShowAddrForm(true);
+  };
+
+  const cancelAddrForm = () => {
+    setShowAddrForm(false);
+    setEditingAddrId(null);
+  };
+
+  const handleSaveAddr = async (e) => {
+    e.preventDefault();
+    setAddrLoading(true);
+    try {
+      if (editingAddrId) {
+        await api.put(`/shipping/addresses/${editingAddrId}/`, addrForm);
+      } else {
+        await api.post('/shipping/addresses/', addrForm);
+      }
+      await fetchAddresses();
+      cancelAddrForm();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to save address.');
+    } finally {
+      setAddrLoading(false);
+    }
+  };
+
+  const handleDeleteAddr = async (id) => {
+    if (!window.confirm('Delete this address?')) return;
+    try {
+      await api.delete(`/shipping/addresses/${id}/`);
+      setAddresses(prev => prev.filter(a => a.id !== id));
+    } catch {
+      alert('Failed to delete address.');
+    }
+  };
+
+  const handleSetDefault = async (id) => {
+    try {
+      await api.patch(`/shipping/addresses/${id}/`, { is_default: true });
+      await fetchAddresses();
+    } catch {
+      alert('Failed to update default address.');
+    }
+  };
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -182,6 +270,33 @@ export default function Profile() {
         </div>
       </header>
 
+        {/* Tab Navigation */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '3rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0' }}>
+          {[
+            { key: 'identity', label: 'Identity' },
+            { key: 'addresses', label: 'Addresses' },
+            { key: 'history', label: 'Orders' },
+            { key: 'wishlist', label: 'Wishlist' },
+            { key: 'notifications', label: 'Notifications' },
+            { key: 'security', label: 'Security' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: '0.65rem 1.25rem',
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.05em',
+                color: activeTab === tab.key ? 'var(--bg-deep)' : 'var(--text-secondary)',
+                borderBottom: activeTab === tab.key ? '2px solid var(--bg-deep)' : '2px solid transparent',
+                marginBottom: '-1px', transition: 'all 0.15s'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Content Area */}
         <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: 'clamp(2rem, 5vw, 4rem)', minWidth: 0, maxWidth: '800px', margin: '0 auto' }} className="slide-up">
           
@@ -268,6 +383,147 @@ export default function Profile() {
                     <Link to="/seller/dashboard" style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 800, textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Manage Studio</Link>
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'addresses' && (
+            <div className="fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                <h3 style={{ fontSize: '2.5rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Saved Addresses</h3>
+                {!showAddrForm && addresses.length < 5 && (
+                  <button onClick={openNewAddrForm} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', borderRadius: '50px', padding: '0.65rem 1.5rem', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    <Plus size={16} /> Add Address
+                  </button>
+                )}
+              </div>
+
+              {addrLoading && !addresses.length ? (
+                <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading addresses...</div>
+              ) : (
+                <>
+                  {/* Address cards */}
+                  {!showAddrForm && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: addresses.length ? '2rem' : 0 }}>
+                      {addresses.length === 0 && (
+                        <div style={{ padding: '4rem 2rem', textAlign: 'center', backgroundColor: 'white', borderRadius: '24px', border: '1px dashed var(--border-subtle)' }}>
+                          <Home size={40} strokeWidth={1} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>No saved addresses yet.</p>
+                          <button onClick={openNewAddrForm} style={{ backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', borderRadius: '50px', padding: '0.75rem 2rem', fontWeight: 700, cursor: 'pointer' }}>
+                            Add Your First Address
+                          </button>
+                        </div>
+                      )}
+                      {addresses.map(addr => (
+                        <div key={addr.id} style={{ backgroundColor: 'white', borderRadius: '20px', border: addr.is_default ? '2px solid var(--brand-green)' : '1px solid var(--border-subtle)', padding: '1.75rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                              <span style={{ fontWeight: 800, fontSize: '1rem' }}>{addr.full_name}</span>
+                              {addr.is_default && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 900, backgroundColor: 'var(--brand-green)', color: 'white', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Default</span>
+                              )}
+                            </div>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 0.25rem', lineHeight: 1.6 }}>
+                              {addr.address_line1}{addr.address_line2 ? ', ' + addr.address_line2 : ''}, {addr.city}, {addr.state} {addr.pincode}
+                            </p>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>{addr.phone} · {addr.email}</p>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+                            <button onClick={() => openEditAddrForm(addr)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.4rem 0.9rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', color: 'var(--bg-deep)' }}>
+                              <Edit3 size={13} /> Edit
+                            </button>
+                            {!addr.is_default && (
+                              <button onClick={() => handleSetDefault(addr.id)} style={{ background: 'none', border: 'none', fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand-green)', cursor: 'pointer', textDecoration: 'underline' }}>
+                                Set as default
+                              </button>
+                            )}
+                            <button onClick={() => handleDeleteAddr(addr.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.25rem' }}>
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add / Edit form */}
+                  {showAddrForm && (
+                    <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid var(--border-subtle)', padding: '2.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                        <h4 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-serif)', margin: 0 }}>
+                          {editingAddrId ? 'Edit Address' : 'New Address'}
+                        </h4>
+                        <button onClick={cancelAddrForm} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}>
+                          <X size={20} />
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleSaveAddr}>
+                        {(() => {
+                          const iStyle = { width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
+                          const lStyle = { display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '0.5rem' };
+                          const af = (field) => e => setAddrForm(prev => ({ ...prev, [field]: e.target.value }));
+                          return (
+                            <>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                                <div>
+                                  <label style={lStyle}>Full Name *</label>
+                                  <input required type="text" value={addrForm.full_name} onChange={af('full_name')} style={iStyle} />
+                                </div>
+                                <div>
+                                  <label style={lStyle}>Mobile *</label>
+                                  <input required type="tel" value={addrForm.phone} onChange={af('phone')} style={iStyle} />
+                                </div>
+                              </div>
+                              <div style={{ marginBottom: '1.25rem' }}>
+                                <label style={lStyle}>Email *</label>
+                                <input required type="email" value={addrForm.email} onChange={af('email')} style={iStyle} />
+                              </div>
+                              <div style={{ marginBottom: '1.25rem' }}>
+                                <label style={lStyle}>Address Line 1 *</label>
+                                <input required placeholder="House no., street, landmark" value={addrForm.address_line1} onChange={af('address_line1')} style={iStyle} />
+                              </div>
+                              <div style={{ marginBottom: '1.25rem' }}>
+                                <label style={lStyle}>Address Line 2 <span style={{ textTransform: 'none', fontWeight: 600 }}>(optional)</span></label>
+                                <input placeholder="Apartment, area, etc." value={addrForm.address_line2} onChange={af('address_line2')} style={iStyle} />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                                <div>
+                                  <label style={lStyle}>City *</label>
+                                  <input required value={addrForm.city} onChange={af('city')} style={iStyle} />
+                                </div>
+                                <div>
+                                  <label style={lStyle}>State *</label>
+                                  <input required value={addrForm.state} onChange={af('state')} style={iStyle} />
+                                </div>
+                                <div>
+                                  <label style={lStyle}>PIN Code *</label>
+                                  <input required maxLength={6} value={addrForm.pincode} onChange={af('pincode')} style={iStyle} />
+                                </div>
+                              </div>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, marginBottom: '2rem' }}>
+                                <input type="checkbox" checked={addrForm.is_default} onChange={e => setAddrForm(prev => ({ ...prev, is_default: e.target.checked }))} style={{ width: '16px', height: '16px' }} />
+                                Set as default address
+                              </label>
+                              <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button type="submit" disabled={addrLoading} style={{ flex: 1, padding: '1rem', backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem' }}>
+                                  {addrLoading ? 'Saving...' : editingAddrId ? 'Update Address' : 'Save Address'}
+                                </button>
+                                <button type="button" onClick={cancelAddrForm} style={{ padding: '1rem 1.5rem', backgroundColor: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                                  Cancel
+                                </button>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </form>
+                    </div>
+                  )}
+
+                  {addresses.length >= 5 && !showAddrForm && (
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center' }}>You've reached the maximum of 5 saved addresses.</p>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -437,12 +693,14 @@ export default function Profile() {
                       <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '2px solid var(--brand-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)' }}>
                         <Store size={32} />
                       </div>
-                      <h3 style={{ fontSize: '3rem', fontFamily: 'var(--font-serif)' }}>Become a Seller</h3>
+                      <h3 style={{ fontSize: '3rem', fontFamily: 'var(--font-serif)' }}>Botanical Collective</h3>
                     </div>
-                    <p style={{ opacity: 0.8, fontSize: '1.25rem', maxWidth: '550px', marginBottom: '3.5rem', lineHeight: 1.8, fontWeight: 300 }}>
-                      Join our elite community of botanical artisans. If your email is in our Curator Registry, you can start building your digital nursery today.
+                    <p style={{ opacity: 0.8, fontSize: '1.25rem', maxWidth: '550px', marginBottom: '1.5rem', lineHeight: 1.8, fontWeight: 300 }}>
+                      Junglyst curators are invited individually based on expertise, quality, and values. Our seller network is closed to direct applications.
                     </p>
-                    <Link to="/seller/onboarding" className="btn btn-primary" style={{ backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', padding: '1.25rem 3.5rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', textDecoration: 'none', display: 'inline-block' }}>Start Onboarding</Link>
+                    <p style={{ opacity: 0.6, fontSize: '0.9rem', maxWidth: '500px', lineHeight: 1.7 }}>
+                      If you believe your collection aligns with our standards, contact us at <strong style={{ color: 'var(--brand-gold)', fontWeight: 700 }}>hello@junglyst.com</strong>
+                    </p>
                   </>
                 ) : (
                   <>

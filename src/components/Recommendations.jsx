@@ -42,9 +42,10 @@ export default function Recommendations({ category, currentProductId }) {
       </h3>
       <div className="grid-responsive">
         {products.map(product => (
-          <ProductCard 
-            key={product.id} 
+          <ProductCard
+            key={product.id}
             id={product.id}
+            slug={product.slug}
             name={product.name || product.title}
             price={product.price}
             image={product.imageUrl || product.image_url || product.image}

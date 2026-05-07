@@ -1,4 +1,6 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { trackPageView } from './utils/metaPixel';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
@@ -25,23 +27,35 @@ import Success from './pages/Success';
 import Failure from './pages/Failure';
 import MyOrders from './pages/MyOrders';
 import OrderTracking from './pages/OrderTracking';
+import RequireAuth from './components/RequireAuth';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { ToastProvider } from './context/ToastContext';
+import { NotificationProvider } from './context/NotificationContext';
+
+function PageViewTracker() {
+  const location = useLocation();
+  useEffect(() => { trackPageView(); }, [location.pathname]);
+  return null;
+}
 
 function App() {
   return (
     <AuthProvider>
+      <NotificationProvider>
       <WishlistProvider>
+        <ToastProvider>
         <CartProvider>
           <BrowserRouter>
+            <PageViewTracker />
             <Routes>
               {/* Buyer Storefront (Uses Navbar/Footer layout) */}
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<Home />} />
                 <Route path="shop/:category?" element={<Shop />} />
-                <Route path="product/:id" element={<ProductDetails />} />
+                <Route path="product/:slug" element={<ProductDetails />} />
                 <Route path="cart" element={<Cart />} />
                 <Route path="checkout" element={<Checkout />} />
                 <Route path="wishlist" element={<Wishlist />} />
@@ -55,8 +69,8 @@ function App() {
                 <Route path="guides" element={<CareGuides />} />
                 <Route path="checkout/success" element={<Success />} />
                 <Route path="checkout/failure" element={<Failure />} />
-                <Route path="orders" element={<MyOrders />} />
-                <Route path="orders/:id" element={<OrderTracking />} />
+                <Route path="orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
+                <Route path="orders/:id" element={<RequireAuth><OrderTracking /></RequireAuth>} />
               </Route>
               
               {/* Auth Portals (Standalone) */}
@@ -72,7 +86,9 @@ function App() {
             </Routes>
           </BrowserRouter>
         </CartProvider>
+        </ToastProvider>
       </WishlistProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useWishlist } from '../context/WishlistContext';
+import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/ProductCard';
-import { Heart, ArrowRight, ShoppingBag } from 'lucide-react';
+import { Heart, ArrowRight, ShoppingBag, CloudOff } from 'lucide-react';
 
 export default function Wishlist() {
   const { wishlist } = useWishlist();
+  const { user } = useAuth();
 
   if (wishlist.length === 0) {
     return (
@@ -38,6 +40,33 @@ export default function Wishlist() {
           A curated selection of botanical masterpieces you are tracking for future acquisition.
         </p>
       </header>
+
+      {/* Guest nudge — wishlist is local-only without an account */}
+      {!user && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap',
+          backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '16px',
+          padding: '1.25rem 1.75rem', marginBottom: '3rem'
+        }}>
+          <CloudOff size={20} color="#d97706" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#92400e' }}>
+              Your wishlist is saved locally — it won't sync across devices or sessions.
+            </p>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.82rem', color: '#b45309' }}>
+              Sign in or create a free account to keep your wishlist forever.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0 }}>
+            <Link to="/login" style={{ backgroundColor: '#1b2d2a', color: 'white', padding: '0.55rem 1.25rem', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none' }}>
+              Sign In
+            </Link>
+            <Link to="/signup" style={{ border: '1px solid #d97706', color: '#92400e', padding: '0.55rem 1.25rem', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none' }}>
+              Create Account
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid-responsive slide-up" style={{ animationDelay: '0.2s' }}>
         {wishlist.map(product => (

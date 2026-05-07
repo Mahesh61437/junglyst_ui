@@ -15,8 +15,8 @@ export const ProductService = {
   // Get single product details
   getProduct: async (idOrSlug) => {
     try {
-      // Use pk lookup if id looks like a UUID, else slug
-      const path = idOrSlug.length > 30 ? `/core/products/id/${idOrSlug}/` : `/core/products/${idOrSlug}/`;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+      const path = isUUID ? `/core/products/id/${idOrSlug}/` : `/core/products/${idOrSlug}/`;
       const response = await api.get(path);
       return response.data;
     } catch (error) {

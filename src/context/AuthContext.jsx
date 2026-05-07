@@ -20,9 +20,13 @@ export function AuthProvider({ children }) {
 
         if (token && savedUser) {
           setUser(JSON.parse(savedUser));
-          // Optionally verify token with backend
-          // const res = await api.get('/auth/me/');
-          // setUser(res.data);
+          try {
+            const res = await api.get('/core/me/');
+            setUser(res.data);
+            localStorage.setItem('junglyst_user', JSON.stringify(res.data));
+          } catch (e) {
+            console.error("Failed to fetch fresh user profile:", e);
+          }
         }
       } catch (error) {
         console.error("Auth hydration failed:", error);
@@ -105,7 +109,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

@@ -45,9 +45,9 @@ export default function Footer() {
           <div>
             <h4 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', color: 'var(--brand-gold)' }}>Marketplace</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <Link to="/seller/onboarding" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 700 }}>Become a Seller</Link>
               <Link to="/seller/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Seller Login</Link>
-              <Link to="/contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Partner Inquiry</Link>
+              <Link to="/contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Contact Us</Link>
+              <Link to="/about" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>About Junglyst</Link>
             </div>
           </div>
         </div>

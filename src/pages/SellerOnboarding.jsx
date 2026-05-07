@@ -49,6 +49,7 @@ export default function SellerOnboarding() {
       location: 'Karnataka, India',
       brandColor: '#0A3029',
       logoUrl: '',
+      iconUrl: '',
       bannerUrl: '',
       taxId: '',
       payoutBank: '',
@@ -59,6 +60,7 @@ export default function SellerOnboarding() {
       firstProductCategoryId: '',
       firstProductSubCategoryId: '',
       logoName: '',
+      iconName: '',
       bannerName: ''
     };
   });
@@ -212,15 +214,17 @@ export default function SellerOnboarding() {
     // Reset target value so selecting the same file again triggers onChange
     e.target.value = '';
 
-    setFormData(prev => ({ ...prev, [type === 'logo' ? 'logoName' : 'bannerName']: file.name }));
+    const nameKey = { logo: 'logoName', icon: 'iconName', banner: 'bannerName' }[type] || 'logoName';
+    const urlKey  = { logo: 'logoUrl',  icon: 'iconUrl',  banner: 'bannerUrl'  }[type] || 'logoUrl';
+    setFormData(prev => ({ ...prev, [nameKey]: file.name }));
     setUploading(type);
     try {
       const url = await ProductService.uploadImage(file, type);
-      setFormData(prev => ({ ...prev, [type === 'logo' ? 'logoUrl' : 'bannerUrl']: url }));
+      setFormData(prev => ({ ...prev, [urlKey]: url }));
       setError(null);
     } catch (err) {
       setError("Failed to upload image. Please try again.");
-      setFormData(prev => ({ ...prev, [type === 'logo' ? 'logoName' : 'bannerName']: '' }));
+      setFormData(prev => ({ ...prev, [nameKey]: '' }));
     } finally {
       setUploading(null);
     }
@@ -237,6 +241,7 @@ export default function SellerOnboarding() {
         location_city: formData.location,
         brand_color: formData.brandColor,
         logo_url: formData.logoUrl,
+        icon_url: formData.iconUrl,
         banner_url: formData.bannerUrl
       });
 
@@ -463,36 +468,28 @@ export default function SellerOnboarding() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Studio Logo <span style={{ color: '#ef4444' }}>*</span></span>
-                      {!formData.logoUrl && <span style={{ color: '#ef4444', fontSize: '0.7rem' }}>Required to continue</span>}
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input type="file" accept="image/*" id="logo-upload" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, 'logo')} />
-                      <label htmlFor="logo-upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '120px', border: uploading === 'logo' ? '2px solid #E5C48B' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
-                        {uploading === 'logo' ? <Loader2 className="animate-spin" color="#E5C48B" /> : (formData.logoUrl ? <CheckCircle2 color="#10b981" /> : <Upload size={20} color="#94a3b8" />)}
-                        <span style={{ fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 600, color: formData.logoUrl ? '#10b981' : '#94a3b8' }}>
-                          {uploading === 'logo' ? 'Uploading...' : (formData.logoName || 'Select Logo')}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem' }}>
+                  {[
+                    { type: 'logo',   label: 'Brand Logo',    hint: 'Full logo (rect/square)',  required: true,  urlKey: 'logoUrl',   nameKey: 'logoName'  },
+                    { type: 'icon',   label: 'Store Icon',    hint: 'Small square mark / app icon', required: false, urlKey: 'iconUrl',   nameKey: 'iconName'  },
+                    { type: 'banner', label: 'Store Banner',  hint: 'Wide header image',        required: false, urlKey: 'bannerUrl', nameKey: 'bannerName' },
+                  ].map(({ type, label, hint, required, urlKey, nameKey }) => (
+                    <div key={type}>
+                      <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.75rem', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        <span>{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</span>
+                        {required && !formData[urlKey] && <span style={{ color: '#ef4444', fontSize: '0.65rem', fontWeight: 600 }}>Required</span>}
+                      </label>
+                      <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0 0 0.6rem', lineHeight: 1.4 }}>{hint}</p>
+                      <input type="file" accept="image/*" id={`${type}-upload`} style={{ display: 'none' }} onChange={e => handleImageUpload(e, type)} />
+                      <label htmlFor={`${type}-upload`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '110px', border: uploading === type ? '2px solid #E5C48B' : formData[urlKey] ? '2px solid #10b981' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s', gap: '0.4rem' }}>
+                        {uploading === type ? <Loader2 className="animate-spin" color="#E5C48B" /> : formData[urlKey] ? <CheckCircle2 size={22} color="#10b981" /> : <Upload size={20} color="#94a3b8" />}
+                        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: formData[urlKey] ? '#10b981' : '#94a3b8', textAlign: 'center', padding: '0 0.5rem' }}>
+                          {uploading === type ? 'Uploading…' : formData[nameKey] || `Select ${label}`}
                         </span>
-                        {formData.logoUrl && <span style={{ fontSize: '0.6rem', color: '#10b981', fontWeight: 700, marginTop: '0.25rem' }}>SUCCESSFULLY SECURED</span>}
+                        {formData[urlKey] && <span style={{ fontSize: '0.6rem', color: '#10b981', fontWeight: 700 }}>UPLOADED ✓</span>}
                       </label>
                     </div>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Banner</label>
-                    <div style={{ position: 'relative' }}>
-                      <input type="file" accept="image/*" id="banner-upload" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, 'banner')} />
-                      <label htmlFor="banner-upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '120px', border: uploading === 'banner' ? '2px solid #E5C48B' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
-                        {uploading === 'banner' ? <Loader2 className="animate-spin" color="#E5C48B" /> : (formData.bannerUrl ? <CheckCircle2 color="#10b981" /> : <Upload size={20} color="#94a3b8" />)}
-                        <span style={{ fontSize: '0.7rem', marginTop: '0.5rem', fontWeight: 600, color: formData.bannerUrl ? '#10b981' : '#94a3b8' }}>
-                          {uploading === 'banner' ? 'Uploading...' : (formData.bannerName || 'Select Banner')}
-                        </span>
-                        {formData.bannerUrl && <span style={{ fontSize: '0.6rem', color: '#10b981', fontWeight: 700, marginTop: '0.25rem' }}>SUCCESSFULLY SECURED</span>}
-                      </label>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>

@@ -1,349 +1,433 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Star, MapPin, ExternalLink, Leaf, ArrowRight, ChevronLeft, ChevronRight as ChevronRightIcon, Award, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ShieldCheck, Star, MapPin, ArrowRight,
+  ChevronLeft, ChevronRight, Leaf, Users, Package
+} from 'lucide-react';
 import { SellerService } from '../services/SellerService';
 import { getImageUrl } from '../utils/imageUtils';
 
-export default function VerifiedSellers() {
-  const [sellers, setSellers] = useState([]);
-  const [promotedSellers, setPromotedSellers] = useState([]);
-  const [stats, setStats] = useState({ total_sellers: '...', total_products: '...', survival_rate: '98' });
-  const [loading, setLoading] = useState(true);
-  const [activeSlide, setActiveSlide] = useState(0);
+// ─── Spotlight Hero (featured sellers only) ───────────────────────────────────
+function SpotlightHero({ sellers }) {
+  const [idx, setIdx] = useState(0);
+  const total = sellers.length;
+  const prev = () => setIdx(i => (i - 1 + total) % total);
+  const next = () => setIdx(i => (i + 1) % total);
 
   useEffect(() => {
-    const fetchDirectoryData = async () => {
+    if (total <= 1) return;
+    const t = setInterval(next, 6500);
+    return () => clearInterval(t);
+  }, [total]);
+
+  if (!total) return (
+    <section style={{
+      minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      backgroundColor: 'var(--bg-deep)', color: 'white', textAlign: 'center', padding: '4rem 2rem'
+    }}>
+      <div>
+        <h1 style={{ fontSize: 'clamp(2rem, 5vw, 4rem)', fontFamily: 'var(--font-serif)', marginBottom: '1rem' }}>
+          The Curator Registry
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.6)', maxWidth: '480px', margin: '0 auto', lineHeight: 1.7 }}>
+          Our sanctuary is refreshing its list of verified growers. Check back soon.
+        </p>
+      </div>
+    </section>
+  );
+
+  const s = sellers[idx];
+
+  return (
+    <section style={{ position: 'relative', overflow: 'hidden', minHeight: 'clamp(480px, 70vh, 700px)' }}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={idx}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8 }}
+          style={{ position: 'absolute', inset: 0 }}
+        >
+          {/* Background image */}
+          <img
+            src={getImageUrl(s.banner_url) || '/assets/default-banner.jpg'}
+            alt={s.store_name}
+            onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+          {/* Dark overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(135deg, rgba(10,20,18,0.85) 0%, rgba(10,20,18,0.4) 100%)'
+          }} />
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Content */}
+      <div className="container" style={{
+        position: 'relative', zIndex: 10,
+        height: '100%', minHeight: 'clamp(480px, 70vh, 700px)',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        padding: 'clamp(3rem, 6vw, 6rem) 1.5rem',
+        color: 'white'
+      }}>
+        <motion.span
+          key={`label-${idx}`}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          style={{
+            fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase',
+            letterSpacing: '0.3em', color: 'var(--brand-gold)', marginBottom: '1.25rem', display: 'block'
+          }}
+        >
+          Featured Sanctuary
+        </motion.span>
+
+        <motion.h1
+          key={`name-${idx}`}
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          style={{
+            fontSize: 'clamp(2rem, 6vw, 5.5rem)',
+            fontFamily: 'var(--font-serif)', lineHeight: 1,
+            marginBottom: '1.25rem', maxWidth: '700px'
+          }}
+        >
+          {s.store_name}
+        </motion.h1>
+
+        <motion.p
+          key={`tag-${idx}`}
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+          style={{
+            fontSize: 'clamp(0.95rem, 2vw, 1.2rem)',
+            opacity: 0.82, lineHeight: 1.7,
+            maxWidth: '520px', marginBottom: '2.5rem', fontWeight: 300
+          }}
+        >
+          {s.tagline || s.bio || 'Excellence in botanical curation.'}
+        </motion.p>
+
+        <motion.div
+          key={`cta-${idx}`}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+          style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}
+        >
+          <Link to={`/store/${s.slug}`} style={{
+            padding: '0.875rem 2.5rem',
+            backgroundColor: 'white', color: '#1a1a1a',
+            fontWeight: 800, fontSize: '0.8rem',
+            textTransform: 'uppercase', letterSpacing: '0.1em',
+            textDecoration: 'none', display: 'inline-block'
+          }}>
+            Explore Studio
+          </Link>
+          {s.location_city && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: 0.6, fontSize: '0.85rem' }}>
+              <MapPin size={14} /> {s.location_city}
+            </span>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Carousel controls */}
+      {total > 1 && (
+        <>
+          <button onClick={prev} aria-label="Previous" style={{
+            position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
+            width: '44px', height: '44px', borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)',
+            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', backdropFilter: 'blur(8px)', zIndex: 20
+          }}><ChevronLeft size={20} /></button>
+          <button onClick={next} aria-label="Next" style={{
+            position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)',
+            width: '44px', height: '44px', borderRadius: '50%',
+            backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)',
+            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', backdropFilter: 'blur(8px)', zIndex: 20
+          }}><ChevronRight size={20} /></button>
+
+          {/* Dot indicators */}
+          <div style={{
+            position: 'absolute', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', gap: '0.5rem', zIndex: 20
+          }}>
+            {sellers.map((_, i) => (
+              <button key={i} onClick={() => setIdx(i)} aria-label={`Slide ${i + 1}`} style={{
+                width: i === idx ? '28px' : '8px', height: '8px', borderRadius: '4px',
+                backgroundColor: i === idx ? 'var(--brand-gold)' : 'rgba(255,255,255,0.4)',
+                border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0
+              }} />
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+// ─── Stats Bar ────────────────────────────────────────────────────────────────
+function StatsBar({ stats }) {
+  return (
+    <section style={{ backgroundColor: 'white', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="container" style={{
+        display: 'flex', flexWrap: 'wrap',
+        justifyContent: 'center', gap: '0',
+        padding: 0
+      }}>
+        {[
+          { icon: <Users size={20} />, value: stats.total_sellers, label: 'Verified Curators' },
+          { icon: <Package size={20} />, value: stats.total_products, label: 'Rare Specimens' },
+          { icon: <ShieldCheck size={20} />, value: `${stats.survival_rate}%`, label: 'Survival Rate' },
+        ].map((item, i, arr) => (
+          <div key={i} style={{
+            flex: '1 1 120px', textAlign: 'center',
+            padding: 'clamp(1.5rem, 3vw, 2.5rem) 1.5rem',
+            borderRight: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+          }}>
+            <div style={{ color: 'var(--brand-gold)', display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+              {item.icon}
+            </div>
+            <div style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.25rem' }}>
+              {item.value}
+            </div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.1em' }}>
+              {item.label}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Seller Card ──────────────────────────────────────────────────────────────
+function SellerCard({ seller }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-50px' }}
+      transition={{ duration: 0.4 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderRadius: '20px', overflow: 'hidden',
+        backgroundColor: 'white',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: hovered ? '0 20px 48px rgba(0,0,0,0.1)' : '0 2px 12px rgba(0,0,0,0.04)',
+        transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
+        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      {/* Banner */}
+      <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden', backgroundColor: '#e2e8e0' }}>
+        <img
+          src={getImageUrl(seller.banner_url) || '/assets/default-banner.jpg'}
+          alt={seller.store_name}
+          onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
+          style={{
+            width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+            transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+            transform: hovered ? 'scale(1.05)' : 'scale(1)'
+          }}
+        />
+        {/* Logo */}
+        <div style={{
+          position: 'absolute', bottom: '-24px', left: '1.25rem',
+          width: '52px', height: '52px', borderRadius: '14px',
+          backgroundColor: 'white', padding: '5px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', overflow: 'hidden',
+          border: '2px solid white'
+        }}>
+          <img
+            src={getImageUrl(seller.logo_url) || '/assets/default-logo.jpg'}
+            alt={seller.store_name}
+            onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
+          />
+        </div>
+        {/* Featured badge */}
+        {seller.is_featured && (
+          <div style={{
+            position: 'absolute', top: '0.75rem', right: '0.75rem',
+            backgroundColor: 'var(--brand-gold)', color: 'white',
+            fontSize: '0.6rem', fontWeight: 900, padding: '0.3rem 0.7rem',
+            borderRadius: '50px', textTransform: 'uppercase', letterSpacing: '0.05em'
+          }}>
+            Featured
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '2rem 1.25rem 1.5rem', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Rating */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.5rem' }}>
+          <Star size={13} fill="var(--brand-gold)" color="var(--brand-gold)" />
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            {seller.rating || '5.0'}
+          </span>
+          {seller.location_city && (
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+              <MapPin size={11} /> {seller.location_city}
+            </span>
+          )}
+        </div>
+
+        <h3 style={{ fontSize: '1.15rem', marginBottom: '0.6rem', lineHeight: 1.2 }}>
+          {seller.store_name}
+        </h3>
+
+        <p style={{
+          fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6,
+          flexGrow: 1, marginBottom: '1.25rem',
+          display: '-webkit-box', WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical', overflow: 'hidden'
+        }}>
+          {seller.bio || 'Curating rare botanical specimens and aquascape essentials.'}
+        </p>
+
+        {/* Tags */}
+        {seller.expertise_tags?.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+            {seller.expertise_tags.slice(0, 3).map((tag, i) => (
+              <span key={i} style={{
+                fontSize: '0.65rem', fontWeight: 700, padding: '0.25rem 0.6rem',
+                borderRadius: '50px', backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em'
+              }}>{tag}</span>
+            ))}
+          </div>
+        )}
+
+        <Link
+          to={`/store/${seller.slug}`}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+            padding: '0.75rem', borderRadius: '10px',
+            border: '1.5px solid var(--border-subtle)',
+            color: 'var(--text-primary)', textDecoration: 'none',
+            fontSize: '0.8rem', fontWeight: 700,
+            transition: 'all 0.2s',
+            backgroundColor: hovered ? 'var(--bg-deep)' : 'transparent',
+            color: hovered ? 'white' : 'var(--text-primary)',
+            borderColor: hovered ? 'var(--bg-deep)' : 'var(--border-subtle)',
+          }}
+        >
+          View Boutique <ArrowRight size={14} />
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function VerifiedSellers() {
+  const [sellers, setSellers] = useState([]);
+  const [featuredSellers, setFeaturedSellers] = useState([]);
+  const [stats, setStats] = useState({ total_sellers: '—', total_products: '—', survival_rate: 98 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAll = async () => {
       try {
         const [sellersData, statsData] = await Promise.all([
           SellerService.getVerifiedDirectory(),
-          SellerService.getPlatformStats()
+          SellerService.getPlatformStats(),
         ]);
-        
-        const results = sellersData.results || sellersData || [];
-        setSellers(results);
+
+        const all = sellersData.results || sellersData || [];
+        setSellers(all);
         setStats(statsData);
-        
-        const featuredData = results.filter(s => s.is_featured);
-        let finalPromoted = [];
-        
-        if (featuredData.length > 0) {
-          finalPromoted = featuredData.map(p => ({
-            id: p.id,
-            store_name: p.store_name,
-            tagline: p.tagline || 'Excellence in Botanical Curation',
-            image: getImageUrl(p.banner_url) || '/assets/default-banner.jpg',
-            logo: getImageUrl(p.logo_url) || '/assets/default-logo.jpg',
-            slug: p.slug,
-            brand_color: p.brand_color || '#10b981'
-          }));
-        } else if (results.length > 0) {
-          // Fallback: use first 3 active sellers if none are marked featured
-          finalPromoted = results.slice(0, 3).map(p => ({
-            id: p.id,
-            store_name: p.store_name,
-            tagline: p.tagline || 'Verified Botanical Artisan',
-            image: getImageUrl(p.banner_url) || '/assets/default-banner.jpg',
-            logo: getImageUrl(p.logo_url) || '/assets/default-logo.jpg',
-            slug: p.slug,
-            brand_color: p.brand_color || '#10b981'
-          }));
-        }
-        
-        setPromotedSellers(finalPromoted);
-      } catch (error) {
-        console.error("Error fetching editorial data", error);
+
+        const featured = all.filter(s => s.is_featured);
+        setFeaturedSellers(featured.length ? featured : all.slice(0, 3));
+      } catch (err) {
+        console.error('VerifiedSellers fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchDirectoryData();
+    fetchAll();
   }, []);
 
-  useEffect(() => {
-    if (promotedSellers.length <= 1) return;
-    const timer = setInterval(() => {
-      setActiveSlide(prev => (prev + 1) % promotedSellers.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [promotedSellers.length]);
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9f8f4', fontFamily: 'Inter, sans-serif', color: '#1a1a1a' }}>
-      
-      {/* 1. Fashion-Style Hero Spotlight */}
-      <section style={{ height: '90vh', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
-        {/* Hero Section (Only show if we have sellers) */}
-        {promotedSellers.length > 0 && (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeSlide}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1.2fr' }}
-            >
-              {/* Left Content: Bold Typography */}
-              <div style={{ padding: '0 10%', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 10 }}>
-                <motion.span 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#10b981', marginBottom: '2rem' }}
-                >
-                  Featured Sanctuary
-                </motion.span>
-                <motion.h1 
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  style={{ fontSize: '6rem', fontFamily: 'serif', lineHeight: 0.9, marginBottom: '2rem', letterSpacing: '-0.03em' }}
-                >
-                  {promotedSellers[activeSlide].store_name.split(' ')[0]} <br/> 
-                  <span style={{ fontStyle: 'italic', color: '#64748b' }}>&</span> {promotedSellers[activeSlide].store_name.split(' ').slice(1).join(' ')}
-                </motion.h1>
-                <motion.p 
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  style={{ fontSize: '1.25rem', color: '#4b5563', marginBottom: '3rem', maxWidth: '400px', lineHeight: 1.6 }}
-                >
-                  {promotedSellers[activeSlide].tagline}
-                </motion.p>
-                <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
-                  <Link 
-                    to={`/store/${promotedSellers[activeSlide].slug}`}
-                    style={{ 
-                      backgroundColor: '#1a1a1a', color: 'white', padding: '1.5rem 4rem', 
-                      display: 'inline-block', textDecoration: 'none', fontWeight: 800, 
-                      textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.8rem'
-                    }}
-                  >
-                    Explore Studio
-                  </Link>
-                </motion.div>
-              </div>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9f8f4', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)' }}>
 
-              {/* Right Image: Framed Fashion Aesthetic */}
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5%' }}>
-                <motion.div 
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ 
-                    width: '100%', height: '80%', borderRadius: '40px 40px 400px 40px', 
-                    overflow: 'hidden', position: 'relative', boxShadow: '0 40px 80px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  <img 
-                    src={promotedSellers[activeSlide].image} 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    alt="Spotlight"
-                    onError={(e) => { e.target.src = '/assets/default-banner.jpg' }}
-                  />
-                  
-                  {/* Hero Logo Overlay */}
-                  {promotedSellers[activeSlide].logo && (
-                    <div style={{ 
-                      position: 'absolute', bottom: '3rem', right: '3rem',
-                      width: '120px', height: '120px', borderRadius: '32px', backgroundColor: 'white',
-                      padding: '12px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                      zIndex: 2, border: '1px solid rgba(255,255,255,0.2)',
-                      backdropFilter: 'blur(10px)'
-                    }}>
-                      <img 
-                        src={promotedSellers[activeSlide].logo} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '24px' }}
-                        alt="Brand Logo"
-                        onError={(e) => { e.target.src = '/assets/default-logo.jpg' }}
-                      />
-                    </div>
-                  )}
-                  
-                  <div style={{ position: 'absolute', inset: 0, border: '20px solid rgba(255,255,255,0.1)' }} />
-                </motion.div>
-                
-                {/* Decorative Floating Element */}
-                <motion.div 
-                  animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
-                  transition={{ duration: 6, repeat: Infinity }}
-                  style={{ 
-                    position: 'absolute', top: '15%', right: '10%', backgroundColor: 'white', 
-                    padding: '1.5rem', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
-                    display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 20
-                  }}
-                >
-                  <div style={{ width: '40px', height: '40px', backgroundColor: '#f0fdf4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <ShieldCheck size={20} color="#10b981" />
-                  </div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>Verified Purity</span>
-                </motion.div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        )}
+      {/* Hero Spotlight */}
+      {!loading && <SpotlightHero sellers={featuredSellers} />}
+      {loading && (
+        <div style={{ minHeight: '60vh', backgroundColor: 'var(--bg-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.2)', borderTopColor: 'var(--brand-gold)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        </div>
+      )}
 
-        {/* Empty State Hero */}
-        {!loading && promotedSellers.length === 0 && (
-          <div style={{ padding: '0 10%', textAlign: 'center', width: '100%' }}>
-            <h1 style={{ fontSize: '4rem', fontFamily: 'serif', color: '#0A3029' }}>The Curator Registry</h1>
-            <p style={{ fontSize: '1.2rem', color: '#64748b', maxWidth: '600px', margin: '2rem auto' }}>
-              Our sanctuary is currently refreshing its list of verified growers. Check back soon to discover new botanical masters.
+      {/* Stats Bar */}
+      <StatsBar stats={stats} />
+
+      {/* Directory */}
+      <section style={{ padding: 'clamp(3.5rem, 8vw, 8rem) 0' }}>
+        <div className="container">
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 'clamp(2.5rem, 5vw, 5rem)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <span style={{ width: '20px', height: '1px', backgroundColor: 'var(--brand-gold)' }} />
+              <span style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>Master Curators</span>
+              <span style={{ width: '20px', height: '1px', backgroundColor: 'var(--brand-gold)' }} />
+            </div>
+            <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 3.5rem)', marginBottom: '1rem' }}>
+              The Verified Registry
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', fontSize: 'clamp(0.875rem, 2vw, 1rem)', lineHeight: 1.7 }}>
+              Every grower on Junglyst is individually vetted for quality, expertise, and sustainable practices.
             </p>
           </div>
-        )}
 
-        {/* Carousel Controls */}
-        {promotedSellers.length > 1 && (
-          <div style={{ position: 'absolute', bottom: '5%', left: '10%', display: 'flex', gap: '1.5rem', alignItems: 'center', zIndex: 30 }}>
-            {promotedSellers.map((_, idx) => (
-              <button 
-                key={idx}
-                onClick={() => setActiveSlide(idx)}
-                style={{ 
-                  fontSize: '1rem', fontWeight: 700, border: 'none', background: 'none', 
-                  color: idx === activeSlide ? '#1a1a1a' : '#9ca3af', cursor: 'pointer',
-                  transition: 'all 0.3s'
-                }}
-              >
-                0{idx + 1}
-              </button>
-            ))}
-            <div style={{ width: '100px', height: '1px', backgroundColor: '#e5e7eb', margin: '0 1rem' }} />
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>Next Trend</span>
-          </div>
-        )}
-      </section>
-
-      {/* 2. Global Stats: Fashion Impact */}
-      <section style={{ backgroundColor: 'white', padding: '6rem 0', borderTop: '1px solid #f3f4f6' }}>
-        <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', textAlign: 'center' }}>
-          <div>
-            <h3 style={{ fontSize: '3rem', fontFamily: 'serif', marginBottom: '0.5rem' }}>{stats.total_sellers}</h3>
-            <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.1em' }}>Verified Master Curators</p>
-          </div>
-          <div style={{ borderLeft: '1px solid #f3f4f6', borderRight: '1px solid #f3f4f6' }}>
-            <h3 style={{ fontSize: '3rem', fontFamily: 'serif', marginBottom: '0.5rem' }}>{stats.total_products}</h3>
-            <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.1em' }}>Rare Specimens</p>
-          </div>
-          <div>
-            <h3 style={{ fontSize: '3rem', fontFamily: 'serif', marginBottom: '0.5rem' }}>{stats.survival_rate}%</h3>
-            <p style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.1em' }}>Survival Rate</p>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Editorial Seller Directory */}
-      <section style={{ padding: '10rem 0' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '8rem' }}>
-            <h2 style={{ fontSize: '4.5rem', fontFamily: 'serif', marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>The {sellers.length} Master Curators</h2>
-            <div style={{ width: '60px', height: '2px', backgroundColor: '#10b981', margin: '0 auto' }} />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8rem' }}>
-            {sellers.map((seller, idx) => (
-              <motion.div 
-                key={seller.id}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                style={{ 
-                  display: 'grid', gridTemplateColumns: idx % 2 === 0 ? '1fr 1.2fr' : '1.2fr 1fr', 
-                  gap: '6rem', alignItems: 'center' 
-                }}
-              >
-                {/* Visual Section */}
-                <div style={{ order: idx % 2 === 0 ? 0 : 1, position: 'relative' }}>
-                  <div style={{ 
-                    aspectRatio: '4/5', backgroundColor: '#e5e7eb', borderRadius: '40px', 
-                    overflow: 'hidden', position: 'relative', boxShadow: '0 30px 60px rgba(0,0,0,0.05)' 
-                  }}>
-                    <img 
-                      src={getImageUrl(seller.banner_url) || '/assets/default-banner.jpg'} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      alt={seller.store_name}
-                      onError={(e) => { e.target.src = '/assets/default-banner.jpg' }}
-                    />
-
-                    {/* Logo Overlay */}
-                    <div style={{ 
-                      position: 'absolute', 
-                      bottom: '2.5rem', 
-                      [idx % 2 === 0 ? 'right' : 'left']: '2.5rem',
-                      width: '90px', 
-                      height: '90px', 
-                      borderRadius: '24px', 
-                      backgroundColor: 'white',
-                      padding: '10px', 
-                      boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      overflow: 'hidden',
-                      zIndex: 2
-                    }}>
-                      <img 
-                        src={getImageUrl(seller.logo_url) || '/assets/default-logo.jpg'} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }}
-                        alt={`${seller.store_name} Logo`}
-                        onError={(e) => { e.target.src = '/assets/default-logo.jpg' }}
-                      />
-                    </div>
+          {/* Cards Grid */}
+          {loading ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+              gap: '1.5rem'
+            }}>
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} style={{ borderRadius: '20px', overflow: 'hidden', backgroundColor: 'white', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ aspectRatio: '16/9', backgroundColor: '#e8ede9' }} />
+                  <div style={{ padding: '2rem 1.25rem 1.5rem' }}>
+                    <div style={{ height: '12px', backgroundColor: '#e8ede9', borderRadius: '6px', marginBottom: '0.75rem', width: '60%' }} />
+                    <div style={{ height: '10px', backgroundColor: '#e8ede9', borderRadius: '6px', marginBottom: '0.5rem', width: '90%' }} />
+                    <div style={{ height: '10px', backgroundColor: '#e8ede9', borderRadius: '6px', width: '70%' }} />
                   </div>
-                  {/* Decorative Number */}
-                  <span style={{ 
-                    position: 'absolute', top: '-2rem', [idx % 2 === 0 ? 'left' : 'right']: '-2rem', 
-                    fontSize: '12rem', fontFamily: 'serif', color: 'rgba(0,0,0,0.03)', zIndex: -1 
-                  }}>
-                    0{idx + 1}
-                  </span>
                 </div>
-
-                {/* Text Section */}
-                <div style={{ textAlign: idx % 2 === 0 ? 'left' : 'right' }}>
-                  <div style={{ display: 'flex', justifyContent: idx % 2 === 0 ? 'flex-start' : 'flex-end', gap: '0.5rem', marginBottom: '2rem' }}>
-                    <div style={{ color: '#E5C48B', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Star size={16} fill="currentColor" />
-                      <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1a1a1a' }}>{seller.rating || '5.0'}</span>
-                    </div>
-                  </div>
-                  <h3 style={{ fontSize: '3.5rem', fontFamily: 'serif', marginBottom: '2rem', lineHeight: 1.1 }}>{seller.store_name}</h3>
-                  <p style={{ fontSize: '1.1rem', color: '#64748b', lineHeight: 1.8, marginBottom: '3rem', maxWidth: '500px', marginLeft: idx % 2 === 0 ? 0 : 'auto' }}>
-                    {seller.bio || 'Curating rare botanical specimens and high-fidelity aquascape essentials with a focus on sustainable growth.'}
-                  </p>
-                  <Link 
-                    to={`/store/${seller.slug}`}
-                    style={{ 
-                      fontSize: '0.8rem', fontWeight: 900, textTransform: 'uppercase', 
-                      letterSpacing: '0.2em', color: '#1a1a1a', textDecoration: 'none',
-                      borderBottom: '2px solid #10b981', paddingBottom: '0.5rem'
-                    }}
-                  >
-                    View Boutique <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : sellers.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
+              <Leaf size={40} color="var(--border-subtle)" style={{ marginBottom: '1rem' }} />
+              <p>No verified sellers found yet.</p>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+              gap: '1.5rem'
+            }}>
+              {sellers.map(seller => (
+                <SellerCard key={seller.id} seller={seller} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* 4. Editorial Footer Join */}
-      <section style={{ backgroundColor: '#1a1a1a', padding: '10rem 0', color: 'white', textAlign: 'center' }}>
-        <div className="container">
-          <Sparkles size={48} color="#E5C48B" style={{ marginBottom: '3rem' }} />
-          <h2 style={{ fontSize: '4rem', fontFamily: 'serif', marginBottom: '2rem' }}>Join the Verified Network</h2>
-          <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', margin: '0 auto 4rem', lineHeight: 1.6 }}>
-            Partner with us to uphold the highest standards of botanical quality and showcase your cultivated collection to a community of serious enthusiasts.
-          </p>
-          <Link to="/seller/onboarding" style={{ padding: '1.5rem 4rem', backgroundColor: 'white', color: '#1a1a1a', textDecoration: 'none', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Apply for Verification
-          </Link>
-        </div>
-      </section>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
