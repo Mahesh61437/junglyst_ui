@@ -34,11 +34,14 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const quantityInCart = cartItem ? cartItem.quantity : 0;
   const variantId = variants?.length > 0 ? variants[0].id : null;
 
+  const productData = { id, name, slug, image, seller, price };
+  const variantData = variants?.[0] ?? null;
+
   const handleAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (isSoldOut) return;
-    addItemToCart(id, 1, variantId);
+    addItemToCart(id, 1, variantId, productData, variantData);
     trackAddToCart({ productId: id, name, price });
   };
 

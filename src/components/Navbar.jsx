@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
+import { useNotifications } from '../context/NotificationContext';
 import NaturalLogo from './NaturalLogo';
+import NotificationBell from './NotificationBell';
 import { getImageUrl } from '../utils/imageUtils';
 
 export default function Navbar() {
   const { cart } = useCart();
   const { user, logout } = useAuth();
   const { wishlist } = useWishlist();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -209,6 +212,23 @@ export default function Navbar() {
                         <User size={16} /> Collector Hub
                       </Link>
 
+                      <Link
+                        to="/profile"
+                        state={{ tab: 'addresses' }}
+                        onClick={() => setIsProfileOpen(false)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.75rem',
+                          padding: '0.85rem 1rem', borderRadius: '10px',
+                          color: 'var(--text-primary)', textDecoration: 'none',
+                          fontSize: '0.875rem', fontWeight: 600,
+                          transition: 'background 0.15s'
+                        }}
+                        onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                        onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <MapPin size={16} /> Saved Addresses
+                      </Link>
+
                       {isGrower && (
                         <Link
                           to="/seller/dashboard"
@@ -275,6 +295,9 @@ export default function Navbar() {
               <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: window.innerWidth > 768 ? 'block' : 'none' }}>Sign In</span>
             </Link>
           )}
+
+          {/* Notification bell — only for authenticated users */}
+          {user && <NotificationBell />}
 
           <Link to="/wishlist" style={{ color: 'inherit', position: 'relative', display: 'flex' }}>
             <Heart size={20} strokeWidth={1.5} color={wishlist.length > 0 ? 'var(--brand-gold)' : 'currentColor'} fill={wishlist.length > 0 ? 'var(--brand-gold)' : 'none'} />
@@ -443,6 +466,11 @@ export default function Navbar() {
                   </Link>
                   <Link to="/profile" state={{ tab: 'notifications' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <Bell size={18} /> Studio Updates
+                    {unreadCount > 0 && (
+                      <span style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 800, borderRadius: '20px', padding: '2px 7px', minWidth: '20px', textAlign: 'center' }}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                   <Link to="/profile" state={{ tab: 'security' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <ShieldCheck size={18} /> Security & Access

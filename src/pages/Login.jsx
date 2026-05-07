@@ -2,13 +2,21 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
-import { Mail, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Mail, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
 import NaturalLogo from '../components/NaturalLogo';
+import api from '../services/api';
 
 export default function Login() {
+  const [view, setView] = useState('login'); // 'login', 'forgotPassword', 'resetPassword'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
   const [formData, setFormData] = useState({ email: '', password: '' });
+  
+  const [resetEmail, setResetEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   const { login } = useAuth();
   const { syncAfterLogin } = useWishlist();
   const navigate = useNavigate();
@@ -17,6 +25,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMsg(null);
     try {
       await login(formData);
       syncAfterLogin().catch(() => null);
@@ -24,6 +33,46 @@ export default function Login() {
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.detail || "Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await api.post('/core/forgot-password/', { email: resetEmail });
+      setSuccessMsg(res.data.message || "OTP sent to email if account exists.");
+      setTimeout(() => {
+        setSuccessMsg(null);
+        setView('resetPassword');
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || "Failed to send OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await api.post('/core/reset-password/', { email: resetEmail, otp, new_password: newPassword });
+      setSuccessMsg(res.data.message || "Password reset successfully.");
+      setTimeout(() => {
+        setSuccessMsg(null);
+        setView('login');
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || "Failed to reset password.");
     } finally {
       setLoading(false);
     }
@@ -52,8 +101,26 @@ export default function Login() {
           <NaturalLogo textColor="var(--bg-deep)" size="2rem" />
         </Link>
         
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Welcome Back</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2.5rem' }}>Access your botanical collection and secure specimens.</p>
+        {view === 'login' && (
+          <>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Welcome Back</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2.5rem' }}>Access your botanical collection and secure specimens.</p>
+          </>
+        )}
+
+        {view === 'forgotPassword' && (
+          <>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Reset Password</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2.5rem' }}>Enter your email to receive an OTP.</p>
+          </>
+        )}
+
+        {view === 'resetPassword' && (
+          <>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Set New Password</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2.5rem' }}>Enter the OTP sent to your email and your new password.</p>
+          </>
+        )}
 
         {error && (
           <div style={{ 
@@ -70,75 +137,250 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} style={{ textAlign: 'left' }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
-              Email or Username <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+        {successMsg && (
+          <div style={{ 
+            backgroundColor: '#dcfce7', 
+            color: '#15803d', 
+            padding: '1rem', 
+            borderRadius: '12px', 
+            fontSize: '0.85rem', 
+            marginBottom: '2rem',
+            textAlign: 'left',
+            border: '1px solid #bbf7d0'
+          }}>
+            {successMsg}
+          </div>
+        )}
+
+        {view === 'login' && (
+          <form onSubmit={handleLogin} style={{ textAlign: 'left' }}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+                Email or Username <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input 
+                  type="text" 
+                  placeholder="collector@junglyst.com or 'admin'"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
+                />
+              </div>
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Password <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => { setError(null); setSuccessMsg(null); setView('forgotPassword'); }} 
+                  style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <ShieldCheck size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input 
+                  type="password" 
+                  placeholder="••••••••"
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{ 
+                width: '100%', 
+                padding: '1.125rem', 
+                backgroundColor: 'var(--bg-deep)', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '12px', 
+                fontWeight: 800, 
+                cursor: 'pointer', 
+                fontSize: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                boxShadow: 'var(--shadow-md)',
+                transition: 'all 0.2s',
+                marginBottom: '2rem'
+              }}
+            >
+              {loading ? 'Verifying...' : 'Enter Collection'}
+              <ArrowRight size={18} />
+            </button>
+          </form>
+        )}
+
+        {view === 'forgotPassword' && (
+          <form onSubmit={handleForgotPassword} style={{ textAlign: 'left' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+                Email Address <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input 
+                  type="email" 
+                  placeholder="collector@junglyst.com"
+                  required
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{ 
+                width: '100%', 
+                padding: '1.125rem', 
+                backgroundColor: 'var(--bg-deep)', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '12px', 
+                fontWeight: 800, 
+                cursor: 'pointer', 
+                fontSize: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                boxShadow: 'var(--shadow-md)',
+                transition: 'all 0.2s',
+                marginBottom: '1rem'
+              }}
+            >
+              {loading ? 'Sending...' : 'Send OTP'}
+              <ArrowRight size={18} />
+            </button>
+
+            <button 
+              type="button" 
+              onClick={() => { setError(null); setSuccessMsg(null); setView('login'); }}
+              style={{ 
+                width: '100%', 
+                padding: '1.125rem', 
+                backgroundColor: 'transparent', 
+                color: 'var(--text-secondary)', 
+                border: '1px solid var(--border-subtle)', 
+                borderRadius: '12px', 
+                fontWeight: 700, 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s',
+                marginBottom: '2rem'
+              }}
+            >
+              <ArrowLeft size={16} />
+              Back to Login
+            </button>
+          </form>
+        )}
+
+        {view === 'resetPassword' && (
+          <form onSubmit={handleResetPassword} style={{ textAlign: 'left' }}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+                OTP <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <input 
                 type="text" 
-                placeholder="collector@junglyst.com or 'admin'"
+                placeholder="123456"
                 required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
               />
             </div>
-          </div>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Password <span style={{ color: '#ef4444' }}>*</span>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+                New Password <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <button 
-                type="button" 
-                onClick={() => alert("Password reset link has been sent to your registered email.")} 
-                style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textDecoration: 'underline', cursor: 'pointer' }}
-              >
-                Forgot Password?
-              </button>
+              <div style={{ position: 'relative' }}>
+                <ShieldCheck size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input 
+                  type="password" 
+                  placeholder="••••••••"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
+                />
+              </div>
             </div>
-            <div style={{ position: 'relative' }}>
-              <ShieldCheck size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-              <input 
-                type="password" 
-                placeholder="••••••••"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
-              />
-            </div>
-          </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{ 
-              width: '100%', 
-              padding: '1.125rem', 
-              backgroundColor: 'var(--bg-deep)', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '12px', 
-              fontWeight: 800, 
-              cursor: 'pointer', 
-              fontSize: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.75rem',
-              boxShadow: 'var(--shadow-md)',
-              transition: 'all 0.2s',
-              marginBottom: '2rem'
-            }}
-          >
-            {loading ? 'Verifying...' : 'Enter Collection'}
-            <ArrowRight size={18} />
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{ 
+                width: '100%', 
+                padding: '1.125rem', 
+                backgroundColor: 'var(--bg-deep)', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '12px', 
+                fontWeight: 800, 
+                cursor: 'pointer', 
+                fontSize: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                boxShadow: 'var(--shadow-md)',
+                transition: 'all 0.2s',
+                marginBottom: '1rem'
+              }}
+            >
+              {loading ? 'Resetting...' : 'Reset Password'}
+              <ArrowRight size={18} />
+            </button>
+
+            <button 
+              type="button" 
+              onClick={() => { setError(null); setSuccessMsg(null); setView('login'); }}
+              style={{ 
+                width: '100%', 
+                padding: '1.125rem', 
+                backgroundColor: 'transparent', 
+                color: 'var(--text-secondary)', 
+                border: '1px solid var(--border-subtle)', 
+                borderRadius: '12px', 
+                fontWeight: 700, 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s',
+                marginBottom: '2rem'
+              }}
+            >
+              <ArrowLeft size={16} />
+              Back to Login
+            </button>
+          </form>
+        )}
 
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           New to the sanctuary? <Link to="/signup" style={{ color: 'var(--brand-gold)', fontWeight: 800, textDecoration: 'none' }}>Join Junglyst</Link>

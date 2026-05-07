@@ -223,7 +223,7 @@ export default function ProductDetails() {
   const handleBuyNow = async () => {
     const safeQty = hasStockLimit ? Math.max(1, Math.min(quantity, Math.max(0, stockLimit))) : quantity;
     if (hasStockLimit && safeQty < 1) return;
-    await addItemToCart(id, safeQty, selectedVariant?.id);
+    await addItemToCart(id, safeQty, selectedVariant?.id, product, selectedVariant);
     navigate('/checkout');
   };
 
@@ -679,7 +679,7 @@ export default function ProductDetails() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button
                   onClick={async () => {
-                    const ok = await addItemToCart(id, quantity, selectedVariant?.id);
+                    const ok = await addItemToCart(id, quantity, selectedVariant?.id, product, selectedVariant);
                     trackAddToCart({ productId: id, name, price: displayPrice });
                     if (ok !== false) showToast('Specimen secured in your box.', 'success');
                   }}

@@ -217,7 +217,7 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart.items, loading]);
 
-  const addItemToCart = async (productId, quantity = 1, variantId = null) => {
+  const addItemToCart = async (productId, quantity = 1, variantId = null, productData = null, variantData = null) => {
     const existing = cart.items.find(i =>
       i.product.id === productId && (!variantId || i.variant?.id === variantId)
     );
@@ -236,7 +236,7 @@ export const CartProvider = ({ children }) => {
       }
     }
 
-    // Optimistic update
+    // Optimistic update — use rich product/variant data when provided (guest local cart)
     setCart(prev => {
       const idx = prev.items.findIndex(i =>
         i.product.id === productId && (!variantId || i.variant?.id === variantId)
@@ -245,7 +245,9 @@ export const CartProvider = ({ children }) => {
       if (idx > -1) {
         newItems[idx] = { ...newItems[idx], quantity: Math.min(MAX_ITEM_QUANTITY, newItems[idx].quantity + quantity) };
       } else {
-        newItems.push({ id: `temp-${Date.now()}`, product: { id: productId }, variant: variantId ? { id: variantId } : null, quantity });
+        const localProduct = productData ? { ...productData, id: productId } : { id: productId };
+        const localVariant = variantData ? { ...variantData, id: variantId ?? variantData.id } : (variantId ? { id: variantId } : null);
+        newItems.push({ id: `temp-${Date.now()}`, product: localProduct, variant: localVariant, quantity });
       }
       return calculateFinancials(newItems, deliveryZoneRef.current);
     });

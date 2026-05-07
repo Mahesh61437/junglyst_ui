@@ -4,7 +4,7 @@ import { AlertCircle, RefreshCw, MessageSquare, ArrowLeft } from 'lucide-react';
 export default function Failure() {
   const location = useLocation();
   const navigate = useNavigate();
-  const error = location.state?.error || "We encountered a synchronization error with the payment vault.";
+  const error = location.state?.error || "An unexpected error occurred during the acquisition protocol.";
 
   return (
     <div className="container" style={{ padding: '6rem 1rem 10rem' }}>
