@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Heart,
@@ -21,14 +21,64 @@ import {
 import { ProductService } from '../services/ProductService';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { useToast } from '../context/ToastContext';
 import { trackViewContent, trackAddToCart, trackAddToWishlist } from '../utils/metaPixel';
 import ReviewSection from '../components/ReviewSection';
 import Recommendations from '../components/Recommendations';
 import TrustBadges from '../components/TrustBadges';
 import { getImageUrl } from '../utils/imageUtils';
+import api from '../services/api';
+
+function MoreFromSeller({ sellerId, sellerName, currentProductId }) {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    if (!sellerId) return;
+    api.get(`/core/products/?seller=${sellerId}&limit=6`)
+      .then(res => {
+        const all = Array.isArray(res.data) ? res.data : (res.data.results || []);
+        setItems(all.filter(p => p.id !== currentProductId).slice(0, 5));
+      })
+      .catch(() => {});
+  }, [sellerId, currentProductId]);
+
+  if (!items.length) return null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-serif)', margin: 0 }}>More from {sellerName}</h2>
+        <Link to={`/shop?seller=${sellerId}`} style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          View All →
+        </Link>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.25rem' }}>
+        {items.map(p => {
+          const img = p.primary_image || p.images?.[0]?.image_url || p.image_url;
+          const price = p.variants?.[0]?.price || p.price;
+          return (
+            <Link key={p.id} to={`/product/${p.slug || p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #f1f5f9', overflow: 'hidden', transition: 'box-shadow 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                <div style={{ height: '160px', overflow: 'hidden', backgroundColor: '#f8faf8' }}>
+                  {img ? <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', fontSize: '2rem' }}>🌿</div>}
+                </div>
+                <div style={{ padding: '0.875rem' }}>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                  {price && <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '0.9rem', color: 'var(--bg-deep)' }}>₹{parseFloat(price).toLocaleString('en-IN')}</p>}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function ProductDetails() {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const id = slug; // ProductService auto-detects UUID vs slug
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,8 +88,9 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState('Standard');
   const [isMobile, setIsMobile] = useState(false);
-  const { addToCart, addItemToCart } = useCart();
+  const { addToCart, addItemToCart, LIGHT_FREE_THRESHOLD, HEAVY_FREE_THRESHOLD, cart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const { showToast } = useToast();
 
   // HOOKS MUST BE AT THE TOP - Fix for "Rules of Hooks" violation
   const botanicalFacts = useMemo(() => {
@@ -503,9 +554,15 @@ export default function ProductDetails() {
           <div className="col-meta" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <header>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-gold)', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-                <Link to={`/store/${encodeURIComponent(product.seller?.username || product.seller?.name || 'Aquatic Exotica')}`} style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Award size={14} /> Verified Botanical Studio
-                </Link>
+                {product.seller?.seller_profile?.slug ? (
+                  <Link to={`/store/${product.seller.seller_profile.slug}`} style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Award size={14} /> {product.seller?.seller_profile?.store_name || product.seller?.full_name || 'Botanical Studio'}
+                  </Link>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Award size={14} /> {product.seller?.seller_profile?.store_name || product.seller?.full_name || 'Botanical Studio'}
+                  </span>
+                )}
                 <span style={{ color: 'var(--border-subtle)' }}>•</span>
                 <span style={{ color: 'var(--brand-green)' }}>Verified Seller</span>
               </div>
@@ -622,9 +679,9 @@ export default function ProductDetails() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button
                   onClick={async () => {
-                    await addItemToCart(id, quantity);
+                    const ok = await addItemToCart(id, quantity, selectedVariant?.id);
                     trackAddToCart({ productId: id, name, price: displayPrice });
-                    alert("Specimen secured in Box.");
+                    if (ok !== false) showToast('Specimen secured in your box.', 'success');
                   }}
                   disabled={!selectedVariant || selectedVariant.stock <= 0}
                   style={{
@@ -651,6 +708,36 @@ export default function ProductDetails() {
                   SECURE BUY NOW
                 </button>
               </div>
+
+              {/* Free-shipping live nudge */}
+              {(() => {
+                const sellerId = product?.seller?.id;
+                if (!sellerId) return null;
+                const isHeavy = selectedVariant?.item_category === 'heavy';
+                const threshold = isHeavy ? HEAVY_FREE_THRESHOLD : LIGHT_FREE_THRESHOLD;
+                const sellerGroup = cart?.seller_groups?.[sellerId];
+                const currentSubtotal = sellerGroup ? sellerGroup.subtotal : 0;
+                const remaining = threshold - currentSubtotal;
+                if (remaining <= 0) {
+                  return (
+                    <div style={{ padding: '0.6rem 1rem', borderRadius: '10px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Truck size={14} /> Free shipping from this seller unlocked!
+                    </div>
+                  );
+                }
+                if (remaining <= 200) {
+                  return (
+                    <div style={{ padding: '0.6rem 1rem', borderRadius: '10px', backgroundColor: '#fef9c3', color: '#854d0e', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Truck size={14} /> Add ₹{Math.ceil(remaining)} more from this seller for free shipping
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ padding: '0.6rem 1rem', borderRadius: '10px', backgroundColor: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Truck size={14} /> Free shipping above ₹{threshold.toLocaleString('en-IN')} from this seller
+                  </div>
+                );
+              })()}
 
               {/* Mobile Buy Box (shown below secure buy now) */}
               <div className="mobile-only-block" style={{ marginTop: '1.5rem', padding: '1.5rem', border: '1px solid var(--border-subtle)', borderRadius: '20px', backgroundColor: '#fff' }}>
@@ -706,7 +793,9 @@ export default function ProductDetails() {
                 <p style={{ fontSize: '0.8rem', lineHeight: 1.6, opacity: 0.85 }}>
                   {product.seller?.seller_profile?.bio || `Dedicated botanical specialist from ${product.seller?.location || 'India'}, committed to the preservation and distribution of premium specimens.`}
                 </p>
-                <Link to={`/store/${product.seller?.seller_profile?.slug || encodeURIComponent(product.seller?.username || 'Aquatic Exotica')}`} style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 800, marginTop: '0.5rem', textDecoration: 'none' }}>VIEW CATALOG →</Link>
+                {product.seller?.seller_profile?.slug && (
+                  <Link to={`/store/${product.seller.seller_profile.slug}`} style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 800, marginTop: '0.5rem', textDecoration: 'none' }}>VIEW CATALOG →</Link>
+                )}
               </div>
             </div>
           </div>
@@ -715,6 +804,7 @@ export default function ProductDetails() {
 
         {/* Branded Bottom Flow */}
         <div style={{ marginTop: '8rem', display: 'flex', flexDirection: 'column', gap: '6rem' }}>
+          <MoreFromSeller sellerId={product.seller?.id} sellerName={product.seller?.seller_profile?.store_name || product.seller?.username} currentProductId={product.id} />
           <Recommendations category={product.category?.name || product.category} currentProductId={product.id} />
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0 }} />
           <ReviewSection productId={id} />

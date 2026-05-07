@@ -6,7 +6,7 @@ import { ShieldCheck, Truck, ArrowLeft, MapPin, CreditCard, ShoppingBag, Info } 
 import { getImageUrl } from '../utils/imageUtils';
 
 export default function Checkout() {
-  const { cart, clearCart } = useCart();
+  const { cart, cartId, clearCart } = useCart();
   const navigate = useNavigate();
 
   const [shipping, setShipping] = useState({
@@ -19,28 +19,82 @@ export default function Checkout() {
     return null;
   }
 
+  const [error, setError] = useState(null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
 
     try {
+      // Step 1: Create order on backend → get Razorpay order ID
       const checkoutData = {
-        cart_id: cart.id,
+        cart_id: cartId,
+        pincode: shipping.zip,
         guest_info: {
           email: shipping.email,
           phone: shipping.phone,
-          address: shipping
+          address: {
+            full_name: `${shipping.firstName} ${shipping.lastName}`.trim(),
+            address_line1: shipping.address,
+            city: shipping.city,
+            pincode: shipping.zip,
+            phone: shipping.phone,
+            email: shipping.email,
+          }
         }
       };
-      
+
       const response = await OrderService.checkout(checkoutData);
-      await clearCart();
-      // Redirect to success page with order info
-      navigate('/checkout/success', { state: { order: response.order } });
+      const { order, razorpay_order_id, amount } = response;
+
+      if (!razorpay_order_id) {
+        throw new Error('Payment session could not be created. Please try again.');
+      }
+
+      // Step 2: Open Razorpay modal
+      const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      const rzp = new window.Razorpay({
+        key: rzpKey,
+        amount: Math.round(amount * 100),
+        currency: 'INR',
+        name: 'Junglyst',
+        description: `Order ${order.order_number}`,
+        order_id: razorpay_order_id,
+        prefill: {
+          name: `${shipping.firstName} ${shipping.lastName}`.trim(),
+          email: shipping.email,
+          contact: shipping.phone,
+        },
+        theme: { color: '#1b2d2a' },
+        handler: async (paymentResponse) => {
+          // Step 3: Verify payment on backend
+          try {
+            await OrderService.verifyPayment({
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+            });
+            await clearCart();
+            navigate('/checkout/success', { state: { order } });
+          } catch (verifyErr) {
+            setError('Payment verified but order confirmation failed. Please contact support.');
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            setError('Payment was cancelled. Your order has not been placed.');
+          }
+        }
+      });
+
+      rzp.open();
     } catch (err) {
-      console.error("Checkout failed:", err);
-      navigate('/checkout/failure', { state: { error: err.response?.data?.error } });
-    } finally {
+      console.error('Checkout failed:', err);
+      const msg = err.response?.data?.error || err.message || 'Something went wrong. Please try again.';
+      setError(msg);
       setLoading(false);
     }
   };
@@ -175,7 +229,13 @@ export default function Checkout() {
               </div>
             </div>
 
-            <button type="submit" form="checkout-form" disabled={loading} style={{ 
+            {error && (
+              <div style={{ padding: '1rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" form="checkout-form" disabled={loading} style={{
               width: '100%', 
               padding: '1.25rem', 
               backgroundColor: 'var(--bg-deep)', 

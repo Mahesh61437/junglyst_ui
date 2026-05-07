@@ -1,214 +1,61 @@
-import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
-import { ProductService } from '../services/ProductService';
-import { SellerService } from '../services/SellerService';
 import { getImageUrl } from '../utils/imageUtils';
-import {
-  ShieldCheck, ArrowRight, Leaf, Award, Truck,
-  ChevronLeft, ChevronRight, Star, MapPin
-} from 'lucide-react';
+import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
+import api from '../services/api';
 
-// ─── Featured Sellers Carousel ────────────────────────────────────────────────
-function FeaturedSellersCarousel({ sellers }) {
-  const [idx, setIdx] = useState(0);
-  const total = sellers.length;
-  const prev = () => setIdx(i => (i - 1 + total) % total);
-  const next = () => setIdx(i => (i + 1) % total);
-
-  useEffect(() => {
-    if (total <= 1) return;
-    const t = setInterval(next, 6000);
-    return () => clearInterval(t);
-  }, [total]);
-
-  if (!total) return null;
-  const s = sellers[idx];
-
+// ─── Stats Bar ────────────────────────────────────────────────────────────────
+function StatsBar({ stats }) {
+  const items = [
+    { value: stats?.total_sellers ?? '—', label: 'Verified Growers' },
+    { value: stats?.total_products ?? '—', label: 'Species Listed' },
+    { value: stats?.total_users ?? '—', label: 'Collectors' },
+    { value: '100%', label: 'Pest-Free Guarantee' },
+  ];
   return (
-    <section style={{ backgroundColor: 'var(--bg-deep)', color: 'white', overflow: 'hidden' }}>
-      <div style={{ position: 'relative' }}>
-        <motion.div
-          key={idx}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.7 }}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-            alignItems: 'stretch',
-            minHeight: '480px',
-          }}
-        >
-          {/* Image */}
-          <div style={{ position: 'relative', minHeight: '300px', overflow: 'hidden' }}>
-            <img
-              src={getImageUrl(s.banner_url) || '/assets/default-banner.jpg'}
-              alt={s.store_name}
-              onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(to right, rgba(27,45,42,0.5) 0%, transparent 60%)'
-            }} />
-            {/* Logo badge */}
-            {s.logo_url && (
-              <div style={{
-                position: 'absolute', bottom: '1.5rem', left: '1.5rem',
-                width: '64px', height: '64px', borderRadius: '16px',
-                backgroundColor: 'white', padding: '6px', overflow: 'hidden',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
-              }}>
-                <img
-                  src={getImageUrl(s.logo_url)}
-                  alt={s.store_name}
-                  onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Text */}
-          <div style={{
-            padding: 'clamp(2.5rem, 5vw, 5rem) clamp(1.5rem, 5vw, 5rem)',
-            display: 'flex', flexDirection: 'column', justifyContent: 'center'
-          }}>
-            <span style={{
-              color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.7rem',
-              textTransform: 'uppercase', letterSpacing: '0.25em', marginBottom: '1rem', display: 'block'
-            }}>Featured Grower</span>
-            <h2 style={{
-              fontSize: 'clamp(1.75rem, 4vw, 3rem)',
-              marginBottom: '1rem', lineHeight: 1.1
-            }}>{s.tagline || 'Cultivating the Extraordinary'}</h2>
-            <p style={{
-              opacity: 0.75, lineHeight: 1.8, marginBottom: '2rem',
-              fontSize: 'clamp(0.9rem, 2vw, 1.1rem)', fontWeight: 300,
-              maxWidth: '480px'
-            }}>{s.bio}</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap' }}>
-              <Link to={`/store/${s.slug}`} style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.6rem',
-                color: 'var(--brand-gold)', fontWeight: 700,
-                fontSize: '0.85rem', letterSpacing: '0.08em',
-                textTransform: 'uppercase', textDecoration: 'none'
-              }}>
-                Visit Sanctuary <ArrowRight size={16} />
-              </Link>
-              {s.location_city && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: 0.5, fontSize: '0.8rem' }}>
-                  <MapPin size={12} /> {s.location_city}
-                </span>
-              )}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Controls */}
-        {total > 1 && (
-          <>
-            <button onClick={prev} aria-label="Previous" style={{
-              position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
-              width: '40px', height: '40px', borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
-              color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', backdropFilter: 'blur(8px)', zIndex: 10
-            }}><ChevronLeft size={18} /></button>
-            <button onClick={next} aria-label="Next" style={{
-              position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)',
-              width: '40px', height: '40px', borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
-              color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', backdropFilter: 'blur(8px)', zIndex: 10
-            }}><ChevronRight size={18} /></button>
-
-            {/* Dots */}
-            <div style={{
-              position: 'absolute', bottom: '1.25rem', left: '50%', transform: 'translateX(-50%)',
-              display: 'flex', gap: '0.5rem', zIndex: 10
+    <div style={{ backgroundColor: 'var(--bg-deep)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="container">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {items.map((item, i) => (
+            <div key={i} style={{
+              padding: 'clamp(1rem,2.5vw,1.75rem) 1rem',
+              textAlign: 'center',
+              borderRight: i < 3 ? '1px solid rgba(255,255,255,0.07)' : 'none',
             }}>
-              {sellers.map((_, i) => (
-                <button key={i} onClick={() => setIdx(i)} aria-label={`Slide ${i + 1}`} style={{
-                  width: i === idx ? '24px' : '8px', height: '8px', borderRadius: '4px',
-                  backgroundColor: i === idx ? 'var(--brand-gold)' : 'rgba(255,255,255,0.35)',
-                  border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0
-                }} />
-              ))}
+              <div style={{ fontSize: 'clamp(1.25rem,2.5vw,2rem)', fontWeight: 800, color: 'var(--brand-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
+                {item.value}
+              </div>
+              <div style={{ fontSize: 'clamp(0.6rem,1.2vw,0.72rem)', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, marginTop: '0.35rem' }}>
+                {item.label}
+              </div>
             </div>
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
-
-// ─── Category Chips ────────────────────────────────────────────────────────────
-function CategoryRail({ categories }) {
-  if (!categories.length) return null;
-  return (
-    <section style={{ backgroundColor: 'white', borderBottom: '1px solid var(--border-subtle)', padding: '0' }}>
-      <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '1.5rem' }}>
-        <div style={{
-          display: 'flex', gap: '0.75rem', overflowX: 'auto',
-          paddingBottom: '0.25rem', scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
-        }}>
-          <Link to="/shop" style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.5rem 1.25rem', borderRadius: '100px',
-            backgroundColor: 'var(--bg-deep)', color: 'white',
-            fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap',
-            textDecoration: 'none', flexShrink: 0
-          }}>
-            <Leaf size={13} /> All Plants
-          </Link>
-          {categories.map(cat => (
-            <Link key={cat.id} to={`/shop/${cat.name}`} style={{
-              display: 'inline-flex', alignItems: 'center',
-              padding: '0.5rem 1.25rem', borderRadius: '100px',
-              border: '1.5px solid var(--border-subtle)',
-              backgroundColor: 'white', color: 'var(--text-primary)',
-              fontSize: '0.8rem', fontWeight: 600, whiteSpace: 'nowrap',
-              textDecoration: 'none', flexShrink: 0,
-              transition: 'all 0.2s'
-            }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--brand-gold)'; e.currentTarget.style.color = 'var(--brand-gold)'; }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            >
-              {cat.name}
-            </Link>
           ))}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
 // ─── Trust Strip ──────────────────────────────────────────────────────────────
 function TrustStrip() {
   const items = [
-    { icon: <Award size={28} strokeWidth={1.5} />, title: 'Verified Growers Only', body: 'Every plant is sourced from vetted experts with proven cultivation standards.' },
-    { icon: <Truck size={28} strokeWidth={1.5} />, title: 'Expert Packaging', body: 'Proprietary moisture-lock methods ensure your delivery arrives in pristine condition.' },
-    { icon: <ShieldCheck size={28} strokeWidth={1.5} />, title: 'Pest-Free Guarantee', body: 'All specimens are treated and inspected for quality before leaving the farm.' },
+    { icon: <Award size={24} strokeWidth={1.5} />, title: 'Verified Growers Only', body: 'Every plant sourced from vetted experts with proven cultivation standards.' },
+    { icon: <Truck size={24} strokeWidth={1.5} />, title: 'Expert Packaging', body: 'Moisture-lock methods ensure your delivery arrives in pristine condition.' },
+    { icon: <ShieldCheck size={24} strokeWidth={1.5} />, title: 'Pest-Free Guarantee', body: 'All specimens treated and inspected for quality before leaving the farm.' },
   ];
   return (
-    <section style={{ backgroundColor: 'white', padding: 'clamp(3rem, 6vw, 6rem) 0', borderBottom: '1px solid var(--border-subtle)' }}>
+    <section style={{ backgroundColor: 'white', padding: 'clamp(2.5rem,5vw,4.5rem) 0', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
       <div className="container">
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-          gap: 'clamp(2rem, 4vw, 3.5rem)'
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,220px),1fr))', gap: 'clamp(1.5rem,3vw,2.5rem)' }}>
           {items.map((item, i) => (
-            <div key={i} className="slide-up" style={{ display: 'flex', gap: '1.25rem', animationDelay: `${i * 0.1}s` }}>
-              <div style={{ color: 'var(--brand-gold)', flexShrink: 0, paddingTop: '0.15rem' }}>{item.icon}</div>
+            <div key={i} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <div style={{ color: 'var(--brand-gold)', flexShrink: 0, marginTop: '0.1rem' }}>{item.icon}</div>
               <div>
-                <h4 style={{ fontSize: '1.05rem', marginBottom: '0.5rem' }}>{item.title}</h4>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{item.body}</p>
+                <h4 style={{ fontSize: '0.95rem', marginBottom: '0.35rem', fontWeight: 700 }}>{item.title}</h4>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>{item.body}</p>
               </div>
             </div>
           ))}
@@ -218,139 +65,178 @@ function TrustStrip() {
   );
 }
 
+// ─── Featured Sellers ─────────────────────────────────────────────────────────
+// Shows up to 3 featured growers as cards — promotes sellers, drives store visits.
+// On mobile: full-width stacked. On tablet+: 3-column grid.
+function FeaturedSellers({ sellers }) {
+  const visible = sellers.slice(0, 3);
+  if (!visible.length) return null;
+
+  return (
+    <section style={{ backgroundColor: '#f8fafc', padding: 'clamp(3rem,6vw,5.5rem) 0' }}>
+      <div className="container">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'clamp(1.5rem,3vw,2.5rem)', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <span style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', display: 'block', marginBottom: '0.4rem' }}>Meet the growers</span>
+            <h2 style={{ fontSize: 'clamp(1.4rem,3vw,2.25rem)', margin: 0 }}>Featured Sanctuaries</h2>
+          </div>
+          <Link to="/sellers" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--brand-gold)', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            All growers <ArrowRight size={13} />
+          </Link>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          gap: '1.25rem',
+        }}>
+          {visible.map((s, i) => (
+            <motion.div key={s.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+              <Link to={`/store/${s.slug}`} style={{ display: 'block', textDecoration: 'none' }}>
+                <div style={{ borderRadius: '20px', overflow: 'hidden', backgroundColor: 'white', border: '1px solid var(--border-subtle)', transition: 'transform 0.22s, box-shadow 0.22s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+                  onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.1)'; }}
+                  onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}
+                >
+                  {/* Banner */}
+                  <div style={{ position: 'relative', height: '160px', overflow: 'hidden', backgroundColor: s.brand_color || 'var(--bg-deep)' }}>
+                    <img
+                      src={getImageUrl(s.banner_url) || '/assets/default-banner.jpg'}
+                      alt={s.store_name}
+                      onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%)' }} />
+
+                    {/* Icon / logo badge */}
+                    <div style={{ position: 'absolute', bottom: '-20px', left: '1.25rem', width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'white', padding: '3px', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', overflow: 'hidden', border: '2px solid white' }}>
+                      <img
+                        src={getImageUrl(s.icon_url || s.logo_url) || '/assets/default-logo.jpg'}
+                        alt={s.store_name}
+                        onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
+                      />
+                    </div>
+
+                    {/* Verified badge */}
+                    <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', backgroundColor: 'rgba(10,31,28,0.75)', backdropFilter: 'blur(6px)', padding: '0.3rem 0.6rem', borderRadius: '100px' }}>
+                      <ShieldCheck size={11} color="var(--brand-gold)" />
+                      <span style={{ fontSize: '0.6rem', color: 'var(--brand-gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Verified</span>
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ padding: '1.75rem 1.25rem 1.25rem' }}>
+                    <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{s.store_name}</h3>
+                    {s.tagline && (
+                      <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {s.tagline}
+                      </p>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {s.location_city && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          <MapPin size={11} /> {s.location_city}
+                        </span>
+                      )}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 700 }}>
+                        Visit <ArrowRight size={12} />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const fetchHomeData = async () => {
+  const { data } = await api.get('/core/home/');
+  return data;
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [products, setProducts] = useState([]);
-  const [featuredSellers, setFeaturedSellers] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['home'],
+    queryFn: fetchHomeData,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [productData, sellersData, catData] = await Promise.all([
-          ProductService.getProducts({ page: 1 }),
-          SellerService.getVerifiedDirectory(),
-          ProductService.getCategories(),
-        ]);
-
-        const products = (productData.results || productData || []).filter(p => p?.is_active !== false);
-        setProducts(products.slice(0, 8));
-
-        const sellers = (sellersData.results || sellersData || []);
-        const featured = sellers.filter(s => s.is_featured);
-        // Fallback: if nobody is featured, show top 3 by rating
-        setFeaturedSellers(featured.length ? featured : sellers.slice(0, 3));
-
-        setCategories(catData.results || catData || []);
-      } catch (err) {
-        console.error('Home data fetch failed:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
-  }, []);
+  const products = data?.products || [];
+  const featuredSellers = data?.featured_sellers || [];
+  const stats = data?.stats || null;
 
   return (
     <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', overflowX: 'hidden' }}>
 
-      {/* Hero Carousel */}
-      <HeroCarousel />
+      {/* Promoted seller slides — sort_order + is_featured controls which sellers appear */}
+      <HeroCarousel sellers={featuredSellers} />
 
-      {/* Category quick-nav */}
-      <CategoryRail categories={categories} />
+      {/* Platform stats — builds instant trust below the fold */}
+      <StatsBar stats={stats} />
+
+      {/* Products — direct path to purchase */}
+      <section className="container" style={{ padding: 'clamp(3.5rem,7vw,6.5rem) 1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'clamp(1.75rem,3.5vw,3rem)', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <span style={{ width: '18px', height: '1px', backgroundColor: 'var(--brand-gold)' }} />
+              <span style={{ color: 'var(--brand-gold)', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>Current Curation</span>
+            </div>
+            <h2 style={{ fontSize: 'clamp(1.5rem,3.5vw,2.75rem)', margin: 0 }}>Seasonal Exhibitions</h2>
+          </div>
+          <Link to="/shop" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--brand-gold)', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            View all <ArrowRight size={13} />
+          </Link>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Curating your collection…
+          </div>
+        ) : products.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
+            <Leaf size={36} color="var(--border-subtle)" style={{ marginBottom: '1rem', display: 'block', margin: '0 auto 1rem' }} />
+            <p>No specimens available right now. Check back soon.</p>
+          </div>
+        ) : (
+          <div className="grid-responsive">
+            {products.map(p => (
+              <ProductCard key={p.id} id={p.id} slug={p.slug} name={p.name} scientific_name={p.scientific_name}
+                care_level={p.care_level} origin={p.origin} growth_rate={p.growth_rate}
+                price={p.price} originalPrice={p.compare_at_price} image={p.image}
+                trending={p.is_trending} reviews={p.rating} stock={p.stock}
+                variants={p.variants} seller={p.seller} />
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Trust badges */}
       <TrustStrip />
 
-      {/* Featured Sellers Carousel */}
-      {!loading && <FeaturedSellersCarousel sellers={featuredSellers} />}
-
-      {/* Seasonal Products */}
-      <section className="container" style={{ padding: 'clamp(4rem, 8vw, 8rem) 1.5rem' }}>
-        <div className="slide-up" style={{ textAlign: 'center', marginBottom: 'clamp(2.5rem, 5vw, 5rem)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span style={{ width: '20px', height: '1px', backgroundColor: 'var(--brand-gold)' }} />
-            <span style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>Current Curation</span>
-            <span style={{ width: '20px', height: '1px', backgroundColor: 'var(--brand-gold)' }} />
-          </div>
-          <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', marginBottom: '1rem' }}>Seasonal Exhibitions</h2>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '560px', margin: '0 auto', fontSize: 'clamp(0.9rem, 2vw, 1.05rem)' }}>
-            A curated selection of the finest specimens currently in peak health.
-          </p>
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '4rem' }}>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Curating your collection…
-            </p>
-          </div>
-        ) : products.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
-            <Leaf size={40} color="var(--border-subtle)" style={{ marginBottom: '1rem' }} />
-            <p>No specimens available right now. Check back soon.</p>
-          </div>
-        ) : (
-          <div className="grid-responsive slide-up" style={{ animationDelay: '0.2s' }}>
-            {products.map(p => (
-              <ProductCard
-                key={p.id}
-                id={p.id}
-                name={p.name}
-                scientific_name={p.scientific_name}
-                care_level={p.care_level}
-                origin={p.origin}
-                growth_rate={p.growth_rate}
-                price={p.price}
-                originalPrice={p.compare_at_price}
-                image={p.image}
-                trending={p.is_trending}
-                reviews={p.rating}
-                stock={p.stock}
-                variants={p.variants}
-                seller={p.seller}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="slide-up" style={{ marginTop: 'clamp(2.5rem, 5vw, 5rem)', textAlign: 'center', animationDelay: '0.4s' }}>
-          <Link to="/shop" className="btn btn-outline" style={{ padding: '1.125rem 3rem' }}>
-            Explore the full gallery
-          </Link>
-        </div>
-      </section>
+      {/* Featured seller cards — promotes growers, drives store visits */}
+      {!loading && <FeaturedSellers sellers={featuredSellers} />}
 
       {/* Newsletter */}
-      <section style={{ padding: 'clamp(3.5rem, 8vw, 8rem) 0', textAlign: 'center' }}>
-        <div className="container slide-up">
-          <div style={{ maxWidth: '540px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', marginBottom: '1rem' }}>Join the Registry</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem', lineHeight: 1.7, fontSize: '0.95rem' }}>
-              Be the first to know about new exhibitions, rare specimens, and expert care guides.
+      <section style={{ padding: 'clamp(3rem,6vw,6rem) 0', textAlign: 'center', backgroundColor: 'white' }}>
+        <div className="container">
+          <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: 'clamp(1.3rem,2.5vw,2rem)', marginBottom: '0.65rem' }}>Join the Registry</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.75rem', lineHeight: 1.7, fontSize: '0.9rem' }}>
+              First to know about new arrivals, rare specimens, and expert care guides.
             </p>
-            <form
-              style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}
-              onSubmit={e => e.preventDefault()}
-            >
-              <input
-                type="email"
-                placeholder="collector@example.com"
-                style={{
-                  padding: '1rem 1.5rem', borderRadius: '100px',
-                  border: '1.5px solid var(--border-subtle)',
-                  flex: '1 1 220px', minWidth: '200px', maxWidth: '300px',
-                  outline: 'none', fontSize: '0.95rem',
-                  transition: 'border-color 0.2s'
-                }}
+            <form style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', justifyContent: 'center' }} onSubmit={e => e.preventDefault()}>
+              <input type="email" placeholder="collector@example.com"
+                style={{ padding: '0.85rem 1.3rem', borderRadius: '100px', border: '1.5px solid var(--border-subtle)', flex: '1 1 190px', minWidth: '170px', maxWidth: '260px', outline: 'none', fontSize: '0.875rem', transition: 'border-color 0.2s' }}
                 onFocus={e => { e.target.style.borderColor = 'var(--brand-gold)'; }}
                 onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)'; }}
               />
-              <button type="submit" className="btn btn-primary" style={{ padding: '1rem 2.5rem', flexShrink: 0 }}>
-                Register
-              </button>
+              <button type="submit" className="btn btn-primary" style={{ padding: '0.85rem 2rem', flexShrink: 0 }}>Register</button>
             </form>
           </div>
         </div>

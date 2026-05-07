@@ -269,6 +269,7 @@ export default function SellerStore() {
               <ProductCard
                 key={product.id}
                 id={product.id}
+                slug={product.slug}
                 name={product.name || product.title}
                 price={product.price}
                 image={product.image_url || product.image}

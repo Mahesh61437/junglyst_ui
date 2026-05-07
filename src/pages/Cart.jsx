@@ -1,14 +1,23 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackInitiateCheckout } from '../utils/metaPixel';
-import { Trash2, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Bookmark, Info, Star, Package } from 'lucide-react';
+import { Trash2, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
 
 export default function Cart() {
-  const { cart, loading, updateItemQuantity, removeItem } = useCart();
+  const {
+    cart, loading,
+    updateItemQuantity, removeItem,
+    checkPincode, pincodeChecking, pincodeResult, deliveryZone,
+    MIN_SELLER_SUBTOTAL,
+  } = useCart();
   const { addToWishlist } = useWishlist();
   const navigate = useNavigate();
+
+  const [pincode, setPincode] = useState('');
+  const [pincodeInput, setPincodeInput] = useState('');
 
   if (loading) {
     return (
@@ -33,107 +42,194 @@ export default function Cart() {
   }
 
   const sellerGroups = cart.seller_groups || {};
+  const hasMultipleSellers = Object.keys(sellerGroups).length > 1;
+
+  const handlePincodeCheck = async () => {
+    if (pincodeInput.length !== 6) return;
+    setPincode(pincodeInput);
+    await checkPincode(pincodeInput);
+  };
+
+  const handleCheckout = () => {
+    if (cart.delivery_blocked) return;
+    const hasBelow = Object.values(sellerGroups).some(g => g.below_minimum);
+    if (hasBelow) return;
+    trackInitiateCheckout({ value: cart.grand_total, numItems: cart.total_items });
+    navigate('/checkout');
+  };
 
   return (
     <div className="container" style={{ padding: '3rem 1rem 10rem' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(1.5rem, 3vw, 3rem)', alignItems: 'start' }}>
 
-        {/* Main Cart Content */}
+        {/* ── Main Cart Content ── */}
         <div className="slide-up">
+
+          {/* Pincode Check */}
+          <div style={{ backgroundColor: 'white', padding: '1.5rem 2rem', borderRadius: '20px', border: '1px solid #f1f5f9', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <MapPin size={16} color="#10b981" />
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1b2d2a' }}>Check Delivery</span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="Enter 6-digit pincode"
+                value={pincodeInput}
+                onChange={e => setPincodeInput(e.target.value.replace(/\D/g, ''))}
+                onKeyDown={e => e.key === 'Enter' && handlePincodeCheck()}
+                style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
+              />
+              <button
+                onClick={handlePincodeCheck}
+                disabled={pincodeInput.length !== 6 || pincodeChecking}
+                style={{ padding: '0.75rem 1.5rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: pincodeInput.length === 6 ? 'pointer' : 'not-allowed', opacity: pincodeInput.length === 6 ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                {pincodeChecking ? <Loader2 size={14} className="animate-spin" /> : null}
+                Check
+              </button>
+            </div>
+            {pincodeResult && (
+              <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 700, color: pincodeResult.deliverable ? '#10b981' : '#ef4444' }}>
+                {pincodeResult.deliverable
+                  ? <><CheckCircle size={14} /> {pincodeResult.message}</>
+                  : <><AlertTriangle size={14} /> {pincodeResult.message}</>
+                }
+              </div>
+            )}
+          </div>
+
+          {/* Zone E Hard Block */}
+          {cart.delivery_blocked && (
+            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '16px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <AlertTriangle size={18} color="#ef4444" />
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#dc2626' }}>
+                Sorry, we don't deliver to your pincode yet. Please try a different delivery address.
+              </span>
+            </div>
+          )}
+
           <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '24px', border: '1px solid #f1f5f9', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1.5rem' }}>
               <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Shopping Cart</h1>
-              <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>{cart.total_items} specimens</span>
+              <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>{cart.total_items} specimens · {Object.keys(sellerGroups).length} seller{Object.keys(sellerGroups).length !== 1 ? 's' : ''}</span>
             </div>
 
-            {/* Seller Grouping */}
-            {Object.entries(sellerGroups).map(([sellerId, group]) => (
-              <div key={sellerId} style={{ marginBottom: '3.5rem' }}>
-                {/* Seller Header */}
-                <div style={{ marginBottom: '1.5rem', padding: '0.75rem 1rem', backgroundColor: '#fcfdfc', borderRadius: '12px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ color: 'var(--brand-gold)', fontWeight: 900, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Studio: {group.seller?.seller_profile?.store_name || "Botanical Studio"}</span>
-                    <div style={{ height: '12px', width: '1px', backgroundColor: '#e2e8f0' }}></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
-                      <ShieldCheck size={12} /> Verified Grower
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>Studio Subtotal: ₹{group.subtotal.toLocaleString()}</span>
-                </div>
+            {/* Seller Groups */}
+            {Object.entries(sellerGroups).map(([sellerId, group]) => {
+              const storeName = group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
+              const freeThreshold = group.has_heavy ? 2499 : 999;
 
-                {/* Items in this group */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {group.items.map((item, idx) => {
-                    const product = item.product || {};
-                    const variant = item.variant || {};
-                    const stock = variant.stock || 0;
-                    return (
-                      <div key={item.id} style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'clamp(90px, 20vw, 140px) 1fr',
-                        gap: 'clamp(0.75rem, 2vw, 2rem)',
-                        padding: 'clamp(0.75rem, 2vw, 1.5rem)',
-                        borderRadius: '16px',
-                        backgroundColor: '#fff',
-                        border: '1px solid #f8fafc',
-                        boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                      }}>
-                        <div style={{ width: 'clamp(90px, 20vw, 140px)', height: 'clamp(90px, 20vw, 140px)', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc', flexShrink: 0 }}>
-                          <img src={getImageUrl(variant.image_url || product.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={product.name} />
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--bg-deep)' }}>{product.name}</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#fff9eb', color: '#c45500', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800 }}>
-                              <Star size={10} fill="#c45500" /> {product.rating || '4.8'}
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '0.25rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#64748b' }}>
-                              <span style={{ fontWeight: 800, color: 'var(--bg-deep)' }}>Specimen:</span> {variant.name || 'Standard'}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#64748b' }}>
-                              <span style={{ fontWeight: 800, color: 'var(--bg-deep)' }}>Weight:</span> {variant.weight || 0.5}kg
-                            </div>
-                            {stock > 0 && stock < 10 && (
-                              <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 800 }}>
-                                Only {stock} specimens remaining
-                              </div>
-                            )}
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                            <Package size={14} /> Ready for Botanical Packaging
-                          </div>
-
-                          {/* Controls Row */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: 'auto' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.15rem' }}>
-                              <button onClick={() => updateItemQuantity(cart.items.indexOf(item), -1)} style={{ padding: '0.2rem 0.6rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '1rem' }}>-</button>
-                              <span style={{ padding: '0 0.5rem', fontSize: '0.85rem', fontWeight: 800, minWidth: '24px', textAlign: 'center' }}>{item.quantity}</span>
-                              <button onClick={() => updateItemQuantity(cart.items.indexOf(item), 1)} style={{ padding: '0.2rem 0.6rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '1rem' }}>+</button>
-                            </div>
-                            <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#007185', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
-                            <button onClick={() => addToWishlist(product.id)} style={{ background: 'none', border: 'none', color: '#007185', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>Save for later</button>
-                          </div>
-                        </div>
-
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontWeight: 800, fontSize: '1.35rem', color: 'var(--bg-deep)', marginBottom: '0.25rem' }}>
-                            ₹{((variant.price || product.price || 0) * item.quantity).toLocaleString()}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
-                            ₹{(variant.price || product.price || 0).toLocaleString()} / unit
-                          </div>
-                        </div>
+              return (
+                <div key={sellerId} style={{ marginBottom: '3.5rem' }}>
+                  {/* Seller Header */}
+                  <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: '#fcfdfc', borderRadius: '12px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ color: 'var(--brand-gold)', fontWeight: 900, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Studio: {storeName}</span>
+                      <div style={{ height: '12px', width: '1px', backgroundColor: '#e2e8f0' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#10b981', fontSize: '0.7rem', fontWeight: 800 }}>
+                        <ShieldCheck size={12} /> Verified Grower
                       </div>
-                    );
-                  })}
+                    </div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
+                      Studio Subtotal: ₹{group.subtotal.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Min order warning (SHIP-003) */}
+                  {group.below_minimum && (
+                    <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '0.65rem 1rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Info size={14} color="#d97706" />
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#92400e' }}>
+                        Minimum order from {storeName} is ₹{MIN_SELLER_SUBTOTAL}. Add ₹{Math.ceil(MIN_SELLER_SUBTOTAL - group.subtotal)} more to proceed.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Free shipping nudge */}
+                  {group.nudge && (
+                    <div style={{
+                      backgroundColor: group.nudge.type === 'free' ? '#ecfdf5' : '#f0f9ff',
+                      border: `1px solid ${group.nudge.type === 'free' ? '#6ee7b7' : '#bae6fd'}`,
+                      borderRadius: '10px', padding: '0.65rem 1rem', marginBottom: '0.75rem',
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    }}>
+                      {group.nudge.type === 'free'
+                        ? <CheckCircle size={14} color="#10b981" />
+                        : <Package size={14} color="#0284c7" />
+                      }
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: group.nudge.type === 'free' ? '#065f46' : '#075985' }}>
+                        {group.nudge.message}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Items */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {group.items.map((item) => {
+                      const product = item.product || {};
+                      const variant = item.variant || {};
+                      const stock = variant.stock || 0;
+                      const itemIndex = cart.items.findIndex(i => i.id === item.id);
+
+                      return (
+                        <div key={item.id} style={{ display: 'grid', gridTemplateColumns: 'clamp(90px,20vw,140px) 1fr', gap: 'clamp(0.75rem,2vw,2rem)', padding: 'clamp(0.75rem,2vw,1.5rem)', borderRadius: '16px', backgroundColor: '#fff', border: '1px solid #f8fafc', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                          <Link to={`/product/${product.slug || product.id}`} style={{ display: 'block', width: 'clamp(90px,20vw,140px)', height: 'clamp(90px,20vw,140px)', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc', flexShrink: 0 }}>
+                            <img src={getImageUrl(product.images?.find(img => img.variant === variant.id)?.image_url || product.image || product.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform='scale(1.04)'} onMouseOut={e => e.currentTarget.style.transform='scale(1)'} onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} alt={product.name} />
+                          </Link>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <Link to={`/product/${product.slug || product.id}`} style={{ textDecoration: 'none' }}>
+                              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--bg-deep)' }}>{product.name}</h3>
+                              </Link>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#fff9eb', color: '#c45500', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800 }}>
+                                <Star size={10} fill="#c45500" /> {product.rating || '4.8'}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '0.25rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: '#64748b' }}><b>Specimen:</b> {variant.name || 'Standard'}</span>
+                              <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'capitalize' }}><b>Type:</b> {variant.item_category || 'light'} item</span>
+                              {stock > 0 && stock < 10 && (
+                                <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 800 }}>Only {stock} remaining</span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
+                              <Package size={14} /> Ready for Botanical Packaging
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: 'auto' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.15rem' }}>
+                                <button onClick={() => updateItemQuantity(itemIndex, -1)} style={{ padding: '0.2rem 0.6rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '1rem' }}>-</button>
+                                <span style={{ padding: '0 0.5rem', fontSize: '0.85rem', fontWeight: 800, minWidth: '24px', textAlign: 'center' }}>{item.quantity}</span>
+                                <button onClick={() => updateItemQuantity(itemIndex, 1)} style={{ padding: '0.2rem 0.6rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '1rem' }}>+</button>
+                              </div>
+                              <button onClick={() => removeItem(itemIndex)} style={{ background: 'none', border: 'none', color: '#007185', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
+                              <button onClick={() => addToWishlist(product.id)} style={{ background: 'none', border: 'none', color: '#007185', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>Save for later</button>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontWeight: 800, fontSize: '1.35rem', color: 'var(--bg-deep)', marginBottom: '0.25rem' }}>
+                              ₹{((variant.price || product.price || 0) * item.quantity).toLocaleString()}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
+                              ₹{(variant.price || product.price || 0).toLocaleString()} / unit
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Per-seller shipping line */}
+                  <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', backgroundColor: '#f8faf9', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Shipping from {storeName}</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
+                      {cart.delivery_blocked ? '—' : group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             <Link to="/shop" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textDecoration: 'none' }}>
               <ArrowLeft size={16} /> Discovery Gallery
@@ -141,20 +237,38 @@ export default function Cart() {
           </div>
         </div>
 
-        {/* Tactical Sidebar */}
+        {/* ── Order Summary Sidebar ── */}
         <aside style={{ position: 'sticky', top: '2rem' }}>
           <div style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '24px', border: '1px solid #f1f5f9', boxShadow: '0 10px 30px rgba(0,0,0,0.02)', marginBottom: '2rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '2rem', fontFamily: 'var(--font-serif)' }}>Order Summary</h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: '#64748b' }}>
-                <span>Subtotal <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(GST Incl.)</span></span>
-                <span style={{ fontWeight: 700, color: 'var(--bg-deep)' }}>₹{cart.subtotal.toLocaleString()}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: '#64748b' }}>
-                <span>Logistics Fee</span>
+            {/* Per-seller breakdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
+              {Object.entries(sellerGroups).map(([id, group]) => {
+                const storeName = group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
+                return (
+                  <div key={id} style={{ borderBottom: '1px dashed #f1f5f9', paddingBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
+                      <span style={{ fontWeight: 700, color: '#1b2d2a', fontSize: '0.8rem' }}>{storeName}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b' }}>
+                      <span>Items subtotal</span>
+                      <span style={{ fontWeight: 700, color: '#1b2d2a' }}>₹{group.subtotal.toLocaleString()}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b', marginTop: '0.3rem' }}>
+                      <span>Shipping</span>
+                      <span style={{ fontWeight: 700, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
+                        {cart.delivery_blocked ? '—' : group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: '#64748b', marginTop: '0.25rem' }}>
+                <span>Total Shipping</span>
                 <span style={{ fontWeight: 700, color: cart.shipping_total === 0 ? '#10b981' : 'var(--bg-deep)' }}>
-                  {cart.shipping_total === 0 ? 'COMPLIMENTARY' : `₹${cart.shipping_total.toLocaleString()}`}
+                  {cart.delivery_blocked ? '—' : cart.shipping_total === 0 ? 'COMPLIMENTARY' : `₹${cart.shipping_total}`}
                 </span>
               </div>
             </div>
@@ -162,28 +276,43 @@ export default function Cart() {
             <div style={{ borderTop: '2px solid #000', paddingTop: '1.5rem', marginBottom: '2.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>Total Investment</span>
-                <span style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--bg-deep)' }}>₹{cart.grand_total.toLocaleString()}</span>
+                <span style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--bg-deep)' }}>
+                  ₹{cart.grand_total.toLocaleString()}
+                </span>
               </div>
             </div>
 
-            <button onClick={() => { trackInitiateCheckout({ value: cart.grand_total, numItems: cart.total_items }); navigate('/checkout'); }} style={{
-              width: '100%',
-              padding: '1.25rem',
-              backgroundColor: 'var(--bg-deep)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '16px',
-              fontWeight: 800,
-              fontSize: '1rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.75rem',
-              boxShadow: '0 10px 30px rgba(10, 48, 41, 0.15)'
-            }}>
-              SECURE CHECKOUT <ChevronRight size={20} />
-            </button>
+            {/* Checkout button */}
+            {(() => {
+              const hasBelow = Object.values(sellerGroups).some(g => g.below_minimum);
+              const blocked = cart.delivery_blocked || hasBelow;
+              return (
+                <>
+                  <button
+                    onClick={handleCheckout}
+                    disabled={blocked}
+                    style={{
+                      width: '100%', padding: '1.25rem', backgroundColor: blocked ? '#94a3b8' : 'var(--bg-deep)',
+                      color: 'white', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1rem',
+                      cursor: blocked ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', gap: '0.75rem', boxShadow: blocked ? 'none' : '0 10px 30px rgba(10, 48, 41, 0.15)',
+                    }}
+                  >
+                    SECURE CHECKOUT <ChevronRight size={20} />
+                  </button>
+                  {hasBelow && (
+                    <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#d97706', fontWeight: 700, marginTop: '0.75rem' }}>
+                      Minimum ₹{MIN_SELLER_SUBTOTAL} required per seller to checkout.
+                    </p>
+                  )}
+                  {cart.delivery_blocked && (
+                    <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#ef4444', fontWeight: 700, marginTop: '0.75rem' }}>
+                      Delivery not available to this pincode.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
 
             <div style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>

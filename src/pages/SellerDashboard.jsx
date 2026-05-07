@@ -86,7 +86,7 @@ export default function SellerDashboard() {
     variants: [{
       name: 'Standard', base_price: '', gst_rate: '0',
       commission_rate: '10.0', price: '', stock: '',
-      weight: '0.5', length: '10', width: '10', height: '10'
+      item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
     }],
     images: [{ image_url: '', is_primary: true }]
   });
@@ -144,6 +144,7 @@ export default function SellerDashboard() {
     expertise: 'Master Grower',
     bio: 'Sharing rare specimens from my private sanctuary.',
     logo_url: '',
+    icon_url: '',
     banner_url: '',
     brand_color: '#0A3029',
     location_city: 'Karnataka, India'
@@ -233,7 +234,7 @@ export default function SellerDashboard() {
 
       // ── Background path: orders, profile metrics, categories (lazy) ──
       const [ordsData, profileData, catsData] = await Promise.all([
-        api.get('/orders/seller/').catch(() => ({ data: [] })),
+        api.get('/orders/seller/sub-orders/').catch(() => ({ data: [] })),
         api.get('/sellers/dashboard/').catch(() => ({ data: null })),
         categories.length === 0
           ? api.get('/core/categories/').catch(() => ({ data: { results: [] } }))
@@ -276,14 +277,16 @@ export default function SellerDashboard() {
     // Reset target value so selecting the same file again triggers onChange
     e.target.value = '';
 
-    setSpotlight(prev => ({ ...prev, [type === 'logo' ? 'logoName' : 'bannerName']: file.name }));
+    const nameKey = { logo: 'logoName', icon: 'iconName', banner: 'bannerName' }[type] || 'logoName';
+    const urlKey  = { logo: 'logo_url', icon: 'icon_url', banner: 'banner_url'  }[type] || 'logo_url';
+    setSpotlight(prev => ({ ...prev, [nameKey]: file.name }));
     setUploading(type);
     try {
       const url = await ProductService.uploadImage(file, type);
-      setSpotlight(prev => ({ ...prev, [type === 'logo' ? 'logo_url' : 'banner_url']: url }));
+      setSpotlight(prev => ({ ...prev, [urlKey]: url }));
     } catch (error) {
       setFormError("Failed to upload image. Please check your connection.");
-      setSpotlight(prev => ({ ...prev, [type === 'logo' ? 'logoName' : 'bannerName']: '' }));
+      setSpotlight(prev => ({ ...prev, [nameKey]: '' }));
     } finally {
       setUploading(null);
     }
@@ -346,6 +349,8 @@ export default function SellerDashboard() {
       if (!v.name) errors[`variant_${idx}_name`] = "Variant name required";
       if (!v.base_price) errors[`variant_${idx}_base_price`] = "Price required";
       if (!v.stock && v.stock !== 0) errors[`variant_${idx}_stock`] = "Stock required";
+      if (!v.packed_weight_grams) errors[`variant_${idx}_packed_weight_grams`] = "Packed weight required";
+      else if (parseInt(v.packed_weight_grams) < 1 || parseInt(v.packed_weight_grams) > 30000) errors[`variant_${idx}_packed_weight_grams`] = "Must be 1–30,000g";
     });
 
     if (Object.keys(errors).length > 0) {
@@ -377,7 +382,7 @@ export default function SellerDashboard() {
           variants: [{
             name: 'Standard', base_price: '', gst_rate: '0',
             commission_rate: '10.0', stock: '',
-            weight: '0.5', length: '10', width: '10', height: '10'
+            item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
           }],
           images: [{ image_url: '', is_primary: true }]
         });
@@ -417,7 +422,8 @@ export default function SellerDashboard() {
         gst_rate: String(cat.gst_percentage || 12),
         commission_rate: String(cat.commission_rate || 20),
         stock: '15',
-        weight: '0.8',
+        item_category: 'light',
+        packed_weight_grams: '800',
         length: '15',
         width: '15',
         height: '20'
@@ -482,43 +488,81 @@ export default function SellerDashboard() {
     });
   };
 
-  const handleShipNow = async (orderIds) => {
-    if (!orderIds || orderIds.length === 0) return;
+  const [shipmentDims, setShipmentDims] = useState({});  // { [subOrderId]: { weight, length, breadth, height } }
+  const [dimsSubmitting, setDimsSubmitting] = useState({});
+
+  const handleSaveShipmentDetails = async (subOrderId) => {
+    const dims = shipmentDims[subOrderId] || {};
+    if (!dims.weight || !dims.length || !dims.breadth || !dims.height) {
+      setFormError('Please fill in all shipment fields: weight, length, breadth, and height.');
+      return;
+    }
+    setDimsSubmitting(prev => ({ ...prev, [subOrderId]: true }));
+    try {
+      const res = await api.patch(`/orders/seller/sub-orders/${subOrderId}/shipment-details/`, {
+        actual_weight_grams: parseInt(dims.weight),
+        actual_length_cm: parseInt(dims.length),
+        actual_breadth_cm: parseInt(dims.breadth),
+        actual_height_cm: parseInt(dims.height),
+      });
+      setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
+      setSuccess('Shipment details saved.');
+    } catch (e) {
+      const errs = e.response?.data;
+      if (errs && typeof errs === 'object') {
+        setFormError(Object.values(errs).flat().join(' '));
+      } else {
+        setFormError('Failed to save shipment details.');
+      }
+    } finally {
+      setDimsSubmitting(prev => ({ ...prev, [subOrderId]: false }));
+    }
+  };
+
+  const handleConfirmSubOrder = async (subOrderId) => {
+    try {
+      const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/confirm/`);
+      setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
+      setSuccess('Order confirmed — 48h dispatch clock started.');
+    } catch (e) {
+      setFormError(e.response?.data?.error || 'Failed to confirm order.');
+    }
+  };
+
+  const handleShipNow = async (subOrderIds) => {
+    if (!subOrderIds || subOrderIds.length === 0) return;
     setBulkShipping(true);
     let successCount = 0;
     const errors = [];
-    for (const orderId of orderIds) {
+    for (const id of subOrderIds) {
       try {
-        await api.post('/orders/ship-now/', { order_id: orderId });
+        const res = await api.post(`/orders/seller/sub-orders/${id}/ship/`);
+        setOrders(prev => prev.map(o => o.id === id ? res.data : o));
         successCount++;
       } catch (err) {
-        errors.push(orderId);
+        errors.push(id);
       }
     }
     setBulkShipping(false);
     setSelectedOrders(new Set());
     if (successCount > 0) setSuccess(`${successCount} shipment${successCount > 1 ? 's' : ''} initiated — labels will be ready shortly.`);
-    if (errors.length > 0) setFormError(`Failed to initiate ${errors.length} shipment(s). Please retry.`);
-    fetchData();
+    if (errors.length > 0) setFormError(`Failed to initiate ${errors.length} shipment(s). Ensure at least one packaging photo is uploaded.`);
   };
 
-  const handlePackageImageUpload = async (orderId, file) => {
+  const handlePackageImageUpload = async (subOrderId, file) => {
     if (!file) return;
-    setPackageUploading(prev => ({ ...prev, [orderId]: true }));
+    setPackageUploading(prev => ({ ...prev, [subOrderId]: true }));
     try {
       const imageUrl = await ProductService.uploadImage(file, 'package');
-      await api.post('/shipping/package-image/', { order_id: orderId, image_url: imageUrl });
-      setSuccess('Package photo saved successfully.');
-      // Update local state
+      const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/upload-photo/`, { photo_url: imageUrl });
       setOrders(prev => prev.map(o =>
-        o.id === orderId
-          ? { ...o, my_shipment: { ...(o.my_shipment || {}), package_image_url: imageUrl } }
-          : o
+        o.id === subOrderId ? { ...o, packaging_photos: res.data.packaging_photos, status: res.data.status } : o
       ));
+      setSuccess('Package photo saved successfully.');
     } catch (err) {
       setFormError('Failed to upload package photo. Please try again.');
     } finally {
-      setPackageUploading(prev => ({ ...prev, [orderId]: false }));
+      setPackageUploading(prev => ({ ...prev, [subOrderId]: false }));
     }
   };
 
@@ -585,12 +629,13 @@ export default function SellerDashboard() {
           gst_rate: v.gst_rate ?? '0',
           commission_rate: v.commission_rate ?? '10.0',
           stock: v.stock ?? '',
-          weight: v.weight ?? '0.5',
+          item_category: v.item_category ?? 'light',
+          packed_weight_grams: v.packed_weight_grams ?? '',
           length: v.length ?? '10',
           width: v.width ?? '10',
           height: v.height ?? '10',
         }))
-      : [{ name: 'Standard', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', weight: '0.5', length: '10', width: '10', height: '10' }];
+      : [{ name: 'Standard', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
 
     // Sanitize images — strip backend-only fields
     const cleanImages = p.images?.length > 0
@@ -793,7 +838,7 @@ export default function SellerDashboard() {
                     variants: [{
                       name: 'Standard', base_price: '', gst_rate: '0',
                       commission_rate: '10.0', price: '', stock: '',
-                      weight: '0.5', length: '10', width: '10', height: '10'
+                      item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
                     }],
                     images: [{ image_url: '', is_primary: true }]
                   });
@@ -1239,33 +1284,27 @@ export default function SellerDashboard() {
                               <input type="text" value={spotlight.brand_color} onChange={e => setSpotlight({ ...spotlight, brand_color: e.target.value })} style={{ flexGrow: 1, padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontFamily: 'monospace' }} />
                             </div>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
-                            <div>
-                              <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Logo <span style={{ color: '#ef4444' }}>*</span></label>
-                              <div style={{ position: 'relative' }}>
-                                <input type="file" accept="image/*" id="logo-upload" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, 'logo')} />
-                                <label htmlFor="logo-upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '140px', border: uploading === 'logo' ? '2px solid #E5C48B' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
-                                  {uploading === 'logo' ? <Loader2 className="animate-spin" color="#E5C48B" /> : (spotlight.logo_url ? <CheckCircle2 color="#10b981" /> : <Upload size={24} color="#94a3b8" />)}
-                                  <span style={{ fontSize: '0.75rem', marginTop: '0.75rem', fontWeight: 600, color: spotlight.logo_url ? '#10b981' : '#94a3b8' }}>
-                                    {uploading === 'logo' ? 'Uploading...' : (spotlight.logoName || 'Select Logo')}
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.5rem' }}>
+                            {[
+                              { type: 'logo',   label: 'Brand Logo',   hint: 'Full logo (rect/square)',      urlKey: 'logo_url',   nameKey: 'logoName',   required: true  },
+                              { type: 'icon',   label: 'Store Icon',   hint: 'Small square mark / app icon', urlKey: 'icon_url',   nameKey: 'iconName',   required: false },
+                              { type: 'banner', label: 'Store Banner', hint: 'Wide header image',            urlKey: 'banner_url', nameKey: 'bannerName', required: false },
+                            ].map(({ type, label, hint, urlKey, nameKey, required }) => (
+                              <div key={type}>
+                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  {label}{required && <span style={{ color: '#ef4444' }}> *</span>}
+                                </label>
+                                <p style={{ fontSize: '0.68rem', color: '#94a3b8', margin: '0 0 0.6rem' }}>{hint}</p>
+                                <input type="file" accept="image/*" id={`${type}-upload`} style={{ display: 'none' }} onChange={e => handleImageUpload(e, type)} />
+                                <label htmlFor={`${type}-upload`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', height: '130px', border: uploading === type ? '2px solid #E5C48B' : spotlight[urlKey] ? '2px solid #10b981' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
+                                  {uploading === type ? <Loader2 className="animate-spin" color="#E5C48B" /> : spotlight[urlKey] ? <CheckCircle2 size={22} color="#10b981" /> : <Upload size={22} color="#94a3b8" />}
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: spotlight[urlKey] ? '#10b981' : '#94a3b8', textAlign: 'center', padding: '0 0.5rem' }}>
+                                    {uploading === type ? 'Uploading…' : spotlight[nameKey] || `Select ${label}`}
                                   </span>
-                                  {spotlight.logo_url && <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700, marginTop: '0.25rem' }}>SUCCESSFULLY SECURED</span>}
+                                  {spotlight[urlKey] && <span style={{ fontSize: '0.62rem', color: '#10b981', fontWeight: 700 }}>UPLOADED ✓</span>}
                                 </label>
                               </div>
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Studio Banner</label>
-                              <div style={{ position: 'relative' }}>
-                                <input type="file" accept="image/*" id="banner-upload" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, 'banner')} />
-                                <label htmlFor="banner-upload" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '140px', border: uploading === 'banner' ? '2px solid #E5C48B' : '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer', backgroundColor: '#fcfdfc', transition: 'all 0.3s' }}>
-                                  {uploading === 'banner' ? <Loader2 className="animate-spin" color="#E5C48B" /> : (spotlight.banner_url ? <CheckCircle2 color="#10b981" /> : <Upload size={24} color="#94a3b8" />)}
-                                  <span style={{ fontSize: '0.75rem', marginTop: '0.75rem', fontWeight: 600, color: spotlight.banner_url ? '#10b981' : '#94a3b8' }}>
-                                    {uploading === 'banner' ? 'Uploading...' : (spotlight.bannerName || 'Select Banner')}
-                                  </span>
-                                  {spotlight.banner_url && <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700, marginTop: '0.25rem' }}>SUCCESSFULLY SECURED</span>}
-                                </label>
-                              </div>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -1414,10 +1453,10 @@ export default function SellerDashboard() {
 
               {activeTab === 'orders' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {/* Bulk action toolbar */}
+                  {/* Bulk ship toolbar */}
                   {selectedOrders.size > 0 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.5rem', backgroundColor: '#1b2d2a', borderRadius: '16px', color: 'white' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{selectedOrders.size} order{selectedOrders.size > 1 ? 's' : ''} selected</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{selectedOrders.size} sub-order{selectedOrders.size > 1 ? 's' : ''} selected</span>
                       <button
                         onClick={() => handleShipNow([...selectedOrders])}
                         disabled={bulkShipping}
@@ -1426,10 +1465,7 @@ export default function SellerDashboard() {
                         {bulkShipping ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Truck size={14} />}
                         Ship Now ({selectedOrders.size})
                       </button>
-                      <button
-                        onClick={() => setSelectedOrders(new Set())}
-                        style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem' }}
-                      >
+                      <button onClick={() => setSelectedOrders(new Set())} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem' }}>
                         Clear
                       </button>
                     </div>
@@ -1437,43 +1473,53 @@ export default function SellerDashboard() {
 
                   <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflow: 'hidden' }}>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', minWidth: '820px', borderCollapse: 'collapse' }}>
+                      <table style={{ width: '100%', minWidth: '860px', borderCollapse: 'collapse' }}>
                         <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
                           <tr>
                             <th style={{ padding: '1.25rem 1rem 1.25rem 1.5rem', width: '40px' }}>
                               <input
                                 type="checkbox"
-                                checked={orders.length > 0 && selectedOrders.size === orders.filter(o => !['shipped','delivered','cancelled'].includes(o.status)).length}
+                                checked={orders.length > 0 && selectedOrders.size === orders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length && orders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length > 0}
                                 onChange={e => {
-                                  const shippable = orders.filter(o => !['shipped','delivered','cancelled'].includes(o.status));
+                                  const shippable = orders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm);
                                   setSelectedOrders(e.target.checked ? new Set(shippable.map(o => o.id)) : new Set());
                                 }}
                                 style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
                               />
                             </th>
-                            {['Order', 'Status', 'Items', 'Amount', 'Destination', 'Actions'].map(h => (
+                            {['Sub-Order', 'Status', 'Dispatch', 'Items', 'Amount', 'Buyer', 'Actions'].map(h => (
                               <th key={h} style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {orders.length > 0 ? orders.map(o => {
-                            const shipment = o.my_shipment;
-                            const isShippable = !['shipped','delivered','cancelled'].includes(o.status) && !shipment;
+                            const shipment = o.shipment;
                             const isExpanded = expandedOrderId === o.id;
+                            const canConfirm = o.status === 'placed';
+                            const hasPhotos = (o.packaging_photos || []).length > 0;
+                            const hasDims = o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
+                            const canShip = ['confirmed','packing'].includes(o.status) && hasPhotos && hasDims;
+                            const isShipped = ['shipped','in_transit','out_for_delivery','delivered'].includes(o.status);
                             const statusColors = {
-                              placed: { bg: '#e0f2fe', fg: '#0369a1' },
-                              processing: { bg: '#fef9c3', fg: '#854d0e' },
+                              placed: { bg: '#dbeafe', fg: '#1d4ed8' },
+                              confirmed: { bg: '#fef9c3', fg: '#854d0e' },
+                              packing: { bg: '#fff7ed', fg: '#c2410c' },
                               shipped: { bg: '#d1fae5', fg: '#065f46' },
+                              in_transit: { bg: '#d1fae5', fg: '#065f46' },
+                              out_for_delivery: { bg: '#dcfce7', fg: '#14532d' },
                               delivered: { bg: '#dcfce7', fg: '#14532d' },
+                              delivery_failed: { bg: '#fee2e2', fg: '#991b1b' },
+                              doa_raised: { bg: '#fce7f3', fg: '#9d174d' },
                               cancelled: { bg: '#fee2e2', fg: '#991b1b' },
                             };
                             const sc = statusColors[o.status] || { bg: '#f3f4f6', fg: '#4b5563' };
+                            const dispatchUrgent = o.dispatch_hours_remaining !== null && o.dispatch_hours_remaining <= 12;
                             return (
                               <React.Fragment key={o.id}>
                                 <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #edf2ed', backgroundColor: isExpanded ? '#f8faf8' : 'white' }}>
                                   <td style={{ padding: '1.25rem 1rem 1.25rem 1.5rem' }}>
-                                    {isShippable && (
+                                    {canShip && (
                                       <input
                                         type="checkbox"
                                         checked={selectedOrders.has(o.id)}
@@ -1490,51 +1536,58 @@ export default function SellerDashboard() {
                                     )}
                                   </td>
                                   <td style={{ padding: '1.25rem 1.5rem', cursor: 'pointer' }} onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}>
-                                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.85rem' }}>{o.order_number}</p>
+                                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.85rem' }}>{o.sub_order_number}</p>
                                     <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>{new Date(o.created_at).toLocaleDateString()}</p>
                                   </td>
                                   <td style={{ padding: '1.25rem 1.5rem' }}>
                                     <span style={{ padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: sc.bg, color: sc.fg }}>
-                                      {o.status}
+                                      {o.status.replace(/_/g, ' ')}
                                     </span>
                                   </td>
-                                  <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
-                                    {o.my_item_count ?? o.items?.length ?? 0} Specimens
+                                  <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.8rem' }}>
+                                    {o.dispatch_hours_remaining !== null && !isShipped ? (
+                                      <span style={{ fontWeight: 700, color: dispatchUrgent ? '#dc2626' : '#64748b' }}>
+                                        {o.dispatch_hours_remaining > 0 ? `${o.dispatch_hours_remaining}h left` : 'Overdue'}
+                                      </span>
+                                    ) : <span style={{ color: '#94a3b8' }}>—</span>}
                                   </td>
                                   <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
-                                    ₹{(o.my_total ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                    {(o.items || []).length} Specimens
+                                  </td>
+                                  <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                                    ₹{parseFloat(o.seller_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                   </td>
                                   <td style={{ padding: '1.25rem 1.5rem', color: '#64748b', fontSize: '0.85rem' }}>
-                                    {o.shipping_address?.city || 'N/A'}
+                                    <span style={{ display: 'block', fontWeight: 600 }}>{o.buyer_first_name || '—'}</span>
+                                    <span style={{ fontSize: '0.7rem' }}>{o.buyer_pincode || '—'}</span>
                                   </td>
                                   <td style={{ padding: '1.25rem 1.5rem' }}>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                      {isShippable && (
+                                      {canConfirm && (
+                                        <button
+                                          onClick={() => handleConfirmSubOrder(o.id)}
+                                          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                        >
+                                          Confirm
+                                        </button>
+                                      )}
+                                      {canShip && (
                                         <button
                                           onClick={() => handleShipNow([o.id])}
                                           disabled={bulkShipping}
                                           style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
                                         >
-                                          <Truck size={12} /> Ship Now
+                                          <Truck size={12} /> Ship
                                         </button>
                                       )}
                                       {shipment?.label_url && (
-                                        <a
-                                          href={shipment.label_url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}
-                                        >
+                                        <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}>
                                           <Download size={12} /> Label
                                         </a>
-                                      )}
-                                      {shipment && !shipment.label_url && (
-                                        <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Label generating...</span>
                                       )}
                                       <button
                                         onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}
                                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.45rem' }}
-                                        title={isExpanded ? 'Collapse' : 'Expand'}
                                       >
                                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                       </button>
@@ -1542,14 +1595,14 @@ export default function SellerDashboard() {
                                   </td>
                                 </tr>
 
-                                {/* Expanded row — items + package image */}
+                                {/* Expanded row — items + packaging photos */}
                                 {isExpanded && (
                                   <tr style={{ borderBottom: '1px solid #edf2ed' }}>
-                                    <td colSpan={7} style={{ padding: '0 1.5rem 1.5rem 4rem', backgroundColor: '#f8faf8' }}>
+                                    <td colSpan={8} style={{ padding: '0 1.5rem 1.5rem 4rem', backgroundColor: '#f8faf8' }}>
                                       <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
                                         {/* Items list */}
                                         <div style={{ flex: '1', minWidth: '280px' }}>
-                                          <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>Your Items in This Order</p>
+                                          <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>Items in This Sub-Order</p>
                                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                             {(o.items || []).map(item => (
                                               <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #edf2ed' }}>
@@ -1566,54 +1619,99 @@ export default function SellerDashboard() {
                                           </div>
                                         </div>
 
-                                        {/* Package image + shipment info */}
-                                        <div style={{ minWidth: '240px' }}>
-                                          <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>Package Photo</p>
-                                          {shipment?.package_image_url ? (
-                                            <div style={{ position: 'relative' }}>
-                                              <img src={shipment.package_image_url} alt="Package" style={{ width: '100%', maxWidth: '200px', borderRadius: '10px', border: '1px solid #edf2ed' }} />
-                                              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', fontSize: '0.7rem', color: '#64748b', cursor: 'pointer' }}>
-                                                <ImagePlus size={14} /> Replace Photo
-                                                <input
-                                                  type="file"
-                                                  accept="image/*"
-                                                  style={{ display: 'none' }}
-                                                  onChange={e => handlePackageImageUpload(o.id, e.target.files[0])}
-                                                />
-                                              </label>
+                                        {/* Right panel: package details + photos */}
+                                        <div style={{ minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                                          {/* Package weight + dimensions */}
+                                          {!isShipped && (
+                                            <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '12px', border: hasDims ? '1px solid #d1fae5' : '1px solid #fde68a' }}>
+                                              <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>
+                                                Package Weight & Dimensions {!hasDims && <span style={{ color: '#d97706' }}>*required before shipping</span>}
+                                              </p>
+                                              {hasDims ? (
+                                                <div style={{ fontSize: '0.8rem', color: '#1b2d2a' }}>
+                                                  <p style={{ margin: 0, fontWeight: 700 }}>
+                                                    {o.actual_weight_grams}g &nbsp;·&nbsp; {o.actual_length_cm}×{o.actual_breadth_cm}×{o.actual_height_cm} cm
+                                                  </p>
+                                                  <button onClick={() => setShipmentDims(prev => ({ ...prev, [o.id]: { weight: o.actual_weight_grams, length: o.actual_length_cm, breadth: o.actual_breadth_cm, height: o.actual_height_cm } }))}
+                                                    style={{ marginTop: '0.4rem', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.7rem', padding: 0 }}>
+                                                    Edit
+                                                  </button>
+                                                </div>
+                                              ) : null}
+                                              {(!hasDims || shipmentDims[o.id]) && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                  {[
+                                                    { key: 'weight', label: 'Weight (g)', placeholder: 'e.g. 850' },
+                                                    { key: 'length', label: 'Length (cm)', placeholder: 'e.g. 30' },
+                                                    { key: 'breadth', label: 'Breadth (cm)', placeholder: 'e.g. 20' },
+                                                    { key: 'height', label: 'Height (cm)', placeholder: 'e.g. 15' },
+                                                  ].map(({ key, label, placeholder }) => (
+                                                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                      <label style={{ width: '95px', fontSize: '0.7rem', fontWeight: 600, color: '#64748b', flexShrink: 0 }}>{label}</label>
+                                                      <input
+                                                        type="number" min="1" placeholder={placeholder}
+                                                        value={shipmentDims[o.id]?.[key] || ''}
+                                                        onChange={e => setShipmentDims(prev => ({ ...prev, [o.id]: { ...(prev[o.id] || {}), [key]: e.target.value } }))}
+                                                        style={{ flex: 1, padding: '0.4rem 0.6rem', borderRadius: '7px', border: '1px solid #e2e8f0', fontSize: '0.8rem', outline: 'none' }}
+                                                      />
+                                                    </div>
+                                                  ))}
+                                                  <button
+                                                    onClick={() => handleSaveShipmentDetails(o.id)}
+                                                    disabled={dimsSubmitting[o.id]}
+                                                    style={{ marginTop: '0.25rem', padding: '0.45rem 1rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+                                                  >
+                                                    {dimsSubmitting[o.id] ? 'Saving…' : 'Save Details'}
+                                                  </button>
+                                                </div>
+                                              )}
                                             </div>
-                                          ) : (
-                                            <label style={{
-                                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                                              gap: '0.5rem', padding: '1.5rem', borderRadius: '12px', border: '2px dashed #d1fae5',
-                                              backgroundColor: 'white', cursor: 'pointer', width: '180px', color: '#64748b', fontSize: '0.75rem', textAlign: 'center'
-                                            }}>
-                                              {packageUploading[o.id]
-                                                ? <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', color: '#1b2d2a' }} />
-                                                : <ImagePlus size={24} style={{ color: '#4ade80' }} />}
-                                              <span>{packageUploading[o.id] ? 'Uploading...' : 'Upload Package Photo'}</span>
-                                              <input
-                                                type="file"
-                                                accept="image/*"
-                                                style={{ display: 'none' }}
-                                                disabled={packageUploading[o.id]}
-                                                onChange={e => handlePackageImageUpload(o.id, e.target.files[0])}
-                                              />
-                                            </label>
                                           )}
 
-                                          {/* Shipment details */}
-                                          {shipment && (
-                                            <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #edf2ed', fontSize: '0.75rem' }}>
+                                          {/* Packaging photos */}
+                                          <div>
+                                            <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                                              Packaging Photos {!isShipped && !hasPhotos && <span style={{ color: '#ef4444' }}>*required</span>}
+                                            </p>
+                                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                              {(o.packaging_photos || []).map((url, i) => (
+                                                <img key={i} src={url} alt={`Package ${i+1}`} style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2ed' }} />
+                                              ))}
+                                              {!isShipped && (o.packaging_photos || []).length < 3 && (
+                                                <label style={{
+                                                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                                  gap: '0.25rem', width: '72px', height: '72px', borderRadius: '8px', border: '2px dashed #d1fae5',
+                                                  backgroundColor: 'white', cursor: 'pointer', color: '#64748b', fontSize: '0.65rem', textAlign: 'center'
+                                                }}>
+                                                  {packageUploading[o.id] ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: '#1b2d2a' }} /> : <ImagePlus size={18} style={{ color: '#4ade80' }} />}
+                                                  <span>{packageUploading[o.id] ? '...' : 'Add'}</span>
+                                                  <input type="file" accept="image/*" style={{ display: 'none' }} disabled={packageUploading[o.id]} onChange={e => handlePackageImageUpload(o.id, e.target.files[0])} />
+                                                </label>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Shipment info */}
+                                          {(o.awb_number || shipment) && (
+                                            <div style={{ padding: '0.75rem', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #edf2ed', fontSize: '0.75rem' }}>
                                               <p style={{ margin: 0, fontWeight: 700, marginBottom: '0.5rem' }}>Shipment Details</p>
-                                              {shipment.awb_number && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>AWB: <strong style={{ color: '#1b2d2a' }}>{shipment.awb_number}</strong></p>}
-                                              {shipment.courier_name && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>Courier: <strong style={{ color: '#1b2d2a' }}>{shipment.courier_name}</strong></p>}
-                                              <p style={{ margin: '0.25rem 0', color: '#64748b' }}>Status: <strong style={{ color: '#1b2d2a', textTransform: 'capitalize' }}>{shipment.status}</strong></p>
-                                              {shipment.manifest_url && (
-                                                <a href={shipment.manifest_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem', color: '#1b2d2a', fontWeight: 700, textDecoration: 'none' }}>
-                                                  <FileText size={12} /> Manifest
+                                              {(o.awb_number || shipment?.awb_number) && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>AWB: <strong style={{ color: '#1b2d2a' }}>{o.awb_number || shipment?.awb_number}</strong></p>}
+                                              {(o.courier_name || shipment?.courier_name) && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>Courier: <strong style={{ color: '#1b2d2a' }}>{o.courier_name || shipment?.courier_name}</strong></p>}
+                                              {shipment?.label_url && (
+                                                <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem', color: '#1b2d2a', fontWeight: 700, textDecoration: 'none' }}>
+                                                  <FileText size={12} /> Shipping Label
                                                 </a>
                                               )}
+                                            </div>
+                                          )}
+
+                                          {/* Pre-ship checklist summary */}
+                                          {!isShipped && ['confirmed','packing'].includes(o.status) && (
+                                            <div style={{ padding: '0.75rem', borderRadius: '10px', backgroundColor: canShip ? '#f0fdf4' : '#fefce8', border: `1px solid ${canShip ? '#bbf7d0' : '#fde68a'}`, fontSize: '0.75rem' }}>
+                                              <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: canShip ? '#15803d' : '#92400e' }}>{canShip ? '✓ Ready to ship' : 'Complete before shipping:'}</p>
+                                              {!hasPhotos && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Upload at least 1 packaging photo</p>}
+                                              {!hasDims && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Enter actual package weight and dimensions</p>}
                                             </div>
                                           )}
                                         </div>
@@ -1625,7 +1723,7 @@ export default function SellerDashboard() {
                             );
                           }) : (
                             <tr>
-                              <td colSpan="7" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
+                              <td colSpan="8" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
                                 <ShoppingBag size={48} style={{ opacity: 0.2, marginBottom: '1.5rem', display: 'block', margin: '0 auto 1.5rem' }} />
                                 <p>No fulfillments pending in your sanctuary.</p>
                               </td>
@@ -1889,7 +1987,7 @@ export default function SellerDashboard() {
                           </h4>
                           <button
                             type="button"
-                            onClick={() => setNewProduct(prev => ({ ...prev, variants: [...prev.variants, { name: '', base_price: '', gst_rate: '0', commission_rate: '10.0', price: '', stock: '', weight: '0.5', length: '10', width: '10', height: '10' }] }))}
+                            onClick={() => setNewProduct(prev => ({ ...prev, variants: [...prev.variants, { name: '', base_price: '', gst_rate: '0', commission_rate: '10.0', price: '', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }] }))}
                             style={{ padding: '0.75rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, backgroundColor: '#fcfdfc', border: '1px solid #edf2ed', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1b2d2a' }}
                           >
                             <Plus size={16} /> ADD VARIATION
@@ -1998,28 +2096,86 @@ export default function SellerDashboard() {
                                 </div>
                               </div>
 
-                              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '1.5rem' }}>
-                                {[
-                                  { label: 'Weight (KG)', key: 'weight', step: '0.001' },
-                                  { label: 'Length (CM)', key: 'length' },
-                                  { label: 'Width (CM)', key: 'width' },
-                                  { label: 'Height (CM)', key: 'height' }
-                                ].map(field => (
-                                  <div key={field.key}>
-                                    <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: '#94a3b8' }}>{field.label}</label>
+                              {/* Shipping fields */}
+                              <div style={{ borderTop: '1px dashed #edf2ed', paddingTop: '1.5rem' }}>
+                                <p style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '1.25rem' }}>Shipping Details</p>
+
+                                {/* Item category */}
+                                <div style={{ marginBottom: '1.25rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: '#94a3b8' }}>ITEM CATEGORY <span style={{ color: '#ef4444' }}>*</span></label>
+                                  <select
+                                    value={v.item_category}
+                                    onChange={e => {
+                                      const updated = [...newProduct.variants];
+                                      updated[idx].item_category = e.target.value;
+                                      setNewProduct({ ...newProduct, variants: updated });
+                                    }}
+                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', backgroundColor: 'white' }}
+                                  >
+                                    <option value="light">Light Item — Plants, Moss, Tissue Cultures, Isopods, Accessories</option>
+                                    <option value="heavy">Heavy Item — Rocks, Substrate, Driftwood, Hardscape, Soil Bags</option>
+                                  </select>
+                                </div>
+
+                                {/* Packed weight + box dims */}
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '1.5rem' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: fieldErrors[`variant_${idx}_packed_weight_grams`] ? '#ef4444' : '#94a3b8' }}>
+                                      PACKED WEIGHT (g) <span style={{ color: '#ef4444' }}>*</span>
+                                      {fieldErrors[`variant_${idx}_packed_weight_grams`] && ` — ${fieldErrors[`variant_${idx}_packed_weight_grams`]}`}
+                                    </label>
                                     <input
                                       type="number"
-                                      step={field.step || '1'}
-                                      value={v[field.key]}
+                                      min="1"
+                                      max="30000"
+                                      step="1"
+                                      placeholder="e.g. 350"
+                                      value={v.packed_weight_grams}
                                       onChange={e => {
                                         const updated = [...newProduct.variants];
-                                        updated[idx][field.key] = e.target.value;
+                                        updated[idx].packed_weight_grams = e.target.value;
                                         setNewProduct({ ...newProduct, variants: updated });
+                                        setFieldErrors({ ...fieldErrors, [`variant_${idx}_packed_weight_grams`]: null });
                                       }}
-                                      style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
+                                      style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: `1px solid ${fieldErrors[`variant_${idx}_packed_weight_grams`] ? '#ef4444' : '#e2e8f0'}`, fontSize: '0.9rem' }}
                                     />
                                   </div>
-                                ))}
+                                  {[
+                                    { label: 'BOX LENGTH (CM)', key: 'length' },
+                                    { label: 'BOX BREADTH (CM)', key: 'width' },
+                                    { label: 'BOX HEIGHT (CM)', key: 'height' },
+                                  ].map(field => (
+                                    <div key={field.key}>
+                                      <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: '#94a3b8' }}>{field.label}</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={v[field.key]}
+                                        onChange={e => {
+                                          const updated = [...newProduct.variants];
+                                          updated[idx][field.key] = e.target.value;
+                                          setNewProduct({ ...newProduct, variants: updated });
+                                        }}
+                                        style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Chargeable weight preview */}
+                                {v.packed_weight_grams && (
+                                  <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>
+                                    Volumetric weight:{' '}
+                                    <strong>
+                                      {Math.round((parseFloat(v.length || 10) * parseFloat(v.width || 10) * parseFloat(v.height || 10) / 5000) * 1000)}g
+                                    </strong>
+                                    {' · '}Chargeable weight:{' '}
+                                    <strong style={{ color: '#1b2d2a' }}>
+                                      {Math.max(parseInt(v.packed_weight_grams) || 0, Math.round((parseFloat(v.length || 10) * parseFloat(v.width || 10) * parseFloat(v.height || 10) / 5000) * 1000))}g
+                                    </strong>
+                                  </p>
+                                )}
                               </div>
                             </div>
                           ))}
