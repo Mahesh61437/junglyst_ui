@@ -223,7 +223,18 @@ export default function ProductDetails() {
   const handleBuyNow = async () => {
     const safeQty = hasStockLimit ? Math.max(1, Math.min(quantity, Math.max(0, stockLimit))) : quantity;
     if (hasStockLimit && safeQty < 1) return;
-    await addItemToCart(id, safeQty, selectedVariant?.id, product, selectedVariant);
+    
+    const existingItem = cart?.items?.find(i => 
+      i.product.id === id && (!selectedVariant?.id || i.variant?.id === selectedVariant?.id)
+    );
+
+    if (!existingItem) {
+      await addItemToCart(id, safeQty, selectedVariant?.id, product, selectedVariant);
+    } else if (existingItem.quantity < safeQty) {
+      // Only add the difference if the cart has less than what the user wants to buy right now
+      await addItemToCart(id, safeQty - existingItem.quantity, selectedVariant?.id, product, selectedVariant);
+    }
+    
     navigate('/checkout');
   };
 

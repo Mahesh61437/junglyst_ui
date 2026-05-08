@@ -166,14 +166,23 @@ export default function Checkout() {
                 name: "Pay via UPI",
                 instruments: [
                   {
-                    method: "upi"
+                    method: "upi",
+                    flows: ["collect", "intent", "qr"]
                   }
                 ]
-              }
+              },
+              //   other: {
+              //     name: "Other Payment Modes",
+              //     instruments: [
+              //       { method: "card" },
+              //       { method: "netbanking" },
+              //       { method: "wallet" }
+              //     ]
+              //   }
             },
-            sequence: ["block.upi"],
+            sequence: ["block.upi", "block.other"],
             preferences: {
-              show_default_blocks: false
+              show_default_blocks: true
             }
           }
         },
@@ -193,9 +202,16 @@ export default function Checkout() {
           }
         },
         modal: {
-          ondismiss: () => {
+          ondismiss: async () => {
             setLoading(false);
             setError('Payment was cancelled. Your order has not been placed.');
+            if (user && order?.id) {
+              try {
+                await api.post(`/orders/${order.id}/cancel/`);
+              } catch (e) {
+                console.error('Failed to cancel order on the backend', e);
+              }
+            }
           }
         }
       });
