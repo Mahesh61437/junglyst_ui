@@ -159,6 +159,24 @@ export default function Checkout() {
           email: shipping.email || '',
           contact: shipping.phone || '',
         },
+        config: {
+          display: {
+            blocks: {
+              upi: {
+                name: "Pay via UPI",
+                instruments: [
+                  {
+                    method: "upi"
+                  }
+                ]
+              }
+            },
+            sequence: ["block.upi"],
+            preferences: {
+              show_default_blocks: false
+            }
+          }
+        },
         theme: { color: '#1b2d2a' },
         handler: async (paymentResponse) => {
           try {
