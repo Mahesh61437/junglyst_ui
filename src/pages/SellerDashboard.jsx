@@ -278,7 +278,7 @@ export default function SellerDashboard() {
     e.target.value = '';
 
     const nameKey = { logo: 'logoName', icon: 'iconName', banner: 'bannerName' }[type] || 'logoName';
-    const urlKey  = { logo: 'logo_url', icon: 'icon_url', banner: 'banner_url'  }[type] || 'logo_url';
+    const urlKey = { logo: 'logo_url', icon: 'icon_url', banner: 'banner_url' }[type] || 'logo_url';
     setSpotlight(prev => ({ ...prev, [nameKey]: file.name }));
     setUploading(type);
     try {
@@ -623,28 +623,28 @@ export default function SellerDashboard() {
     // Sanitize variants — strip backend-only fields that cause PUT validation errors
     const cleanVariants = p.variants?.length > 0
       ? p.variants.map(v => ({
-          id: v.id,
-          name: v.name || 'Standard',
-          base_price: v.base_price ?? '',
-          gst_rate: v.gst_rate ?? '0',
-          commission_rate: v.commission_rate ?? '10.0',
-          stock: v.stock ?? '',
-          item_category: v.item_category ?? 'light',
-          packed_weight_grams: v.packed_weight_grams ?? '',
-          length: v.length ?? '10',
-          width: v.width ?? '10',
-          height: v.height ?? '10',
-        }))
+        id: v.id,
+        name: v.name || 'Standard',
+        base_price: v.base_price ?? '',
+        gst_rate: v.gst_rate ?? '0',
+        commission_rate: v.commission_rate ?? '10.0',
+        stock: v.stock ?? '',
+        item_category: v.item_category ?? 'light',
+        packed_weight_grams: v.packed_weight_grams ?? '',
+        length: v.length ?? '10',
+        width: v.width ?? '10',
+        height: v.height ?? '10',
+      }))
       : [{ name: 'Standard', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
 
     // Sanitize images — strip backend-only fields
     const cleanImages = p.images?.length > 0
       ? p.images.map(img => ({
-          id: img.id,
-          image_url: img.image_url || '',
-          is_primary: img.is_primary ?? false,
-          alt_text: img.alt_text || '',
-        }))
+        id: img.id,
+        image_url: img.image_url || '',
+        is_primary: img.is_primary ?? false,
+        alt_text: img.alt_text || '',
+      }))
       : [{ image_url: '', is_primary: true }];
 
     setNewProduct({
@@ -881,8 +881,8 @@ export default function SellerDashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--bg-secondary)', padding: '0.5rem 1rem', borderRadius: '8px' }}>
                         <Calendar size={18} color="var(--text-secondary)" />
-                        <input 
-                          type="month" 
+                        <input
+                          type="month"
                           value={selectedGstMonth}
                           onChange={(e) => {
                             setSelectedGstMonth(e.target.value);
@@ -949,7 +949,7 @@ export default function SellerDashboard() {
                             <span style={{ color: 'var(--text-secondary)' }}>Taxable Value</span>
                             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{gstData.taxable_value.toLocaleString()}</span>
                           </div>
-                          
+
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: 'var(--text-secondary)' }}>Total GST ({gstData.gst_percentage}%)</span>
                             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{gstData.total_gst.toLocaleString()}</span>
@@ -987,7 +987,7 @@ export default function SellerDashboard() {
                             <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>₹{gstData.net_settlement.toLocaleString()}</span>
                           </div>
 
-                          <button 
+                          <button
                             onClick={() => setShowItemizedInvoice(true)}
                             style={{ marginTop: '1rem', width: '100%', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, color: '#334155', transition: 'background-color 0.2s' }}
                           >
@@ -1286,9 +1286,9 @@ export default function SellerDashboard() {
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.5rem' }}>
                             {[
-                              { type: 'logo',   label: 'Brand Logo',   hint: 'Full logo (rect/square)',      urlKey: 'logo_url',   nameKey: 'logoName',   required: true  },
-                              { type: 'icon',   label: 'Store Icon',   hint: 'Small square mark / app icon', urlKey: 'icon_url',   nameKey: 'iconName',   required: false },
-                              { type: 'banner', label: 'Store Banner', hint: 'Wide header image',            urlKey: 'banner_url', nameKey: 'bannerName', required: false },
+                              { type: 'logo', label: 'Brand Logo', hint: 'Full logo (rect/square)', urlKey: 'logo_url', nameKey: 'logoName', required: true },
+                              { type: 'icon', label: 'Store Icon', hint: 'Small square mark / app icon', urlKey: 'icon_url', nameKey: 'iconName', required: false },
+                              { type: 'banner', label: 'Store Banner', hint: 'Wide header image', urlKey: 'banner_url', nameKey: 'bannerName', required: false },
                             ].map(({ type, label, hint, urlKey, nameKey, required }) => (
                               <div key={type}>
                                 <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1479,9 +1479,9 @@ export default function SellerDashboard() {
                             <th style={{ padding: '1.25rem 1rem 1.25rem 1.5rem', width: '40px' }}>
                               <input
                                 type="checkbox"
-                                checked={orders.length > 0 && selectedOrders.size === orders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length && orders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length > 0}
+                                checked={orders.length > 0 && selectedOrders.size === orders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length && orders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length > 0}
                                 onChange={e => {
-                                  const shippable = orders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm);
+                                  const shippable = orders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm);
                                   setSelectedOrders(e.target.checked ? new Set(shippable.map(o => o.id)) : new Set());
                                 }}
                                 style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
@@ -1499,8 +1499,8 @@ export default function SellerDashboard() {
                             const canConfirm = o.status === 'placed';
                             const hasPhotos = (o.packaging_photos || []).length > 0;
                             const hasDims = o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
-                            const canShip = ['confirmed','packing'].includes(o.status) && hasPhotos && hasDims;
-                            const isShipped = ['shipped','in_transit','out_for_delivery','delivered'].includes(o.status);
+                            const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && hasDims;
+                            const isShipped = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
                             const statusColors = {
                               placed: { bg: '#dbeafe', fg: '#1d4ed8' },
                               confirmed: { bg: '#fef9c3', fg: '#854d0e' },
@@ -1676,7 +1676,7 @@ export default function SellerDashboard() {
                                             </p>
                                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                               {(o.packaging_photos || []).map((url, i) => (
-                                                <img key={i} src={url} alt={`Package ${i+1}`} style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2ed' }} />
+                                                <img key={i} src={url} alt={`Package ${i + 1}`} style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2ed' }} />
                                               ))}
                                               {!isShipped && (o.packaging_photos || []).length < 3 && (
                                                 <label style={{
@@ -1707,7 +1707,7 @@ export default function SellerDashboard() {
                                           )}
 
                                           {/* Pre-ship checklist summary */}
-                                          {!isShipped && ['confirmed','packing'].includes(o.status) && (
+                                          {!isShipped && ['confirmed', 'packing'].includes(o.status) && (
                                             <div style={{ padding: '0.75rem', borderRadius: '10px', backgroundColor: canShip ? '#f0fdf4' : '#fefce8', border: `1px solid ${canShip ? '#bbf7d0' : '#fde68a'}`, fontSize: '0.75rem' }}>
                                               <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: canShip ? '#15803d' : '#92400e' }}>{canShip ? '✓ Ready to ship' : 'Complete before shipping:'}</p>
                                               {!hasPhotos && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Upload at least 1 packaging photo</p>}
@@ -2367,10 +2367,10 @@ export default function SellerDashboard() {
       `}</style>
       </div>
 
-      <ItemizedInvoiceModal 
-        isOpen={showItemizedInvoice} 
-        onClose={() => setShowItemizedInvoice(false)} 
-        data={gstData} 
+      <ItemizedInvoiceModal
+        isOpen={showItemizedInvoice}
+        onClose={() => setShowItemizedInvoice(false)}
+        data={gstData}
         month={selectedGstMonth}
       />
     </DashboardErrorBoundary>

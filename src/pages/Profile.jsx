@@ -60,7 +60,8 @@ export default function Profile() {
     setLoading(true);
     try {
       const response = await api.get('/orders/');
-      setOrders(response.data);
+      const list = response.data.results ?? (Array.isArray(response.data) ? response.data : []);
+      setOrders(list);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
     } finally {
@@ -544,35 +545,72 @@ export default function Profile() {
                 {orders.map(order => (
                   <div key={order.id} style={{
                     padding: '2.5rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid var(--border-subtle)',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem', transition: 'all 0.3s'
+                    display: 'flex', flexDirection: 'column', gap: '2rem', transition: 'all 0.3s'
                   }}
                     onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--brand-gold)'}
                     onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
                   >
-                    <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                      <div style={{ width: '72px', height: '72px', borderRadius: '20px', backgroundColor: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)' }}>
-                        <Package size={32} strokeWidth={1.5} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem' }}>
+                      <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+                        <div style={{ width: '72px', height: '72px', borderRadius: '20px', backgroundColor: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-gold)' }}>
+                          <Package size={32} strokeWidth={1.5} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.4rem', fontSize: '1.25rem' }}>{order.order_number || `#ACQ-${order.id.slice(0,8)}`}</div>
+                          <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                            <span>{order.items?.length || 0} Specimens</span>
+                            <span>•</span>
+                            <span>{new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.4rem', fontSize: '1.25rem' }}>#ACQ-{order.id}</div>
-                        <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                          <span>{order.items?.length || 1} Specimens</span>
-                          <span>•</span>
-                          <span>{new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 800, marginBottom: '0.75rem', fontSize: '1.5rem', color: 'var(--bg-deep)' }}>₹{order.total_amount}</div>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          <div style={{
+                            fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
+                            color: (order.payment_status === 'completed' || order.is_paid) ? 'var(--brand-green)' : '#ef4444',
+                            backgroundColor: (order.payment_status === 'completed' || order.is_paid) ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            padding: '0.6rem 1rem', borderRadius: '100px', border: '1px solid currentColor'
+                          }}>
+                            Pay: {order.payment_status || (order.is_paid ? 'Completed' : 'Pending')}
+                          </div>
+                          <div style={{
+                            fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
+                            color: order.status === 'delivered' ? 'var(--brand-green)' : 'var(--brand-gold)',
+                            backgroundColor: order.status === 'delivered' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(164, 137, 72, 0.1)',
+                            padding: '0.6rem 1rem', borderRadius: '100px', border: '1px solid currentColor'
+                          }}>
+                            Ship: {order.status}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 800, marginBottom: '0.75rem', fontSize: '1.5rem', color: 'var(--bg-deep)' }}>₹{order.total_amount}</div>
-                      <div style={{
-                        fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em',
-                        color: order.status === 'delivered' ? 'var(--brand-green)' : 'var(--brand-gold)',
-                        backgroundColor: order.status === 'delivered' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(164, 137, 72, 0.1)',
-                        padding: '0.6rem 1.25rem', borderRadius: '100px', border: '1px solid currentColor'
-                      }}>
-                        {order.status}
+                    
+                    {order.items && order.items.length > 0 && (
+                      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {order.items.map(item => (
+                          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <div style={{ width: '48px', height: '48px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {item.product_image ? (
+                                  <img src={item.product_image} alt={item.product_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <Heart size={16} color="var(--text-secondary)" />
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--bg-deep)' }}>{item.product_name}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Variant: {item.variant_name}</div>
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--bg-deep)' }}>₹{item.unit_price} <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 600 }}>x {item.quantity}</span></div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
