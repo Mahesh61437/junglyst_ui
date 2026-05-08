@@ -227,14 +227,17 @@ export default function SellerDashboard() {
     setLoading(true);
     try {
       // ── Fast path: fetch products immediately so UI is responsive ──
-      const prodsData = await ProductService.getProducts({ seller: user.id });
+      const prodsData = await ProductService.getProducts({ seller: user.id, no_pagination: true });
       const prodsArray = Array.isArray(prodsData.results) ? prodsData.results : (Array.isArray(prodsData) ? prodsData : []);
       setProducts(prodsArray);
       setLoading(false);   // unblock the UI as soon as products arrive
 
       // ── Background path: orders, profile metrics, categories (lazy) ──
       const [ordsData, profileData, catsData] = await Promise.all([
-        api.get('/orders/seller/sub-orders/').catch(() => ({ data: [] })),
+        api.get('/orders/seller/sub-orders/?no_pagination=true').catch(err => {
+          console.error("Failed to fetch seller sub-orders:", err);
+          return { data: [] };
+        }),
         api.get('/sellers/dashboard/').catch(() => ({ data: null })),
         categories.length === 0
           ? api.get('/core/categories/').catch(() => ({ data: { results: [] } }))

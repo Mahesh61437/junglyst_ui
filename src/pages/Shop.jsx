@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { ProductService } from '../services/ProductService';
@@ -9,9 +9,15 @@ import { Search, X, Leaf, SlidersHorizontal, Check } from 'lucide-react';
 export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState('Featured');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) setSearchTerm(q);
+  }, [searchParams]);
 
   useEffect(() => {
     const handleOpenFilter = () => setIsMobileFilterOpen(true);
@@ -50,17 +56,16 @@ export default function Shop() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', page],
+    queryKey: ['products_all'],
     queryFn: async () => {
-      const res = await ProductService.getProducts({ page });
+      const res = await ProductService.getProducts({ no_pagination: true });
       return res;
     },
+    staleTime: 1000 * 60 * 5,
   });
 
-  const products = data?.results || [];
+  const products = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
   const activeProducts = useMemo(() => products.filter((p) => p?.is_active !== false), [products]);
-  const totalCount = activeProducts.length;
-  const totalPages = Math.ceil(totalCount / 20);
 
   useEffect(() => {
     if (category) {
@@ -115,6 +120,13 @@ export default function Shop() {
     else sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     return sorted;
   }, [filteredProducts, sortBy]);
+
+  const totalCount = displayedProducts.length;
+  const totalPages = Math.ceil(totalCount / 20);
+  const paginatedProducts = useMemo(() => {
+    const start = (page - 1) * 20;
+    return displayedProducts.slice(start, start + 20);
+  }, [displayedProducts, page]);
 
   const activeFilterCount =
     Object.values(categories).filter(Boolean).length +
@@ -418,7 +430,7 @@ export default function Shop() {
           ) : (
             <>
               <div className="grid-responsive" style={{ display: 'grid' }}>
-                {displayedProducts.map(product => (
+                {paginatedProducts.map(product => (
                   (() => {
                     const variant = Array.isArray(product.variants) ? product.variants?.[0] : null;
                     const basePrice = parseFloat(

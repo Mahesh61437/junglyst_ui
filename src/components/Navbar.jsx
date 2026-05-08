@@ -98,6 +98,12 @@ export default function Navbar() {
             <input
               type="text"
               placeholder="Search Junglyst..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  navigate(`/shop?search=${encodeURIComponent(e.target.value.trim())}`);
+                  e.target.value = '';
+                }
+              }}
               style={{
                 width: '100%',
                 padding: '0.6rem 0.5rem 0.6rem 2.5rem',

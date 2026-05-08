@@ -58,7 +58,7 @@ export default function Checkout() {
       });
   }, [user]);
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || !cart.items || cart.items.length === 0) {
     navigate('/cart');
     return null;
   }
@@ -383,8 +383,8 @@ export default function Checkout() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '2rem', paddingRight: '0.5rem' }}>
               {cart.items.map(item => {
-                const product = item.product_details || (typeof item.product === 'object' ? item.product : {});
-                const variant = item.variant_details || (typeof item.variant === 'object' ? item.variant : {});
+                const product = item.product_details || (item.product && typeof item.product === 'object' ? item.product : {});
+                const variant = item.variant_details || (item.variant && typeof item.variant === 'object' ? item.variant : {});
                 return (
                   <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <div style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc' }}>
