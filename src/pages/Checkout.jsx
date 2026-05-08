@@ -106,7 +106,7 @@ export default function Checkout() {
         try {
           const cartRes = await api.get('/cart/');
           currentCartId = cartRes.data.id;
-        } catch {}
+        } catch { }
       }
 
       // Build item list (used when no backend cart is available)

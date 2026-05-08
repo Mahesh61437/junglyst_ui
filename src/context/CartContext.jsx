@@ -13,14 +13,14 @@ const MIN_SELLER_SUBTOTAL = 500;
 const MAX_ITEM_QUANTITY = 10;
 
 const LIGHT_TIERS = [
-  { max: 699,      fee: 99 },
-  { max: 999,      fee: 49 },
-  { max: Infinity, fee: 0  },
+  { max: 699, fee: 99 },
+  { max: 999, fee: 49 },
+  { max: Infinity, fee: 0 },
 ];
 const HEAVY_TIERS = [
-  { max: 999,      fee: 99 },
-  { max: 2499,     fee: 49 },
-  { max: Infinity, fee: 0  },
+  { max: 999, fee: 99 },
+  { max: 2499, fee: 49 },
+  { max: Infinity, fee: 0 },
 ];
 const LIGHT_FREE_THRESHOLD = 999;
 const HEAVY_FREE_THRESHOLD = 2499;
