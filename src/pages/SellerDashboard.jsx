@@ -91,6 +91,7 @@ export default function SellerDashboard() {
     images: [{ image_url: '', is_primary: true }]
   });
   const [uploadingImages, setUploadingImages] = useState({});
+  const [inlineStocks, setInlineStocks] = useState({});
 
   // GST State
   const [gstData, setGstData] = useState(null);
@@ -336,6 +337,28 @@ export default function SellerDashboard() {
       setFormError("Failed to upload specimen image. Please check your connection.");
     } finally {
       setUploadingImages(prev => ({ ...prev, [idx]: false }));
+    }
+  };
+
+  const handleBulkStockUpdate = async () => {
+    setLoading(true);
+    try {
+      const promises = Object.entries(inlineStocks).map(([productId, newStock]) => {
+        const product = products.find(p => p.id === productId);
+        if (!product || !product.variants || !product.variants.length) return Promise.resolve();
+        const variantId = product.variants[0].id;
+        return ProductService.patchProduct(productId, {
+          variants: [{ id: variantId, stock: parseInt(newStock) || 0 }]
+        });
+      });
+      await Promise.all(promises);
+      setSuccess("Stock quantities updated successfully");
+      setInlineStocks({});
+      fetchData();
+    } catch (err) {
+      setFormError("Failed to update some stocks");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1345,6 +1368,17 @@ export default function SellerDashboard() {
 
               {activeTab === 'products' && (
                 <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflowX: 'auto' }}>
+                  {Object.keys(inlineStocks).length > 0 && (
+                    <div style={{ padding: '1rem 1.5rem', backgroundColor: '#f0fdf4', borderBottom: '1px solid #edf2ed', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>{Object.keys(inlineStocks).length} unsaved stock update{Object.keys(inlineStocks).length > 1 ? 's' : ''}</span>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => setInlineStocks({})} style={{ padding: '0.4rem 1rem', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Cancel</button>
+                        <button onClick={handleBulkStockUpdate} disabled={loading} style={{ padding: '0.4rem 1.25rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                          Update All Stock
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <table style={{ width: '100%', minWidth: isMobile ? '100%' : '800px', borderCollapse: 'collapse' }}>
                     <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
                       <tr>
@@ -1373,14 +1407,17 @@ export default function SellerDashboard() {
                         <React.Fragment key={p.id}>
                           <tr style={{ borderBottom: '1px solid #edf2ed', opacity: p.is_active ? 1 : 0.55, transition: 'opacity 0.2s', cursor: isMobile ? 'pointer' : 'default' }} onClick={() => isMobile && setExpandedProductId(prev => prev === p.id ? null : p.id)}>
                             <td style={{ padding: '1.5rem 2rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <div 
+                                onClick={() => window.open(`/product/${p.slug || p.id}`, '_blank')}
+                                style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}
+                              >
                                 <img
                                   src={p.image_url || p.image || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%23edf2ed" rx="8"/%3E%3C/svg%3E'}
                                   style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #edf2ed', flexShrink: 0 }}
                                   alt={p.name}
                                 />
                                 <div>
-                                  <span style={{ fontWeight: 700, display: 'block' }}>{p.name || p.title}</span>
+                                  <span style={{ fontWeight: 700, display: 'block', color: '#1b2d2a' }}>{p.name || p.title}</span>
                                   {p.scientific_name && <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>{p.scientific_name}</span>}
                                 </div>
                               </div>
@@ -1389,7 +1426,15 @@ export default function SellerDashboard() {
                               <>
                                 <td style={{ padding: '1.5rem 2rem', fontWeight: 700, color: '#10b981' }}>₹{p.base_price}</td>
                                 <td style={{ padding: '1.5rem 2rem', fontWeight: 700 }}>₹{p.price}</td>
-                                <td style={{ padding: '1.5rem 2rem', fontWeight: 700 }}>{p.stock}</td>
+                                <td style={{ padding: '1.5rem 2rem' }}>
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock} 
+                                    onChange={(e) => setInlineStocks(prev => ({...prev, [p.id]: e.target.value}))}
+                                    style={{ width: '70px', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700, textAlign: 'center' }}
+                                  />
+                                </td>
                                 <td style={{ padding: '1.5rem 2rem' }}>
                                   {p.is_active ? (
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.9rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#dcfce7', color: '#166534', letterSpacing: '0.05em' }}>
@@ -1430,7 +1475,13 @@ export default function SellerDashboard() {
                                   </div>
                                   <div>
                                     <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Stock</p>
-                                    <p style={{ fontWeight: 700 }}>{p.stock}</p>
+                                    <input 
+                                      type="number" 
+                                      min="0"
+                                      value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock} 
+                                      onChange={(e) => setInlineStocks(prev => ({...prev, [p.id]: e.target.value}))}
+                                      style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
+                                    />
                                   </div>
                                   <div>
                                     <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Status</p>
@@ -1476,7 +1527,7 @@ export default function SellerDashboard() {
 
                   <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflow: 'hidden' }}>
                     <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', minWidth: '860px', borderCollapse: 'collapse' }}>
+                      <table style={{ width: '100%', minWidth: isMobile ? '100%' : '860px', borderCollapse: 'collapse' }}>
                         <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
                           <tr>
                             <th style={{ padding: '1.25rem 1rem 1.25rem 1.5rem', width: '40px' }}>
@@ -1490,9 +1541,11 @@ export default function SellerDashboard() {
                                 style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
                               />
                             </th>
-                            {['Sub-Order', 'Status', 'Dispatch', 'Items', 'Amount', 'Buyer', 'Actions'].map(h => (
+                            <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Sub-Order</th>
+                            {!isMobile && ['Status', 'Dispatch', 'Items', 'Amount', 'Buyer', 'Actions'].map(h => (
                               <th key={h} style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>{h}</th>
                             ))}
+                            {isMobile && <th style={{ padding: '1.25rem 1.5rem', width: '40px' }}></th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -1541,67 +1594,121 @@ export default function SellerDashboard() {
                                   <td style={{ padding: '1.25rem 1.5rem', cursor: 'pointer' }} onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}>
                                     <p style={{ fontWeight: 700, margin: 0, fontSize: '0.85rem' }}>{o.sub_order_number}</p>
                                     <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>{new Date(o.created_at).toLocaleDateString()}</p>
+                                    {isMobile && (
+                                      <div style={{ marginTop: '0.5rem' }}>
+                                        <span style={{ padding: '0.2rem 0.5rem', borderRadius: '10px', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: sc.bg, color: sc.fg }}>
+                                          {o.status.replace(/_/g, ' ')}
+                                        </span>
+                                      </div>
+                                    )}
                                   </td>
-                                  <td style={{ padding: '1.25rem 1.5rem' }}>
-                                    <span style={{ padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: sc.bg, color: sc.fg }}>
-                                      {o.status.replace(/_/g, ' ')}
-                                    </span>
-                                  </td>
-                                  <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.8rem' }}>
-                                    {o.dispatch_hours_remaining !== null && !isShipped ? (
-                                      <span style={{ fontWeight: 700, color: dispatchUrgent ? '#dc2626' : '#64748b' }}>
-                                        {o.dispatch_hours_remaining > 0 ? `${o.dispatch_hours_remaining}h left` : 'Overdue'}
-                                      </span>
-                                    ) : <span style={{ color: '#94a3b8' }}>—</span>}
-                                  </td>
-                                  <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
-                                    {(o.items || []).length} Specimens
-                                  </td>
-                                  <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
-                                    ₹{parseFloat(o.seller_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                  </td>
-                                  <td style={{ padding: '1.25rem 1.5rem', color: '#64748b', fontSize: '0.85rem' }}>
-                                    <span style={{ display: 'block', fontWeight: 600 }}>{o.buyer_first_name || '—'}</span>
-                                    <span style={{ fontSize: '0.7rem' }}>{o.buyer_pincode || '—'}</span>
-                                  </td>
-                                  <td style={{ padding: '1.25rem 1.5rem' }}>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                      {canConfirm && (
-                                        <button
-                                          onClick={() => handleConfirmSubOrder(o.id)}
-                                          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
-                                        >
-                                          Confirm
-                                        </button>
-                                      )}
-                                      {canShip && (
-                                        <button
-                                          onClick={() => handleShipNow([o.id])}
-                                          disabled={bulkShipping}
-                                          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
-                                        >
-                                          <Truck size={12} /> Ship
-                                        </button>
-                                      )}
-                                      {shipment?.label_url && (
-                                        <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}>
-                                          <Download size={12} /> Label
-                                        </a>
-                                      )}
-                                      <button
-                                        onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.45rem' }}
-                                      >
-                                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                      </button>
-                                    </div>
-                                  </td>
+                                  {!isMobile && (
+                                    <>
+                                      <td style={{ padding: '1.25rem 1.5rem' }}>
+                                        <span style={{ padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: sc.bg, color: sc.fg }}>
+                                          {o.status.replace(/_/g, ' ')}
+                                        </span>
+                                      </td>
+                                      <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.8rem' }}>
+                                        {o.dispatch_hours_remaining !== null && !isShipped ? (
+                                          <span style={{ fontWeight: 700, color: dispatchUrgent ? '#dc2626' : '#64748b' }}>
+                                            {o.dispatch_hours_remaining > 0 ? `${o.dispatch_hours_remaining}h left` : 'Overdue'}
+                                          </span>
+                                        ) : <span style={{ color: '#94a3b8' }}>—</span>}
+                                      </td>
+                                      <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                                        {(o.items || []).length} Specimens
+                                      </td>
+                                      <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                                        ₹{parseFloat(o.seller_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                      </td>
+                                      <td style={{ padding: '1.25rem 1.5rem', color: '#64748b', fontSize: '0.85rem' }}>
+                                        <span style={{ display: 'block', fontWeight: 600 }}>{o.buyer_first_name || '—'}</span>
+                                        <span style={{ fontSize: '0.7rem' }}>{o.buyer_pincode || '—'}</span>
+                                      </td>
+                                      <td style={{ padding: '1.25rem 1.5rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                          {canConfirm && (
+                                            <button
+                                              onClick={() => handleConfirmSubOrder(o.id)}
+                                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                            >
+                                              Confirm
+                                            </button>
+                                          )}
+                                          {canShip && (
+                                            <button
+                                              onClick={() => handleShipNow([o.id])}
+                                              disabled={bulkShipping}
+                                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                            >
+                                              <Truck size={12} /> Ship
+                                            </button>
+                                          )}
+                                          {shipment?.label_url && (
+                                            <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}>
+                                              <Download size={12} /> Label
+                                            </a>
+                                          )}
+                                          <button
+                                            onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.45rem' }}
+                                          >
+                                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </>
+                                  )}
+                                  {isMobile && (
+                                    <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', color: '#94a3b8', cursor: 'pointer' }} onClick={() => setExpandedOrderId(isExpanded ? null : o.id)}>
+                                      {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                    </td>
+                                  )}
                                 </tr>
 
                                 {/* Expanded row — items + packaging photos */}
                                 {isExpanded && (
                                   <tr style={{ borderBottom: '1px solid #edf2ed' }}>
-                                    <td colSpan={8} style={{ padding: '0 1.5rem 1.5rem 4rem', backgroundColor: '#f8faf8' }}>
+                                    <td colSpan={isMobile ? 3 : 8} style={{ padding: isMobile ? '1rem' : '0 1.5rem 1.5rem 4rem', backgroundColor: '#f8faf8' }}>
+                                      {isMobile && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem', backgroundColor: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #edf2ed' }}>
+                                          <div>
+                                            <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Dispatch</p>
+                                            {o.dispatch_hours_remaining !== null && !isShipped ? (
+                                              <span style={{ fontWeight: 700, fontSize: '0.8rem', color: dispatchUrgent ? '#dc2626' : '#64748b' }}>
+                                                {o.dispatch_hours_remaining > 0 ? `${o.dispatch_hours_remaining}h left` : 'Overdue'}
+                                              </span>
+                                            ) : <span style={{ color: '#94a3b8' }}>—</span>}
+                                          </div>
+                                          <div>
+                                            <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Amount</p>
+                                            <p style={{ fontWeight: 700, fontSize: '0.85rem', margin: 0 }}>₹{parseFloat(o.seller_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}</p>
+                                          </div>
+                                          <div style={{ gridColumn: '1 / -1' }}>
+                                            <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Buyer</p>
+                                            <span style={{ fontWeight: 600, fontSize: '0.85rem', marginRight: '0.5rem' }}>{o.buyer_first_name || '—'}</span>
+                                            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{o.buyer_pincode || '—'}</span>
+                                          </div>
+                                          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                                            {canConfirm && (
+                                              <button onClick={() => handleConfirmSubOrder(o.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', flex: 1, justifyContent: 'center' }}>
+                                                Confirm Order
+                                              </button>
+                                            )}
+                                            {canShip && (
+                                              <button onClick={() => handleShipNow([o.id])} disabled={bulkShipping} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', flex: 1, justifyContent: 'center' }}>
+                                                <Truck size={14} /> Ship Now
+                                              </button>
+                                            )}
+                                            {shipment?.label_url && (
+                                              <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.75rem', fontWeight: 700, flex: 1, justifyContent: 'center', backgroundColor: 'white' }}>
+                                                <Download size={14} /> Label
+                                              </a>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                       <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
                                         {/* Items list */}
                                         <div style={{ flex: '1', minWidth: '280px' }}>
@@ -1610,10 +1717,10 @@ export default function SellerDashboard() {
                                             {(o.items || []).map(item => (
                                               <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: 'white', borderRadius: '10px', border: '1px solid #edf2ed' }}>
                                                 {item.product_image && (
-                                                  <img src={item.product_image} alt={item.product_name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px' }} />
+                                                  <img onClick={() => item.product ? window.open(`/product/${item.product}`, '_blank') : null} src={item.product_image} alt={item.product_name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', cursor: item.product ? 'pointer' : 'default' }} />
                                                 )}
                                                 <div style={{ flex: 1 }}>
-                                                  <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem' }}>{item.product_name}</p>
+                                                  <p onClick={() => item.product ? window.open(`/product/${item.product}`, '_blank') : null} style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem', cursor: item.product ? 'pointer' : 'default', color: item.product ? '#1b2d2a' : 'inherit' }}>{item.product_name}</p>
                                                   <p style={{ margin: '0.1rem 0 0', fontSize: '0.7rem', color: '#64748b' }}>{item.variant_name} × {item.quantity}</p>
                                                 </div>
                                                 <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem' }}>₹{(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}</p>
@@ -1797,21 +1904,21 @@ export default function SellerDashboard() {
                 }}
               >
                 {/* Full-Screen Header */}
-                <div style={{ padding: isMobile ? '1.5rem' : '2rem 5rem', borderBottom: '1px solid #edf2ed', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fcfdfc' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                <div style={{ padding: isMobile ? '1rem 1.5rem' : '2rem 5rem', borderBottom: '1px solid #edf2ed', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '1rem' : 0, backgroundColor: '#fcfdfc', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '0.5rem' : '2rem' }}>
                     <button
                       onClick={() => setIsModalOpen(false)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9rem' }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9rem', padding: 0 }}
                     >
                       <ArrowLeft size={20} /> EXIT TO DASHBOARD
                     </button>
-                    <div style={{ width: '1px', height: '24px', backgroundColor: '#edf2ed' }} />
+                    {!isMobile && <div style={{ width: '1px', height: '24px', backgroundColor: '#edf2ed' }} />}
                     <div>
-                      <h2 style={{ fontSize: '1.5rem', fontFamily: 'serif' }}>{editingProduct ? 'Refine Specimen' : 'Onboard New Specimen'}</h2>
+                      <h2 style={{ fontSize: isMobile ? '1.5rem' : '1.5rem', fontFamily: 'serif', margin: 0 }}>{editingProduct ? 'Refine Specimen' : 'Onboard New Specimen'}</h2>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
                     {editingProduct && (
                       editingProduct.is_active ? (
                         <button
@@ -1881,17 +1988,17 @@ export default function SellerDashboard() {
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
                               <div>
                                 <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.name ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Name <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.name && `— ${fieldErrors.name}`}</label>
-                                <input value={newProduct.name} onChange={e => { setNewProduct({ ...newProduct, name: e.target.value }); setFieldErrors({ ...fieldErrors, name: null }); }} placeholder="e.g. Alocasia Azlanii" className={fieldErrors.name ? 'form-error-input' : ''} style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontSize: '1.125rem', fontWeight: 500 }} />
+                                <input value={newProduct.name} onChange={e => { setNewProduct({ ...newProduct, name: e.target.value }); setFieldErrors({ ...fieldErrors, name: null }); }} placeholder="e.g. Alocasia Azlanii" className={fieldErrors.name ? 'form-error-input' : ''} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', fontWeight: 500 }} />
                               </div>
                               <div>
                                 <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Scientific Name</label>
-                                <input value={newProduct.scientific_name} onChange={e => setNewProduct({ ...newProduct, scientific_name: e.target.value })} placeholder="e.g. Alocasia azlanii" style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontStyle: 'italic', fontSize: '1.125rem' }} />
+                                <input value={newProduct.scientific_name} onChange={e => setNewProduct({ ...newProduct, scientific_name: e.target.value })} placeholder="e.g. Alocasia azlanii" style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontStyle: 'italic', fontSize: '0.9rem' }} />
                               </div>
                             </div>
 
                             <div>
                               <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Short Summary / Tagline</label>
-                              <input value={newProduct.tagline} onChange={e => setNewProduct({ ...newProduct, tagline: e.target.value })} placeholder="e.g. Rare jewel alocasia with deep metallic purple leaves" style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontSize: '1rem' }} />
+                              <input value={newProduct.tagline} onChange={e => setNewProduct({ ...newProduct, tagline: e.target.value })} placeholder="e.g. Rare jewel alocasia with deep metallic purple leaves" style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
@@ -1916,7 +2023,7 @@ export default function SellerDashboard() {
                                     variants: updatedVariants
                                   });
                                   setFieldErrors({ ...fieldErrors, category_id: null });
-                                }} className={fieldErrors.category_id ? 'form-error-input' : ''} style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '1rem' }}>
+                                }} className={fieldErrors.category_id ? 'form-error-input' : ''} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}>
                                   <option value="">Select Category</option>
                                   {categories.map(cat => (
                                     <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -1930,7 +2037,7 @@ export default function SellerDashboard() {
                                   <select
                                     value={newProduct.sub_category_id}
                                     onChange={e => setNewProduct({ ...newProduct, sub_category_id: e.target.value })}
-                                    style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '1rem' }}
+                                    style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}
                                   >
                                     <option value="">Select Sub Category (Optional)</option>
                                     {categories.find(c => String(c.id) === String(newProduct.category_id))?.subcategories?.map(sub => (
@@ -1942,7 +2049,7 @@ export default function SellerDashboard() {
 
                               <div>
                                 <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Region of Origin</label>
-                                <input value={newProduct.origin} onChange={e => setNewProduct({ ...newProduct, origin: e.target.value })} placeholder="e.g. Southeast Asia" style={{ width: '100%', padding: '1.125rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontSize: '1rem' }} />
+                                <input value={newProduct.origin} onChange={e => setNewProduct({ ...newProduct, origin: e.target.value })} placeholder="e.g. Southeast Asia" style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
                               </div>
                             </div>
                           </div>
@@ -1983,7 +2090,7 @@ export default function SellerDashboard() {
                       </div>
 
                       {/* Section 2: Variant Options */}
-                      <div style={{ backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                      <div style={{ backgroundColor: 'white', padding: isMobile ? '2rem 1.5rem' : '3rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
                           <h4 style={{ fontSize: '0.85rem', fontWeight: 900, textTransform: 'uppercase', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
                             <Box size={18} color="#10b981" /> Inventory Variants
@@ -1999,7 +2106,7 @@ export default function SellerDashboard() {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                           {newProduct.variants.map((v, idx) => (
-                            <div key={idx} style={{ padding: '2.5rem', backgroundColor: '#fcfdfc', borderRadius: '24px', border: '1px solid #edf2ed', position: 'relative' }}>
+                            <div key={idx} style={{ padding: isMobile ? '1.5rem' : '2.5rem', backgroundColor: '#fcfdfc', borderRadius: '24px', border: '1px solid #edf2ed', position: 'relative' }}>
                               {newProduct.variants.length > 1 && (
                                 <button
                                   type="button"
@@ -2023,7 +2130,7 @@ export default function SellerDashboard() {
                                     }}
                                     placeholder="e.g. Small / 5cm / Submerged"
                                     className={fieldErrors[`variant_${idx}_name`] ? 'form-error-input' : ''}
-                                    style={{ width: '100%', padding: '1.1rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontSize: '1rem' }}
+                                    style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
                                   />
                                 </div>
                                 <div>
@@ -2039,13 +2146,13 @@ export default function SellerDashboard() {
                                     }}
                                     placeholder="0"
                                     className={fieldErrors[`variant_${idx}_stock`] ? 'form-error-input' : ''}
-                                    style={{ width: '100%', padding: '1.1rem', borderRadius: '14px', border: '1px solid #e2e8f0', fontSize: '1rem' }}
+                                    style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
                                   />
                                 </div>
                               </div>
 
 
-                              <div style={{ padding: '2rem', backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', marginBottom: '2.5rem' }}>
+                              <div style={{ padding: isMobile ? '1.25rem' : '2rem', backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', marginBottom: '2.5rem' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '2rem', marginBottom: '2rem' }}>
                                   <div>
                                     <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>Base Payout (₹) <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_base_price`] && `— ${fieldErrors[`variant_${idx}_base_price`]}`}</label>
@@ -2060,7 +2167,7 @@ export default function SellerDashboard() {
                                       }}
                                       placeholder="0"
                                       className={fieldErrors[`variant_${idx}_base_price`] ? 'form-error-input' : ''}
-                                      style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                                      style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
                                     />
                                   </div>
                                   <div>
@@ -2072,7 +2179,7 @@ export default function SellerDashboard() {
                                         updated[idx].gst_rate = e.target.value;
                                         setNewProduct({ ...newProduct, variants: updated });
                                       }}
-                                      style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: 'white' }}
+                                      style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}
                                     >
                                       <option value="0">0%</option>
                                       <option value="5">5%</option>
@@ -2085,7 +2192,7 @@ export default function SellerDashboard() {
                                     <input
                                       readOnly
                                       value={v.commission_rate}
-                                      style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid #edf2ed', backgroundColor: '#f8faf9', color: '#64748b', cursor: 'not-allowed' }}
+                                      style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #edf2ed', backgroundColor: '#f8faf9', color: '#64748b', cursor: 'not-allowed', fontSize: '0.9rem' }}
                                     />
                                     <p style={{ fontSize: '0.5rem', color: '#94a3b8', marginTop: '0.4rem', fontWeight: 600 }}>Precalculated by category</p>
                                   </div>
@@ -2187,7 +2294,7 @@ export default function SellerDashboard() {
 
 
                       {/* Section 4: Imagery & Content */}
-                      <div style={{ backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 30px rgba(0,0,0,0.03)' }}>
+                      <div style={{ backgroundColor: 'white', padding: isMobile ? '2rem 1.5rem' : '3rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 30px rgba(0,0,0,0.03)' }}>
                         <h4 style={{ fontSize: '0.85rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '2.5rem', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <Camera size={18} color="#10b981" /> Imagery & Content <span style={{ color: '#ef4444' }}>*</span>
                         </h4>
@@ -2195,7 +2302,7 @@ export default function SellerDashboard() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
                           <div>
                             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '1.25rem', color: fieldErrors.description ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Description <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.description && `— ${fieldErrors.description}`}</label>
-                            <textarea rows="6" value={newProduct.description} onChange={e => { setNewProduct({ ...newProduct, description: e.target.value }); setFieldErrors({ ...fieldErrors, description: null }); }} placeholder="Detail the specimen's health, coloration, and acclimation history..." className={fieldErrors.description ? 'form-error-input' : ''} style={{ width: '100%', padding: '1.5rem', borderRadius: '20px', border: '1px solid #e2e8f0', resize: 'none', fontSize: '1.1rem', lineHeight: '1.7', color: '#1b2d2a' }} />
+                            <textarea rows="6" value={newProduct.description} onChange={e => { setNewProduct({ ...newProduct, description: e.target.value }); setFieldErrors({ ...fieldErrors, description: null }); }} placeholder="Detail the specimen's health, coloration, and acclimation history..." className={fieldErrors.description ? 'form-error-input' : ''} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', resize: 'none', fontSize: '0.95rem', lineHeight: '1.5', color: '#1b2d2a' }} />
                           </div>
 
                           <div>
@@ -2212,7 +2319,7 @@ export default function SellerDashboard() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
                               {newProduct.images.map((img, idx) => (
-                                <div key={idx} style={{ padding: '2rem', borderRadius: '28px', border: '1px solid #edf2ed', backgroundColor: '#fcfdfc', display: 'flex', gap: '2rem', position: 'relative', transition: 'all 0.2s' }}>
+                                <div key={idx} style={{ padding: isMobile ? '1.5rem' : '2rem', borderRadius: '28px', border: '1px solid #edf2ed', backgroundColor: '#fcfdfc', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '1.5rem' : '2rem', position: 'relative', transition: 'all 0.2s' }}>
                                   <div style={{ width: '140px', height: '140px', borderRadius: '20px', border: '2px dashed #e2e8f0', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
                                     {img.image_url ? (
                                       <img src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2293,21 +2400,21 @@ export default function SellerDashboard() {
                 </div>
 
                 {/* Full-Screen Footer (Sticky) */}
-                <div style={{ padding: '2rem 5rem', borderTop: '1px solid #edf2ed', backgroundColor: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ padding: isMobile ? '1rem' : '1.5rem 3rem', borderTop: '1px solid #edf2ed', backgroundColor: 'white', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', gap: isMobile ? '0.75rem' : '0', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: editingProduct ? '#10b981' : '#3b82f6' }} />
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>
                         {editingProduct ? 'SYNCING TO LIVE SANCTUARY' : 'DRAFTING NEW SPECIMEN'}
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '1.5rem' }}>
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '0.75rem', width: isMobile ? '100%' : 'auto' }}>
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      style={{ padding: '1.25rem 2.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', fontWeight: 700, cursor: 'pointer', color: '#64748b', transition: 'all 0.2s' }}
+                      style={{ padding: '0.85rem 1.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', color: '#64748b', transition: 'all 0.2s', width: isMobile ? '100%' : 'auto', fontSize: '0.8rem' }}
                     >
                       DISCARD CHANGES
                     </button>
@@ -2317,7 +2424,7 @@ export default function SellerDashboard() {
                         type="button"
                         disabled={saving}
                         onClick={() => handleAddProduct(null, true)}
-                        style={{ padding: '1.25rem 2.5rem', background: '#fcfdfc', border: '1px solid #1b2d2a', color: '#1b2d2a', borderRadius: '16px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1 }}
+                        style={{ padding: '0.85rem 1.5rem', background: '#fcfdfc', border: '1px solid #1b2d2a', color: '#1b2d2a', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, width: isMobile ? '100%' : 'auto', fontSize: '0.8rem' }}
                       >
                         SAVE & ADD ANOTHER
                       </button>
@@ -2327,7 +2434,7 @@ export default function SellerDashboard() {
                       type="submit"
                       form="product-form"
                       disabled={saving}
-                      style={{ padding: '1.25rem 4rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '16px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 10px 30px rgba(27,45,42,0.2)', minWidth: '240px' }}
+                      style={{ padding: '0.85rem 2rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(27,45,42,0.15)', minWidth: isMobile ? '100%' : '200px', fontSize: '0.8rem' }}
                       onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
                       onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                     >

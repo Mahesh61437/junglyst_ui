@@ -171,6 +171,7 @@ export default function Checkout() {
                   }
                 ]
               },
+              //enable this when scope for other payments are increased
               //   other: {
               //     name: "Other Payment Modes",
               //     instruments: [
@@ -195,7 +196,7 @@ export default function Checkout() {
               razorpay_signature: paymentResponse.razorpay_signature,
             });
             await clearCart();
-            navigate('/checkout/success', { state: { order } });
+            navigate('/orders');
           } catch {
             setError('Payment verified but order confirmation failed. Please contact support.');
             setLoading(false);
@@ -403,12 +404,14 @@ export default function Checkout() {
                 const variant = item.variant_details || (item.variant && typeof item.variant === 'object' ? item.variant : {});
                 return (
                   <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc' }}>
+                    <Link to={`/product/${product.slug || product.id}`} style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc', display: 'block' }}>
                       <img src={getImageUrl(variant.image_url || product.image_url || product.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} />
-                    </div>
+                    </Link>
                     <div style={{ flexGrow: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#1b2d2a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{product.name || 'Botanical Specimen'}</h4>
+                        <Link to={`/product/${product.slug || product.id}`} style={{ textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
+                          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#1b2d2a' }}>{product.name || 'Botanical Specimen'}</h4>
+                        </Link>
                         <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
                           <Trash2 size={14} />
                         </button>
