@@ -6,6 +6,7 @@ import { OrderService } from '../services/OrderService';
 import api from '../services/api';
 import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
+import { load } from '@cashfreepayments/cashfree-js';
 
 export default function Checkout() {
   const { cart, cartId, clearCart, removeItem } = useCart();
@@ -142,81 +143,41 @@ export default function Checkout() {
       }
 
       const response = await OrderService.checkout(checkoutData);
-      const { order, razorpay_order_id, amount } = response;
+      const { order, payment_session_id, cashfree_order_id, amount } = response;
 
-      if (!razorpay_order_id) throw new Error('Payment session could not be created. Please try again.');
+      if (!payment_session_id) throw new Error('Payment session could not be created. Please try again.');
 
-      const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-      const rzp = new window.Razorpay({
-        key: rzpKey,
-        amount: Math.round(amount * 100),
-        currency: 'INR',
-        name: 'Junglyst',
-        description: `Order ${order.order_number}`,
-        order_id: razorpay_order_id,
-        prefill: {
-          name: shipping.full_name || '',
-          email: shipping.email || '',
-          contact: shipping.phone || '',
-        },
-        config: {
-          display: {
-            blocks: {
-              upi: {
-                name: "Pay via UPI",
-                instruments: [
-                  {
-                    method: "upi",
-                    flows: ["collect", "intent", "qr"]
-                  }
-                ]
-              },
-              //enable this when scope for other payments are increased
-              //   other: {
-              //     name: "Other Payment Modes",
-              //     instruments: [
-              //       { method: "card" },
-              //       { method: "netbanking" },
-              //       { method: "wallet" }
-              //     ]
-              //   }
-            },
-            sequence: ["block.upi", "block.other"],
-            preferences: {
-              show_default_blocks: true
-            }
-          }
-        },
-        theme: { color: '#1b2d2a' },
-        handler: async (paymentResponse) => {
-          try {
-            await OrderService.verifyPayment({
-              razorpay_order_id: paymentResponse.razorpay_order_id,
-              razorpay_payment_id: paymentResponse.razorpay_payment_id,
-              razorpay_signature: paymentResponse.razorpay_signature,
-            });
-            await clearCart();
+      // Initialize Cashfree
+      const cashfree = await load({
+        mode: import.meta.env.VITE_CASHFREE_MODE || 'sandbox'
+      });
+
+      const checkoutOptions = {
+        paymentSessionId: payment_session_id,
+        redirectTarget: "_modal",
+      };
+
+      cashfree.checkout(checkoutOptions).then((result) => {
+        if (result.error) {
+          setError('Payment failed. Please try again.');
+          setLoading(false);
+        } else if (result.paymentDetails) {
+          // Payment successful
+          OrderService.verifyPayment({
+            cashfree_order_id: cashfree_order_id,
+          }).then(() => {
+            clearCart();
             navigate('/orders');
-          } catch {
+          }).catch(() => {
             setError('Payment verified but order confirmation failed. Please contact support.');
             setLoading(false);
-          }
-        },
-        modal: {
-          ondismiss: async () => {
-            setLoading(false);
-            setError('Payment was cancelled. Your order has not been placed.');
-            if (user && order?.id) {
-              try {
-                await api.post(`/orders/${order.id}/cancel/`);
-              } catch (e) {
-                console.error('Failed to cancel order on the backend', e);
-              }
-            }
-          }
+          });
         }
+      }).catch((error) => {
+        console.error('Cashfree checkout error:', error);
+        setError('Payment initialization failed. Please try again.');
+        setLoading(false);
       });
-      rzp.open();
     } catch (err) {
       console.error('Checkout failed:', err);
       setError(err.response?.data?.error || err.message || 'Something went wrong. Please try again.');
@@ -381,7 +342,7 @@ export default function Checkout() {
                 <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '5px solid var(--brand-gold)', backgroundColor: 'white', flexShrink: 0 }} />
                 <div style={{ flexGrow: 1 }}>
                   <span style={{ fontWeight: 800, color: '#1b2d2a', display: 'block', fontSize: '0.95rem' }}>Secure Botanical Checkout</span>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Cards, UPI, NetBanking · Razorpay Secured</span>
+                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Cards, UPI, NetBanking · Cashfree Secured</span>
                 </div>
                 <ShieldCheck size={20} color="var(--brand-gold)" />
               </div>
