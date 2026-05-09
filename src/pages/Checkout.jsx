@@ -152,9 +152,13 @@ export default function Checkout() {
         mode: import.meta.env.VITE_CASHFREE_MODE || 'sandbox'
       });
 
+      if (!cashfree) throw new Error('Payment SDK could not be initialized. Please refresh and try again.');
+
+      // Hosted checkout (backend enforces UPI-only)
       const checkoutOptions = {
         paymentSessionId: payment_session_id,
         redirectTarget: "_modal",
+        components: ["order-details", "upi"],
       };
 
       cashfree.checkout(checkoutOptions).then((result) => {
@@ -162,7 +166,6 @@ export default function Checkout() {
           setError('Payment failed. Please try again.');
           setLoading(false);
         } else if (result.paymentDetails) {
-          // Payment successful
           OrderService.verifyPayment({
             cashfree_order_id: cashfree_order_id,
           }).then(() => {
@@ -342,7 +345,7 @@ export default function Checkout() {
                 <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '5px solid var(--brand-gold)', backgroundColor: 'white', flexShrink: 0 }} />
                 <div style={{ flexGrow: 1 }}>
                   <span style={{ fontWeight: 800, color: '#1b2d2a', display: 'block', fontSize: '0.95rem' }}>Secure Botanical Checkout</span>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Cards, UPI, NetBanking · Cashfree Secured</span>
+                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>UPI (Collect/QR) · Cashfree Secured</span>
                 </div>
                 <ShieldCheck size={20} color="var(--brand-gold)" />
               </div>
