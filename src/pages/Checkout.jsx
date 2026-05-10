@@ -8,6 +8,23 @@ import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package } fro
 import { getImageUrl } from '../utils/imageUtils';
 import { load } from '@cashfreepayments/cashfree-js';
 
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => resolve(false));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function Checkout() {
   const { cart, cartId, clearCart, removeItem } = useCart();
   const { user } = useAuth();
@@ -143,8 +160,77 @@ export default function Checkout() {
       }
 
       const response = await OrderService.checkout(checkoutData);
-      const { order, payment_session_id, cashfree_order_id, amount } = response;
+      const { gateway } = response;
 
+      if (gateway === 'razorpay') {
+        const ok = await loadRazorpayScript();
+        if (!ok) throw new Error('Failed to load Razorpay. Please refresh and try again.');
+
+        const { razorpay_order_id, razorpay_key_id, amount, currency } = response;
+        const rzpAmount = Math.round(parseFloat(amount) * 100);
+
+        const options = {
+          key: razorpay_key_id,
+          amount: rzpAmount,
+          currency: currency || 'INR',
+          order_id: razorpay_order_id,
+          name: 'JungLyst',
+          description: 'Order payment',
+          // Restrict checkout modal to UPI and QR only
+          config: {
+            display: {
+              blocks: {
+                upi: {
+                  name: 'Pay via UPI',
+                  instruments: [
+                    { method: 'upi', flows: ['collect'] },
+                    { method: 'upi', flows: ['qr'] },
+                  ],
+                },
+              },
+              sequence: ['block.upi'],
+              preferences: { show_default_blocks: false },
+            },
+          },
+          handler: async function (rzpRes) {
+            try {
+              await OrderService.verifyPayment({
+                gateway: 'razorpay',
+                razorpay_order_id: rzpRes.razorpay_order_id,
+                razorpay_payment_id: rzpRes.razorpay_payment_id,
+                razorpay_signature: rzpRes.razorpay_signature,
+              });
+              clearCart();
+              navigate('/orders');
+            } catch (e) {
+              console.error('Razorpay verify failed:', e);
+              setError('Payment verified but order confirmation failed. Please contact support.');
+              setLoading(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+            }
+          },
+          prefill: {
+            name: shipping.full_name,
+            email: shipping.email,
+            contact: shipping.phone,
+          },
+          theme: { color: '#1b2d2a' }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function () {
+          setError('Payment failed. Please try again.');
+          setLoading(false);
+        });
+        rzp.open();
+        return;
+      }
+
+      const { payment_session_id, cashfree_order_id } = response;
       if (!payment_session_id) throw new Error('Payment session could not be created. Please try again.');
 
       // Initialize Cashfree

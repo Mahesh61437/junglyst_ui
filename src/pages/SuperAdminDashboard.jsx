@@ -213,6 +213,10 @@ export default function SuperAdminDashboard() {
   const [categories, setCategories] = useState([]);
   const [copyingProducts, setCopyingProducts] = useState({});
 
+  // Payment gateway toggle
+  const [paymentGateway, setPaymentGateway] = useState('cashfree');
+  const [paymentGatewaySaving, setPaymentGatewaySaving] = useState(false);
+
   // ── Data fetching ────────────────────────────────────────────────────────────
 
   const fetchPromoSellers = async () => {
@@ -520,7 +524,23 @@ export default function SuperAdminDashboard() {
     };
     fetchData();
     fetchPromoSellers();
+
+    api.get('/payments/gateway-settings/')
+      .then(res => setPaymentGateway(res.data.active_gateway || 'cashfree'))
+      .catch(() => setPaymentGateway('cashfree'));
   }, [user, authLoading, navigate]);
+
+  const setGateway = async (gw) => {
+    setPaymentGatewaySaving(true);
+    try {
+      const res = await api.patch('/payments/gateway-settings/', { active_gateway: gw });
+      setPaymentGateway(res.data.active_gateway);
+    } catch (e) {
+      alert('Failed to update payment gateway. Please try again.');
+    } finally {
+      setPaymentGatewaySaving(false);
+    }
+  };
 
   const authorizeSeller = async (sellerId) => {
     try {
@@ -592,6 +612,47 @@ export default function SuperAdminDashboard() {
       </header>
 
       <main style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+
+        {/* Payment Gateway Control */}
+        <section>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Payment Gateway
+          </h2>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '1.25rem', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '1rem', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 900, color: 'var(--bg-deep)', marginBottom: '0.25rem' }}>
+                Active gateway: {paymentGateway === 'razorpay' ? 'Razorpay' : 'Cashfree'}
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.4 }}>
+                This controls which payment mode customers see on Checkout.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+              {[
+                { id: 'cashfree', label: 'Cashfree (UPI/QR)' },
+                { id: 'razorpay', label: 'Razorpay' },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setGateway(opt.id)}
+                  disabled={paymentGatewaySaving}
+                  style={{
+                    padding: '0.6rem 1rem',
+                    borderRadius: '10px',
+                    border: paymentGateway === opt.id ? '2px solid var(--bg-deep)' : '1px solid #e2e8f0',
+                    backgroundColor: paymentGateway === opt.id ? '#f0fdf4' : 'white',
+                    cursor: paymentGatewaySaving ? 'not-allowed' : 'pointer',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    opacity: paymentGatewaySaving ? 0.6 : 1
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Analytics Summary */}
         <section>
@@ -913,6 +974,9 @@ export default function SuperAdminDashboard() {
                           <Clock size={14} /> <span style={{ color: 'var(--text-primary)' }}>{new Date(order.created_at).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                          <IndianRupee size={14} /> <span style={{ color: 'var(--text-primary)', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.75rem' }}>Paid via: {order.payment_gateway || '—'}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                           <User size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
@@ -939,6 +1003,7 @@ export default function SuperAdminDashboard() {
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Customer</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller Contact</th>
+                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Payment Via</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Status</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700, textAlign: 'right' }}>Amount</th>
                     </tr>
@@ -951,6 +1016,9 @@ export default function SuperAdminDashboard() {
                         <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</td>
                         <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_name}</td>
                         <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_contact}</td>
+                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                          {order.payment_gateway || '—'}
+                        </td>
                         <td style={{ padding: '1.25rem' }}>
                           <span style={{ backgroundColor: activeTab === 'pending' ? '#fef3c7' : activeTab === 'transit' ? '#e0f2fe' : '#dcfce7', color: activeTab === 'pending' ? '#92400e' : activeTab === 'transit' ? '#0369a1' : '#166534', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
                             {order.status}
@@ -960,7 +1028,7 @@ export default function SuperAdminDashboard() {
                       </tr>
                     ))}
                     {orders[activeTab].length === 0 && (
-                      <tr><td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</td></tr>
+                      <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</td></tr>
                     )}
                   </tbody>
                 </table>
