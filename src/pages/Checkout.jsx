@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +41,11 @@ export default function Checkout() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [verifying, setVerifying] = useState(false); // polling overlay state
+  // Ref to prevent empty-cart guard from redirecting to /cart after order is placed
+  const orderPlaced = useRef(false);
+  // Gateway order IDs stored so polling can query status after modal closes
+  const pendingGatewayId = useRef({ cashfree: null, razorpay: null });
 
   // Fetch saved addresses; pre-fill form from default or profile
   useEffect(() => {
@@ -76,7 +81,46 @@ export default function Checkout() {
       });
   }, [user]);
 
-  if (!cart || !cart.items || cart.items.length === 0) {
+  // ── Payment status polling (handles UPI in-processing / modal-close edge case) ──
+  const startPolling = (gatewayType, gatewayId) => {
+    setVerifying(true);
+    orderPlaced.current = true; // prevent empty-cart guard
+    const MAX_ATTEMPTS = 30; // 30 × 3s = 90 seconds
+    let attempts = 0;
+    const param = gatewayType === 'cashfree' ? 'cashfree_order_id' : 'razorpay_order_id';
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await api.get(`/orders/payment-status/?${param}=${gatewayId}`);
+        const { status: pStatus } = res.data;
+        if (pStatus === 'success') {
+          clearInterval(interval);
+          clearCart();
+          navigate('/orders');
+        } else if (pStatus === 'failed') {
+          clearInterval(interval);
+          orderPlaced.current = false;
+          setVerifying(false);
+          setError('Payment was not completed. Please try again.');
+        } else if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(interval);
+          orderPlaced.current = false;
+          setVerifying(false);
+          setError('Payment status is taking longer than expected. Check My Orders or contact support.');
+        }
+        // 'processing' → keep polling
+      } catch {
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(interval);
+          orderPlaced.current = false;
+          setVerifying(false);
+          setError('Could not verify payment status. Please check My Orders.');
+        }
+      }
+    }, 3000);
+  };
+
+  if (!orderPlaced.current && (!cart || !cart.items || cart.items.length === 0)) {
     navigate('/cart');
     return null;
   }
@@ -168,6 +212,8 @@ export default function Checkout() {
 
         const { razorpay_order_id, razorpay_key_id, amount, currency } = response;
         const rzpAmount = Math.round(parseFloat(amount) * 100);
+        // Store gateway ID for polling if modal closes during processing
+        pendingGatewayId.current.razorpay = razorpay_order_id;
 
         const options = {
           key: razorpay_key_id,
@@ -193,6 +239,10 @@ export default function Checkout() {
             },
           },
           handler: async function (rzpRes) {
+            // Mark order placed immediately so the empty-cart guard
+            // doesn't redirect to /cart while verifyPayment runs
+            orderPlaced.current = true;
+            setLoading(true);
             try {
               await OrderService.verifyPayment({
                 gateway: 'razorpay',
@@ -204,13 +254,22 @@ export default function Checkout() {
               navigate('/orders');
             } catch (e) {
               console.error('Razorpay verify failed:', e);
+              orderPlaced.current = false;
               setError('Payment verified but order confirmation failed. Please contact support.');
               setLoading(false);
             }
           },
           modal: {
             ondismiss: function () {
-              setLoading(false);
+              // If handler already fired (success), do nothing
+              if (orderPlaced.current) return;
+              // Otherwise payment might be in-flight — start polling
+              const rzpId = pendingGatewayId.current.razorpay;
+              if (rzpId) {
+                startPolling('razorpay', rzpId);
+              } else {
+                setLoading(false);
+              }
             }
           },
           prefill: {
@@ -232,6 +291,8 @@ export default function Checkout() {
 
       const { payment_session_id, cashfree_order_id } = response;
       if (!payment_session_id) throw new Error('Payment session could not be created. Please try again.');
+      // Store gateway ID for polling if modal closes during processing
+      pendingGatewayId.current.cashfree = cashfree_order_id;
 
       // Initialize Cashfree
       const cashfree = await load({
@@ -252,15 +313,29 @@ export default function Checkout() {
           setError('Payment failed. Please try again.');
           setLoading(false);
         } else if (result.paymentDetails) {
+          // Mark order placed immediately so the empty-cart guard
+          // doesn't redirect to /cart while verifyPayment runs
+          orderPlaced.current = true;
+          setLoading(true);
           OrderService.verifyPayment({
             cashfree_order_id: cashfree_order_id,
           }).then(() => {
             clearCart();
             navigate('/orders');
           }).catch(() => {
+            orderPlaced.current = false;
             setError('Payment verified but order confirmation failed. Please contact support.');
             setLoading(false);
           });
+        } else {
+          // Modal closed without success or error — payment may still be processing
+          // (e.g. user entered PIN then closed the app before bank responded)
+          const cfId = pendingGatewayId.current.cashfree;
+          if (cfId) {
+            startPolling('cashfree', cfId);
+          } else {
+            setLoading(false);
+          }
         }
       }).catch((error) => {
         console.error('Cashfree checkout error:', error);
@@ -288,6 +363,38 @@ export default function Checkout() {
 
   return (
     <div className="container" style={{ padding: '4rem 1rem 10rem' }}>
+
+      {/* ── Payment Verifying Overlay ── */}
+      {verifying && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          backgroundColor: 'rgba(27, 45, 42, 0.92)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '1.5rem',
+          backdropFilter: 'blur(8px)',
+        }}>
+          {/* Spinner */}
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            border: '4px solid rgba(255,255,255,0.15)',
+            borderTopColor: '#a3c4a8',
+            animation: 'spin 0.9s linear infinite',
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: 'white', fontWeight: 800, fontSize: '1.2rem', margin: 0 }}>
+              Verifying your payment…
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', marginTop: '0.5rem' }}>
+              Please don't close this page. This may take up to 90 seconds.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5 }}>
+            <ShieldCheck size={14} color="#a3c4a8" />
+            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>Secured by UPI</span>
+          </div>
+        </div>
+      )}
       <div style={{ marginBottom: '3rem' }}>
         <Link to="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
           <ArrowLeft size={14} /> Back to Collection
