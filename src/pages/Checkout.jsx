@@ -92,11 +92,11 @@ export default function Checkout() {
       attempts++;
       try {
         const res = await api.get(`/orders/payment-status/?${param}=${gatewayId}`);
-        const { status: pStatus } = res.data;
+        const { status: pStatus, order } = res.data;
         if (pStatus === 'success') {
           clearInterval(interval);
           clearCart();
-          navigate('/orders');
+          navigate('/checkout/success', { state: { order } });
         } else if (pStatus === 'failed') {
           clearInterval(interval);
           orderPlaced.current = false;
@@ -244,14 +244,14 @@ export default function Checkout() {
             orderPlaced.current = true;
             setLoading(true);
             try {
-              await OrderService.verifyPayment({
+              const response = await OrderService.verifyPayment({
                 gateway: 'razorpay',
                 razorpay_order_id: rzpRes.razorpay_order_id,
                 razorpay_payment_id: rzpRes.razorpay_payment_id,
                 razorpay_signature: rzpRes.razorpay_signature,
               });
               clearCart();
-              navigate('/orders');
+              navigate('/checkout/success', { state: { order: response.order } });
             } catch (e) {
               console.error('Razorpay verify failed:', e);
               orderPlaced.current = false;
@@ -319,9 +319,9 @@ export default function Checkout() {
           setLoading(true);
           OrderService.verifyPayment({
             cashfree_order_id: cashfree_order_id,
-          }).then(() => {
+          }).then((response) => {
             clearCart();
-            navigate('/orders');
+            navigate('/checkout/success', { state: { order: response.order } });
           }).catch(() => {
             orderPlaced.current = false;
             setError('Payment verified but order confirmation failed. Please contact support.');
