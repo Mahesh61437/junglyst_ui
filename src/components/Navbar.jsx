@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -464,6 +464,12 @@ export default function Navbar() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <Link to="/profile" state={{ tab: 'identity' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <User size={18} /> Identity Details
+                  </Link>
+                  <Link to="/orders" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Package size={18} /> My Orders
+                  </Link>
+                  <Link to="/track" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Truck size={18} /> Track Order
                   </Link>
                   <Link to="/profile" state={{ tab: 'history' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <Package size={18} /> Acquisition History
