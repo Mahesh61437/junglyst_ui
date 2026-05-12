@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { ProductService } from '../services/ProductService';
@@ -9,7 +9,8 @@ import { Search, X, Leaf, SlidersHorizontal, Check } from 'lucide-react';
 export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState('Featured');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -48,28 +49,79 @@ export default function Shop() {
   }, []);
 
   const [page, setPage] = useState(1);
+  const gridRef = useRef(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', page],
-    queryFn: async () => {
-      const res = await ProductService.getProducts({ page });
-      return res;
-    },
+  // ── Derive API query params from filter state ──────────────────────────────
+  const activeCats = useMemo(
+    () => Object.keys(categories).filter(cat => categories[cat]),
+    [categories],
+  );
+  const activeDiffs = useMemo(
+    () => Object.keys(difficulties).filter(k => difficulties[k]),
+    [difficulties],
+  );
+
+  const sortParam = useMemo(() => {
+    if (sortBy === 'Price: Low to High') return 'price';
+    if (sortBy === 'Price: High to Low') return '-price';
+    return '-rating'; // Featured → sort by rating desc
+  }, [sortBy]);
+
+  // Build the full params object sent to the API
+  const apiParams = useMemo(() => {
+    const p = { page, ordering: sortParam };
+    if (searchTerm.trim()) p.search = searchTerm.trim();
+    if (activeCats.length === 1) p.category = activeCats[0];   // single cat filter
+    if (activeDiffs.length > 0) p.care_level = activeDiffs.join(',');
+    return p;
+  }, [page, sortParam, searchTerm, activeCats, activeDiffs]);
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['products', apiParams],
+    queryFn: () => ProductService.getProducts(apiParams),
+    keepPreviousData: true,   // smooth transition between pages
+    staleTime: 30_000,
   });
 
+  // ── Derived product list & pagination ─────────────────────────────────────
   const products = data?.results || [];
-  const activeProducts = useMemo(() => products.filter((p) => p?.is_active !== false), [products]);
-  const totalCount = activeProducts.length;
-  const totalPages = Math.ceil(totalCount / 20);
+  const totalCount = data?.count ?? 0;
+  const PAGE_SIZE = 20;  // must match backend page_size
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // Client-side filter only when multiple categories selected (API doesn't support OR filter natively)
+  const displayedProducts = useMemo(() => {
+    let list = products.filter(p => p?.is_active !== false);
+
+    // Multi-category OR filter client side (single cat is already handled server-side)
+    if (activeCats.length > 1) {
+      list = list.filter(product => {
+        const matchesCat = activeCats.includes(product.category);
+        const matchesSub = product.sub_category && activeCats.includes(product.sub_category.name);
+        return matchesCat || matchesSub;
+      });
+    }
+
+    return list;
+  }, [products, activeCats]);
+
+  // ── Sync URL category param into filter state ──────────────────────────────
   useEffect(() => {
     if (category) {
       setCategories(prev => ({
         ...Object.keys(prev).reduce((acc, k) => ({ ...acc, [k]: false }), {}),
         [category]: true,
       }));
+      setPage(1);
     }
   }, [category]);
+
+  // ── Scroll to grid top on page change ─────────────────────────────────────
+  useEffect(() => {
+    if (gridRef.current) {
+      gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [page]);
 
   const handleCategoryChange = (cat) => {
     setCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -81,6 +133,15 @@ export default function Shop() {
     setPage(1);
   };
 
+  // Sync search from URL
+  useEffect(() => {
+    const query = searchParams.get('search') || '';
+    if (query !== searchTerm) {
+      setSearchTerm(query);
+    }
+    setPage(1);
+  }, [searchParams, sortBy]);
+
   const clearAllFilters = () => {
     setCategories(Object.keys(categories).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
     setDifficulties(Object.keys(difficulties).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
@@ -89,38 +150,25 @@ export default function Shop() {
     if (category) navigate('/shop');
   };
 
-  const filteredProducts = useMemo(() => {
-    return activeProducts.filter(product => {
-      if (searchTerm) {
-        const query = searchTerm.toLowerCase();
-        const matchesName = (product.name || product.title || '').toLowerCase().includes(query);
-        if (!matchesName) return false;
-      }
-      const activeCats = Object.keys(categories).filter(cat => categories[cat]);
-      if (activeCats.length > 0) {
-        const matchesCategory = activeCats.includes(product.category);
-        const matchesSubCategory = product.sub_category && activeCats.includes(product.sub_category.name);
-        if (!matchesCategory && !matchesSubCategory) return false;
-      }
-      const activeDiffs = Object.keys(difficulties).filter(k => difficulties[k]);
-      if (activeDiffs.length > 0 && (!product.care_level || !activeDiffs.includes(product.care_level))) return false;
-      return true;
-    });
-  }, [activeProducts, categories, difficulties, searchTerm]);
-
-  const displayedProducts = useMemo(() => {
-    let sorted = [...filteredProducts];
-    if (sortBy === 'Price: Low to High') sorted.sort((a, b) => a.price - b.price);
-    else if (sortBy === 'Price: High to Low') sorted.sort((a, b) => b.price - a.price);
-    else sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    return sorted;
-  }, [filteredProducts, sortBy]);
-
   const activeFilterCount =
     Object.values(categories).filter(Boolean).length +
     Object.values(difficulties).filter(Boolean).length;
 
   const hasActiveFilters = activeFilterCount > 0 || !!searchTerm;
+
+  // ── Pagination page numbers with ellipsis ─────────────────────────────────
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages = new Set([1, totalPages, page]);
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.add(i);
+    const sorted = [...pages].sort((a, b) => a - b);
+    const result = [];
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push('…');
+      result.push(sorted[i]);
+    }
+    return result;
+  }, [totalPages, page]);
 
   // ─── Shared filter content (used in both sidebar + bottom sheet) ──────────
   const FilterContent = () => (
@@ -219,12 +267,12 @@ export default function Shop() {
   );
 
   return (
-    <div className="container" style={{ padding: '2rem 1rem', minHeight: '80vh', fontFamily: 'var(--font-sans)' }}>
+    <div className="container" style={{ padding: '4rem 1.5rem', minHeight: '80vh', fontFamily: 'var(--font-sans)' }}>
 
       {/* ── Page Header ── */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: '3rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-serif)', margin: 0 }}>
+          <h1 style={{ fontSize: '2.25rem', fontFamily: 'var(--font-serif)', margin: '0 0 0.5rem 0' }}>
             The Collection
           </h1>
 
@@ -245,24 +293,6 @@ export default function Shop() {
             >
               <SlidersHorizontal size={18} />
             </button>
-
-            {/* Search bar */}
-            <div style={{ position: 'relative', flexGrow: 1 }}>
-              <input
-                type="text"
-                placeholder="Find a specimen…"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                style={{
-                  width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem',
-                  borderRadius: '10px', border: '1.5px solid #e2e8f0',
-                  fontSize: '0.85rem', outline: 'none', backgroundColor: 'white',
-                  fontFamily: 'var(--font-sans)',
-                  height: '40px'
-                }}
-              />
-              <Search size={16} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            </div>
           </div>
         </div>
       </div>
@@ -291,7 +321,7 @@ export default function Shop() {
               />
 
               {/* Sheet panel */}
-              <motion.div 
+              <motion.div
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
@@ -389,14 +419,16 @@ export default function Shop() {
         </AnimatePresence>
 
         {/* ── Product Grid ── */}
-        <div style={{ flexGrow: 1, minWidth: 0 }}>
+        <div ref={gridRef} style={{ flexGrow: 1, minWidth: 0 }}>
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem',
           }}>
             <p style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 700 }}>
-              {displayedProducts.length} result{displayedProducts.length !== 1 ? 's' : ''}
-              {hasActiveFilters ? ' · filtered' : ''}
+              {isFetching && !isLoading
+                ? 'Updating…'
+                : `${totalCount} result${totalCount !== 1 ? 's' : ''}${hasActiveFilters ? ' · filtered' : ''}`
+              }
             </p>
             <select
               value={sortBy}
@@ -417,7 +449,14 @@ export default function Shop() {
             <div style={{ textAlign: 'center', padding: '8rem 0', color: '#9ca3af' }}>Assembling catalog…</div>
           ) : (
             <>
-              <div className="grid-responsive" style={{ display: 'grid' }}>
+              <motion.div
+                key={page}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="grid-responsive"
+                style={{ display: 'grid' }}
+              >
                 {displayedProducts.map(product => (
                   (() => {
                     const variant = Array.isArray(product.variants) ? product.variants?.[0] : null;
@@ -433,59 +472,91 @@ export default function Shop() {
                     const price = parseFloat(product.price ?? NaN);
                     const originalPrice = Number.isFinite(basePrice) && Number.isFinite(price) && basePrice > price ? basePrice : undefined;
                     return (
-                  <ProductCard
-                    key={product.id}
-                    {...product}
-                    originalPrice={originalPrice}
-                  />
+                      <ProductCard
+                        key={product.id}
+                        {...product}
+                        originalPrice={originalPrice}
+                      />
                     );
                   })()
                 ))}
-              </div>
+              </motion.div>
 
-              {/* Pagination */}
+              {/* ── Pagination ── */}
               {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem', marginTop: '5rem' }}>
+                  {/* Previous */}
                   <button
                     disabled={page === 1}
                     onClick={() => setPage(p => p - 1)}
                     style={{
-                      padding: '0.7rem 1.4rem', borderRadius: '10px',
+                      padding: '0.6rem 1.1rem', borderRadius: '10px',
                       border: '1.5px solid #e2e8f0', backgroundColor: 'white',
                       fontSize: '0.8rem', fontWeight: 700,
                       cursor: page === 1 ? 'not-allowed' : 'pointer',
                       opacity: page === 1 ? 0.4 : 1,
+                      transition: 'opacity 0.15s',
+                      fontFamily: 'var(--font-sans)',
                     }}
-                  >Previous</button>
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    {[...Array(totalPages)].map((_, i) => (
+                  >
+                    ← Prev
+                  </button>
+
+                  {/* Page numbers with ellipsis */}
+                  {pageNumbers.map((num, idx) =>
+                    num === '…' ? (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        style={{ padding: '0 0.25rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}
+                      >
+                        …
+                      </span>
+                    ) : (
                       <button
-                        key={i}
-                        onClick={() => setPage(i + 1)}
+                        key={num}
+                        onClick={() => setPage(num)}
                         style={{
-                          width: '38px', height: '38px', borderRadius: '10px', border: 'none',
-                          backgroundColor: page === i + 1 ? '#0A3029' : 'transparent',
-                          color: page === i + 1 ? 'white' : '#64748b',
-                          fontWeight: 700, cursor: 'pointer',
+                          width: '38px', height: '38px', borderRadius: '10px',
+                          border: page === num ? 'none' : '1.5px solid #e2e8f0',
+                          backgroundColor: page === num ? '#0A3029' : 'white',
+                          color: page === num ? 'white' : '#64748b',
+                          fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                          transition: 'all 0.15s',
+                          fontFamily: 'var(--font-sans)',
                         }}
-                      >{i + 1}</button>
-                    ))}
-                  </div>
+                      >
+                        {num}
+                      </button>
+                    )
+                  )}
+
+                  {/* Next */}
                   <button
                     disabled={page === totalPages}
                     onClick={() => setPage(p => p + 1)}
                     style={{
-                      padding: '0.7rem 1.4rem', borderRadius: '10px',
+                      padding: '0.6rem 1.1rem', borderRadius: '10px',
                       border: '1.5px solid #e2e8f0', backgroundColor: 'white',
                       fontSize: '0.8rem', fontWeight: 700,
                       cursor: page === totalPages ? 'not-allowed' : 'pointer',
                       opacity: page === totalPages ? 0.4 : 1,
+                      transition: 'opacity 0.15s',
+                      fontFamily: 'var(--font-sans)',
                     }}
-                  >Next</button>
+                  >
+                    Next →
+                  </button>
                 </div>
               )}
 
-              {displayedProducts.length === 0 && (
+              {/* Page indicator */}
+              {totalPages > 1 && (
+                <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
+                  Page {page} of {totalPages}
+                </p>
+              )}
+
+              {displayedProducts.length === 0 && !isLoading && (
                 <div style={{
                   padding: '6rem 2rem', textAlign: 'center',
                   backgroundColor: '#fcfdfc', borderRadius: '24px',

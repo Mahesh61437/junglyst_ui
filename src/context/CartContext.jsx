@@ -9,7 +9,6 @@ export const useCart = () => useContext(CartContext);
 
 // ── Shipping fee constants (SHIP-002 spec) ───────────────────────────────────
 const MAX_SELLERS = 3;
-const MIN_SELLER_SUBTOTAL = 500;
 const MAX_ITEM_QUANTITY = 10;
 
 const LIGHT_TIERS = [
@@ -69,7 +68,6 @@ function calculateFinancials(items = [], deliveryZone = null) {
         items: [],
         subtotal: 0,
         has_heavy: false,
-        below_minimum: false,
         shipping_fee: 0,
         nudge: null,
       };
@@ -84,7 +82,7 @@ function calculateFinancials(items = [], deliveryZone = null) {
     if (cat === 'heavy') seller_groups[sellerId].has_heavy = true;
   }
 
-  // 3. Per-seller shipping fee + nudge + min-order flag
+  // 3. Per-seller nudge + min-order flag; shipping is calculated once for the whole cart
   let shipping_total = 0;
   const sellerIds = Object.keys(seller_groups);
 
@@ -97,14 +95,14 @@ function calculateFinancials(items = [], deliveryZone = null) {
       g.shipping_fee = sellerShippingFee(g.subtotal, g.has_heavy);
       g.nudge = nudgeForSeller(g.subtotal, g.has_heavy, storeName);
     }
-    g.below_minimum = g.subtotal < MIN_SELLER_SUBTOTAL;
-    shipping_total += g.shipping_fee;
   }
 
   const subtotal = adjustedItems.reduce((acc, item) => {
     return acc + parseFloat(item.variant?.price || item.product?.price || 0) * item.quantity;
   }, 0);
   const total_items = adjustedItems.reduce((acc, item) => acc + item.quantity, 0);
+  const hasHeavy = Object.values(seller_groups).some(g => g.has_heavy);
+  shipping_total = deliveryZone === 'E' ? 0 : sellerShippingFee(subtotal, hasHeavy);
 
   return {
     items: adjustedItems,
@@ -342,7 +340,6 @@ export const CartProvider = ({ children }) => {
       clearCart,
       fetchCart: syncCartWithBackend,
       MAX_SELLERS,
-      MIN_SELLER_SUBTOTAL,
       MAX_ITEM_QUANTITY,
       LIGHT_FREE_THRESHOLD,
       HEAVY_FREE_THRESHOLD,

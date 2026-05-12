@@ -53,7 +53,7 @@ function MoreFromSeller({ sellerId, sellerName, currentProductId }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.25rem' }}>
         {items.map(p => {
-          const img = p.primary_image || p.images?.[0]?.image_url || p.image_url;
+          const img = p.image || p.primary_image || p.images?.[0]?.image_url || p.image_url;
           const price = p.variants?.[0]?.price || p.price;
           return (
             <Link key={p.id} to={`/product/${p.slug || p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -807,7 +807,7 @@ export default function ProductDetails() {
           <MoreFromSeller sellerId={product.seller?.id} sellerName={product.seller?.seller_profile?.store_name || product.seller?.username} currentProductId={product.id} />
           <Recommendations category={product.category?.name || product.category} currentProductId={product.id} />
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0 }} />
-          <ReviewSection productId={id} />
+          <ReviewSection productId={product.id} />
         </div>
       </div>
       <style>{`

@@ -16,6 +16,9 @@ import Signup from './pages/Signup';
 import Wishlist from './pages/Wishlist';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import ShippingPolicy from './pages/ShippingPolicy';
+import RefundPolicy from './pages/RefundPolicy';
+import SellerPolicy from './pages/SellerPolicy';
 import Profile from './pages/Profile';
 import About from './pages/About';
 import Contact from './pages/Contact';
@@ -63,6 +66,9 @@ function App() {
                 <Route path="sellers" element={<VerifiedSellers />} />
                 <Route path="terms" element={<Terms />} />
                 <Route path="privacy" element={<Privacy />} />
+                <Route path="shipping-policy" element={<ShippingPolicy />} />
+                <Route path="refund-policy" element={<RefundPolicy />} />
+                <Route path="seller-policy" element={<SellerPolicy />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="about" element={<About />} />
                 <Route path="contact" element={<Contact />} />

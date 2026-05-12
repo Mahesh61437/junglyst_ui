@@ -138,10 +138,10 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
         <div style={{ flexGrow: 1 }} />
 
         {/* ── Footer: price + cart action ──────────────────────────────── */}
-        <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <div className="product-card-footer" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
 
           {/* Price */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0, flex: '1 1 0%' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
               {minPrice !== maxPrice && (
                 <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>from</span>
@@ -165,24 +165,24 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
             <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sold Out</span>
           ) : quantityInCart > 0 ? (
             // Quantity stepper — gold border, deep green buttons, matches brand
-            <div onClick={e => e.stopPropagation()}
-              style={{ display: 'flex', alignItems: 'center', borderRadius: '10px', overflow: 'hidden', flexShrink: 0 }}>
+            <div className="cart-stepper" onClick={e => e.stopPropagation()}
+              style={{ display: 'flex', alignItems: 'center', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, minWidth: 0 }}>
               <button onClick={handleRemove}
-                style={{ width: '32px', height: '32px', border: 'none', backgroundColor: 'var(--brand-gold)', color: 'var(--bg-deep)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.9rem' }}>
+                style={{ width: '32px', height: '32px', border: 'none', backgroundColor: 'var(--brand-gold)', color: 'var(--bg-deep)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.9rem', minWidth: 0 }}>
                 <Minus size={11} strokeWidth={3} />
               </button>
               <span style={{ minWidth: '28px', textAlign: 'center', fontSize: '0.82rem', fontWeight: 800, color: 'var(--bg-deep)', backgroundColor: 'white', lineHeight: '32px' }}>
                 {quantityInCart}
               </span>
               <button onClick={handleAdd}
-                style={{ width: '32px', height: '32px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'var(--brand-gold)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>
+                style={{ width: '32px', height: '32px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'var(--brand-gold)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, minWidth: 0 }}>
                 <Plus size={11} strokeWidth={3} />
               </button>
             </div>
           ) : (
             // Add to cart — pill button, deep green bg, gold text
-            <button onClick={handleAdd}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', borderRadius: '10px', backgroundColor: 'var(--bg-deep)', color: 'var(--brand-gold)', border: '1.5px solid var(--bg-deep)', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 800, flexShrink: 0, letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'background-color 0.18s, color 0.18s, transform 0.15s', whiteSpace: 'nowrap' }}
+            <button className="add-to-cart-btn" onClick={handleAdd}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', borderRadius: '10px', backgroundColor: 'var(--bg-deep)', color: 'var(--brand-gold)', border: '1.5px solid var(--bg-deep)', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 800, flexShrink: 0, letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'background-color 0.18s, color 0.18s, transform 0.15s', whiteSpace: 'nowrap', minWidth: 0 }}
               onMouseOver={e => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = 'var(--bg-deep)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
               onMouseOut={e => { e.currentTarget.style.backgroundColor = 'var(--bg-deep)'; e.currentTarget.style.color = 'var(--brand-gold)'; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
@@ -198,6 +198,30 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
         .product-card:hover .pc-img { transform: scale(1.06); }
         @media (max-width: 640px) {
           .product-card:hover { transform: none; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        }
+        @media (max-width: 420px) {
+          .product-card-footer {
+            flex-wrap: wrap !important;
+            justify-content: space-between !important;
+          }
+          .product-card-footer > div,
+          .product-card-footer > button,
+          .product-card-footer > .cart-stepper {
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+          }
+          .add-to-cart-btn {
+            padding: 0.45rem 0.65rem !important;
+            font-size: 0.72rem !important;
+          }
+          .cart-stepper button {
+            width: 28px !important;
+            height: 28px !important;
+          }
+          .cart-stepper span {
+            min-width: 24px !important;
+            line-height: 28px !important;
+          }
         }
       `}</style>
     </div>

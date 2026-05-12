@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Upload, X } from 'lucide-react';
 import { ReviewService } from '../services/ReviewService';
 
 export default function ReviewSection({ productId }) {
@@ -13,8 +13,11 @@ export default function ReviewSection({ productId }) {
   const [plantsRating, setPlantsRating] = useState(0);
   const [packagingRating, setPackagingRating] = useState(0);
   const [responsivenessRating, setResponsivenessRating] = useState(0);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchReviews();
@@ -31,24 +34,58 @@ export default function ReviewSection({ productId }) {
     }
   };
 
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!author || plantsRating === 0 || packagingRating === 0 || responsivenessRating === 0) {
-      alert("Please fill out all ratings and provide your name.");
+    const nextErrors = {};
+
+    if (!author.trim()) {
+      nextErrors.author = 'Please enter your name.';
+    }
+    if (plantsRating === 0) {
+      nextErrors.plants = 'Please rate plant quality.';
+    }
+    if (packagingRating === 0) {
+      nextErrors.packaging = 'Please rate packaging.';
+    }
+    if (responsivenessRating === 0) {
+      nextErrors.responsiveness = 'Please rate seller responsiveness.';
+    }
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
+
     setSubmitting(true);
     try {
       const newReview = await ReviewService.submitReview({
-        productId: parseInt(productId),
-        author,
-        comment,
+        productId,
+        author: author.trim(),
+        comment: comment.trim(),
         plants: plantsRating,
         packaging: packagingRating,
         responsiveness: responsivenessRating
       });
       setReviews([newReview, ...reviews]);
       setShowForm(false);
+      setErrors({});
       
       // Reset form
       setAuthor('');
@@ -57,7 +94,7 @@ export default function ReviewSection({ productId }) {
       setPackagingRating(0);
       setResponsivenessRating(0);
     } catch (error) {
-      alert("Failed to submit review.");
+      setErrors({ submit: 'Unable to submit review. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -124,8 +161,11 @@ export default function ReviewSection({ productId }) {
             <div>
               <div style={{ marginBottom: '1.5rem' }}>
                 <StarRatingInput label="Plant Quality & Health" value={plantsRating} onChange={setPlantsRating} />
+                {errors.plants && <p style={{ margin: '0.25rem 0 0', color: '#f87171', fontSize: '0.8rem' }}>{errors.plants}</p>}
                 <StarRatingInput label="Expert Packaging" value={packagingRating} onChange={setPackagingRating} />
+                {errors.packaging && <p style={{ margin: '0.25rem 0 0', color: '#f87171', fontSize: '0.8rem' }}>{errors.packaging}</p>}
                 <StarRatingInput label="Seller Responsiveness" value={responsivenessRating} onChange={setResponsivenessRating} />
+                {errors.responsiveness && <p style={{ margin: '0.25rem 0 0', color: '#f87171', fontSize: '0.8rem' }}>{errors.responsiveness}</p>}
               </div>
             </div>
             
@@ -136,9 +176,10 @@ export default function ReviewSection({ productId }) {
                   type="text" 
                   value={author} 
                   onChange={e => setAuthor(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: `1px solid ${errors.author ? '#f87171' : '#cbd5e1'}` }}
                   placeholder="e.g. Rahul M."
                 />
+                {errors.author && <p style={{ margin: '0.5rem 0 0', color: '#f87171', fontSize: '0.8rem' }}>{errors.author}</p>}
               </div>
               
               <div>
@@ -151,10 +192,37 @@ export default function ReviewSection({ productId }) {
                 />
               </div>
               
+              {errors.submit && <p style={{ color: '#f87171', fontSize: '0.9rem', margin: 0 }}>{errors.submit}</p>}
+              
+              {/* Image Upload */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>Add a Photo (Optional)</label>
+                {!imagePreview ? (
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '2rem', border: '2px dashed #cbd5e1', borderRadius: '8px', cursor: 'pointer', backgroundColor: '#f8fafc', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--brand-green)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#cbd5e1'; }}>
+                    <Upload size={20} color='#94a3b8' />
+                    <span style={{ fontSize: '0.875rem', color: '#64748b' }}>Click to upload image</span>
+                    <input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
+                  </label>
+                ) : (
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <img src={imagePreview} alt="Preview" style={{ width: '100%', maxWidth: '200px', height: '150px', objectFit: 'cover', borderRadius: '8px' }} />
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '0.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              
               <button 
                 type="submit" 
                 disabled={submitting}
-                style={{ alignSelf: 'flex-start', padding: '0.75rem 2rem', backgroundColor: 'var(--brand-green)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+                style={{ alignSelf: 'flex-start', padding: '0.75rem 2rem', backgroundColor: submitting ? '#94a3b8' : 'var(--brand-green)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
               >
                 {submitting ? 'Submitting...' : 'Post Review'}
               </button>
@@ -202,9 +270,14 @@ export default function ReviewSection({ productId }) {
                 </div>
               </div>
               
-              {/* Right side: Comment */}
-              <div>
-                <p style={{ color: 'var(--text-primary)', lineHeight: 1.6 }}>{review.comment}</p>
+              {/* Right side: Comment and Image */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <p style={{ color: 'var(--text-primary)', lineHeight: 1.6, margin: '0 0 0.5rem 0' }}>{review.comment}</p>
+                  {review.image_url && (
+                    <img src={review.image_url} alt="Review image" style={{ width: '100%', maxWidth: '300px', height: '200px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.75rem' }} />
+                  )}
+                </div>
               </div>
             </div>
           ))

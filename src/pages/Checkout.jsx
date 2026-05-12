@@ -24,6 +24,9 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const sellerGroups = cart?.seller_groups || {};
+  const deliveryBlocked = cart?.delivery_blocked;
+
   // Fetch saved addresses; pre-fill form from default or profile
   useEffect(() => {
     if (!user) {
@@ -85,6 +88,12 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (deliveryBlocked) {
+      setError("Delivery is not available for your selected address. Please update the address or contact support.");
+      return;
+    }
+
     setLoading(true);
     try {
       let checkoutAddressId = selectedAddressId;
@@ -141,8 +150,18 @@ export default function Checkout() {
         };
       }
 
+      if (shipping.pincode) {
+        checkoutData.pincode = shipping.pincode;
+      }
+
       const response = await OrderService.checkout(checkoutData);
-      const { order, razorpay_order_id, amount } = response;
+      const { order, razorpay_order_id, amount, mock_payment } = response;
+
+      if (mock_payment) {
+        await clearCart();
+        navigate('/checkout/success', { state: { order } });
+        return;
+      }
 
       if (!razorpay_order_id) throw new Error('Payment session could not be created. Please try again.');
 
@@ -417,15 +436,21 @@ export default function Checkout() {
               </div>
             )}
 
+            {deliveryBlocked && (
+              <div style={{ padding: '1rem', borderRadius: '12px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.88rem', marginBottom: '1rem' }}>
+                Delivery is not available for your selected delivery address. Please update the address or choose a different shipping pin code.
+              </div>
+            )}
+
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading}
+              disabled={loading || deliveryBlocked}
               style={{
                 width: '100%', padding: '1.25rem',
-                backgroundColor: loading ? '#94a3b8' : '#1b2d2a',
+                backgroundColor: loading || deliveryBlocked ? '#94a3b8' : '#1b2d2a',
                 color: 'white', border: 'none', borderRadius: '14px',
-                fontWeight: 800, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
                 transition: 'opacity 0.2s'
               }}

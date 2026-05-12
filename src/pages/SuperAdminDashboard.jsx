@@ -6,6 +6,7 @@ import {
   Package, Users, IndianRupee, Truck, CheckCircle, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
+  Tag, Layers, Percent, Weight, Trash2,
 } from 'lucide-react';
 
 // ─── shared label style ──────────────────────────────────────────────────────
@@ -169,6 +170,40 @@ function ProductForm({ form, setForm, categories, sellers, mode }) {
   );
 }
 
+// ─── Small helpers ────────────────────────────────────────────────────────────
+function StatChip({ label, value, color }) {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <p style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8', margin: '0 0 0.15rem' }}>{label}</p>
+      <p style={{ fontSize: '0.85rem', fontWeight: 800, color, margin: 0 }}>{value}</p>
+    </div>
+  );
+}
+
+function IconBtn({ icon, onClick, danger, title }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{ padding: '0.35rem', borderRadius: '6px', border: `1px solid ${danger ? '#fecaca' : '#e2e8f0'}`, background: danger ? '#fef2f2' : '#f8fafc', color: danger ? '#dc2626' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}
+    >{icon}</button>
+  );
+}
+
+function CatField({ label, value, onChange, type = 'text', placeholder = '' }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', marginBottom: '0.35rem', letterSpacing: '0.05em' }}>{label}</label>
+      {type === 'textarea'
+        ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={3}
+            style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+        : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+            style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+      }
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function SuperAdminDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -212,6 +247,14 @@ export default function SuperAdminDashboard() {
   // Misc
   const [categories, setCategories] = useState([]);
   const [copyingProducts, setCopyingProducts] = useState({});
+
+  // ── Category management state ─────────────────────────────────────────────
+  const [catExpanded, setCatExpanded] = useState({});
+  const [catModal, setCatModal] = useState(null);      // null | 'create-cat' | 'edit-cat' | 'create-sub' | 'edit-sub' | 'create-rate' | 'edit-rate'
+  const [catModalData, setCatModalData] = useState({}); // pre-fills for edit
+  const [catModalParent, setCatModalParent] = useState(null); // parent category id when creating sub/rate
+  const [catSaving, setCatSaving] = useState(false);
+  const [catError, setCatError] = useState('');
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -498,9 +541,47 @@ export default function SuperAdminDashboard() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
+  const refreshCategories = () => {
     api.get('/core/categories/').then(res => setCategories(res.data || [])).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { refreshCategories(); }, []);
+
+  // Category modal save handler
+  const saveCatModal = async () => {
+    setCatSaving(true); setCatError('');
+    try {
+      const d = catModalData;
+      if (catModal === 'create-cat') {
+        await api.post('/core/categories/', { name: d.name, description: d.description || '', gst_percentage: d.gst_percentage || '0', commission_rate: d.commission_rate || '0', shipping_type: d.shipping_type || 'plant' });
+      } else if (catModal === 'edit-cat') {
+        await api.patch(`/core/categories/${d.id}/`, { name: d.name, description: d.description, gst_percentage: d.gst_percentage, commission_rate: d.commission_rate, shipping_type: d.shipping_type });
+      } else if (catModal === 'create-sub') {
+        await api.post('/core/subcategories/', { category: catModalParent, name: d.name, description: d.description || '', gst_percentage: d.gst_percentage || null, commission_rate: d.commission_rate || null });
+      } else if (catModal === 'edit-sub') {
+        await api.patch(`/core/subcategories/${d.id}/`, { name: d.name, description: d.description, gst_percentage: d.gst_percentage || null, commission_rate: d.commission_rate || null });
+      } else if (catModal === 'create-rate') {
+        await api.post('/core/shipping-rates/', { category: catModalParent?.catId || null, sub_category: catModalParent?.subId || null, min_weight_grams: d.min_weight_grams || 0, max_weight_grams: d.max_weight_grams || null, rate: d.rate, free_above_order_value: d.free_above_order_value || null });
+      } else if (catModal === 'edit-rate') {
+        await api.patch(`/core/shipping-rates/${d.id}/`, { min_weight_grams: d.min_weight_grams, max_weight_grams: d.max_weight_grams || null, rate: d.rate, free_above_order_value: d.free_above_order_value || null });
+      }
+      setCatModal(null); setCatModalData({}); refreshCategories();
+    } catch (e) {
+      setCatError(e.response?.data ? JSON.stringify(e.response.data) : 'Save failed');
+    } finally {
+      setCatSaving(false);
+    }
+  };
+
+  const deleteCatItem = async (type, id) => {
+    if (!window.confirm('Delete this item? This cannot be undone.')) return;
+    try {
+      if (type === 'cat') await api.delete(`/core/categories/${id}/`);
+      else if (type === 'sub') await api.delete(`/core/subcategories/${id}/`);
+      else if (type === 'rate') await api.delete(`/core/shipping-rates/${id}/`);
+      refreshCategories();
+    } catch { alert('Delete failed'); }
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -969,7 +1050,186 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
+        {/* ── Categories & Subcategories Management ──────────────────────── */}
+        <section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Categories & Shipping Rates</h2>
+            <button onClick={() => { setCatModal('create-cat'); setCatModalData({}); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+              <Plus size={14} /> Add Category
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {categories.map(cat => (
+              <div key={cat.id} style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                {/* Category header row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', cursor: 'pointer', flexWrap: 'wrap' }}
+                  onClick={() => setCatExpanded(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))}>
+                  <div style={{ flex: 1, minWidth: '160px' }}>
+                    <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--bg-deep)', margin: '0 0 0.2rem' }}>{cat.name}</p>
+                    <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>
+                      {cat.shipping_type?.toUpperCase()} &nbsp;·&nbsp; {(cat.subcategories || []).length} subcategories &nbsp;·&nbsp; {(cat.shipping_rates || []).length} rate tiers
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                    <StatChip label="GST" value={`${cat.gst_percentage}%`} color="#f59e0b" />
+                    <StatChip label="Commission" value={`${cat.commission_rate}%`} color="#3b82f6" />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                    <IconBtn icon={<Edit2 size={13} />} onClick={e => { e.stopPropagation(); setCatModal('edit-cat'); setCatModalData({ ...cat }); }} title="Edit category" />
+                    <IconBtn icon={<Trash2 size={13} />} danger onClick={e => { e.stopPropagation(); deleteCatItem('cat', cat.id); }} title="Delete category" />
+                    {catExpanded[cat.id] ? <ChevronUp size={16} color="#94a3b8" /> : <ChevronDown size={16} color="#94a3b8" />}
+                  </div>
+                </div>
+
+                {catExpanded[cat.id] && (
+                  <div style={{ borderTop: '1px solid #f1f5f9', padding: '1.25rem' }}>
+
+                    {/* Subcategories */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: 0 }}>Subcategories</p>
+                        <button onClick={() => { setCatModal('create-sub'); setCatModalData({}); setCatModalParent(cat.id); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '6px', border: '1px solid var(--bg-deep)', background: 'transparent', color: 'var(--bg-deep)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>
+                          <Plus size={11} /> Add Subcategory
+                        </button>
+                      </div>
+                      {(cat.subcategories || []).length === 0
+                        ? <p style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>No subcategories yet.</p>
+                        : (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '0.75rem' }}>
+                            {cat.subcategories.map(sub => (
+                              <div key={sub.id} style={{ padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                <div>
+                                  <p style={{ fontWeight: 700, fontSize: '0.85rem', margin: '0 0 0.2rem', color: 'var(--bg-deep)' }}>{sub.name}</p>
+                                  <p style={{ fontSize: '0.7rem', color: '#64748b', margin: 0 }}>
+                                    GST: <strong>{sub.gst_percentage != null ? `${sub.gst_percentage}%` : `↑ ${cat.gst_percentage}%`}</strong>
+                                    &nbsp;·&nbsp;Comm: <strong>{sub.commission_rate != null ? `${sub.commission_rate}%` : `↑ ${cat.commission_rate}%`}</strong>
+                                  </p>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                                  <IconBtn icon={<Edit2 size={12} />} onClick={() => { setCatModal('edit-sub'); setCatModalData({ ...sub }); }} title="Edit" />
+                                  <IconBtn icon={<Trash2 size={12} />} danger onClick={() => deleteCatItem('sub', sub.id)} title="Delete" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Category-level shipping rates */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', margin: 0 }}>Weight-Based Shipping Rates</p>
+                        <button onClick={() => { setCatModal('create-rate'); setCatModalData({}); setCatModalParent({ catId: cat.id, subId: null }); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.75rem', borderRadius: '6px', border: '1px solid #3b82f6', background: 'transparent', color: '#3b82f6', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>
+                          <Plus size={11} /> Add Rate Tier
+                        </button>
+                      </div>
+                      {(cat.shipping_rates || []).length === 0
+                        ? <p style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>No custom tiers — platform default (light/heavy) applies.</p>
+                        : (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                            <thead>
+                              <tr style={{ background: '#f1f5f9' }}>
+                                {['Min Weight', 'Max Weight', 'Rate (₹)', 'Free Above (₹)', ''].map(h => (
+                                  <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {cat.shipping_rates.map(rate => (
+                                <tr key={rate.id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '0.5rem 0.75rem' }}>{rate.min_weight_grams}g</td>
+                                  <td style={{ padding: '0.5rem 0.75rem' }}>{rate.max_weight_grams ? `${rate.max_weight_grams}g` : '∞'}</td>
+                                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 700, color: '#1b2d2a' }}>₹{rate.rate}</td>
+                                  <td style={{ padding: '0.5rem 0.75rem', color: '#16a34a' }}>{rate.free_above_order_value ? `₹${rate.free_above_order_value}` : '—'}</td>
+                                  <td style={{ padding: '0.5rem 0.75rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                      <IconBtn icon={<Edit2 size={12} />} onClick={() => { setCatModal('edit-rate'); setCatModalData({ ...rate }); }} title="Edit" />
+                                      <IconBtn icon={<Trash2 size={12} />} danger onClick={() => deleteCatItem('rate', rate.id)} title="Delete" />
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
       </main>
+
+      {/* ── Category / Subcategory / Shipping Rate Modal ──────────────────────── */}
+      {catModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', margin: 0, color: 'var(--bg-deep)' }}>
+                {({'create-cat':'New Category','edit-cat':'Edit Category','create-sub':'New Subcategory','edit-sub':'Edit Subcategory','create-rate':'New Shipping Rate Tier','edit-rate':'Edit Shipping Rate Tier'})[catModal]}
+              </h3>
+              <button onClick={() => { setCatModal(null); setCatModalData({}); setCatError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+            </div>
+
+            {catError && <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '0.75rem', borderRadius: '8px', fontSize: '0.8rem', marginBottom: '1rem' }}>{catError}</div>}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {(catModal === 'create-cat' || catModal === 'edit-cat') && <>
+                <CatField label="Name *" value={catModalData.name || ''} onChange={v => setCatModalData(p => ({ ...p, name: v }))} />
+                <CatField label="Description" value={catModalData.description || ''} onChange={v => setCatModalData(p => ({ ...p, description: v }))} type="textarea" />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <CatField label="GST %" value={catModalData.gst_percentage ?? ''} onChange={v => setCatModalData(p => ({ ...p, gst_percentage: v }))} type="number" placeholder="e.g. 12" />
+                  <CatField label="Commission %" value={catModalData.commission_rate ?? ''} onChange={v => setCatModalData(p => ({ ...p, commission_rate: v }))} type="number" placeholder="e.g. 15" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Shipping Type</label>
+                  <select value={catModalData.shipping_type || 'plant'} onChange={e => setCatModalData(p => ({ ...p, shipping_type: e.target.value }))} style={selectStyle}>
+                    {[['plant','Plant / Live Specimen'],['accessory','Accessory / Tool'],['heavy','Heavy Item (>3kg)'],['flat','Flat Rate']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </div>
+              </>}
+
+              {(catModal === 'create-sub' || catModal === 'edit-sub') && <>
+                <CatField label="Name *" value={catModalData.name || ''} onChange={v => setCatModalData(p => ({ ...p, name: v }))} />
+                <CatField label="Description" value={catModalData.description || ''} onChange={v => setCatModalData(p => ({ ...p, description: v }))} type="textarea" />
+                <div style={{ padding: '0.75rem', background: '#f0f9ff', borderRadius: '8px', fontSize: '0.78rem', color: '#0369a1' }}>
+                  Leave GST / Commission blank to inherit from the parent category.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <CatField label="Override GST %" value={catModalData.gst_percentage ?? ''} onChange={v => setCatModalData(p => ({ ...p, gst_percentage: v || null }))} type="number" placeholder="inherit" />
+                  <CatField label="Override Commission %" value={catModalData.commission_rate ?? ''} onChange={v => setCatModalData(p => ({ ...p, commission_rate: v || null }))} type="number" placeholder="inherit" />
+                </div>
+              </>}
+
+              {(catModal === 'create-rate' || catModal === 'edit-rate') && <>
+                <div style={{ padding: '0.75rem', background: '#f0fdf4', borderRadius: '8px', fontSize: '0.78rem', color: '#166534' }}>
+                  Define one tier per weight range. Leave "Max Weight" blank for the top tier (above all others). Shipping fee is charged per seller sub-order.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <CatField label="Min Weight (grams) *" value={catModalData.min_weight_grams ?? ''} onChange={v => setCatModalData(p => ({ ...p, min_weight_grams: v }))} type="number" placeholder="0" />
+                  <CatField label="Max Weight (grams)" value={catModalData.max_weight_grams ?? ''} onChange={v => setCatModalData(p => ({ ...p, max_weight_grams: v || null }))} type="number" placeholder="blank = no limit" />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <CatField label="Shipping Rate (₹) *" value={catModalData.rate ?? ''} onChange={v => setCatModalData(p => ({ ...p, rate: v }))} type="number" placeholder="e.g. 99" />
+                  <CatField label="Free Shipping Above (₹)" value={catModalData.free_above_order_value ?? ''} onChange={v => setCatModalData(p => ({ ...p, free_above_order_value: v || null }))} type="number" placeholder="e.g. 699" />
+                </div>
+              </>}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button onClick={() => { setCatModal(null); setCatModalData({}); setCatError(''); }} style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>Cancel</button>
+              <button onClick={saveCatModal} disabled={catSaving} style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', cursor: catSaving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: catSaving ? 0.6 : 1 }}>
+                {catSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Edit Seller Modal ──────────────────────────────────────────────────── */}
       {editingSeller && (
