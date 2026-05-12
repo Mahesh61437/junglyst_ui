@@ -30,6 +30,7 @@ import Success from './pages/Success';
 import Failure from './pages/Failure';
 import MyOrders from './pages/MyOrders';
 import OrderTracking from './pages/OrderTracking';
+import TrackOrder from './pages/TrackOrder';
 import RequireAuth from './components/RequireAuth';
 
 import { CartProvider } from './context/CartContext';
@@ -77,6 +78,7 @@ function App() {
                 <Route path="checkout/failure" element={<Failure />} />
                 <Route path="orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
                 <Route path="orders/:id" element={<RequireAuth><OrderTracking /></RequireAuth>} />
+                <Route path="track" element={<TrackOrder />} />
               </Route>
               
               {/* Auth Portals (Standalone) */}

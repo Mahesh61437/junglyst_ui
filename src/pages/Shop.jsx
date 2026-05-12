@@ -15,6 +15,11 @@ export default function Shop() {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) setSearchTerm(q);
+  }, [searchParams]);
+
+  useEffect(() => {
     const handleOpenFilter = () => setIsMobileFilterOpen(true);
     const handleResize = () => {
       if (window.innerWidth > 1024) {
