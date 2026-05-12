@@ -53,7 +53,7 @@ function MoreFromSeller({ sellerId, sellerName, currentProductId }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.25rem' }}>
         {items.map(p => {
-          const img = p.primary_image || p.images?.[0]?.image_url || p.image_url;
+          const img = p.image || p.primary_image || p.images?.[0]?.image_url || p.image_url;
           const price = p.variants?.[0]?.price || p.price;
           return (
             <Link key={p.id} to={`/product/${p.slug || p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -223,7 +223,18 @@ export default function ProductDetails() {
   const handleBuyNow = async () => {
     const safeQty = hasStockLimit ? Math.max(1, Math.min(quantity, Math.max(0, stockLimit))) : quantity;
     if (hasStockLimit && safeQty < 1) return;
-    await addItemToCart(id, safeQty, selectedVariant?.id, product, selectedVariant);
+    
+    const existingItem = cart?.items?.find(i => 
+      i.product.id === id && (!selectedVariant?.id || i.variant?.id === selectedVariant?.id)
+    );
+
+    if (!existingItem) {
+      await addItemToCart(id, safeQty, selectedVariant?.id, product, selectedVariant);
+    } else if (existingItem.quantity < safeQty) {
+      // Only add the difference if the cart has less than what the user wants to buy right now
+      await addItemToCart(id, safeQty - existingItem.quantity, selectedVariant?.id, product, selectedVariant);
+    }
+    
     navigate('/checkout');
   };
 
@@ -807,7 +818,7 @@ export default function ProductDetails() {
           <MoreFromSeller sellerId={product.seller?.id} sellerName={product.seller?.seller_profile?.store_name || product.seller?.username} currentProductId={product.id} />
           <Recommendations category={product.category?.name || product.category} currentProductId={product.id} />
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0 }} />
-          <ReviewSection productId={id} />
+          <ReviewSection productId={product.id} />
         </div>
       </div>
       <style>{`

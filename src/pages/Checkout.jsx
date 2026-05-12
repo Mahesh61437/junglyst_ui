@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +6,24 @@ import { OrderService } from '../services/OrderService';
 import api from '../services/api';
 import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
+import { load } from '@cashfreepayments/cashfree-js';
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => resolve(false));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function Checkout() {
   const { cart, cartId, clearCart, removeItem } = useCart();
@@ -23,6 +41,14 @@ export default function Checkout() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [verifying, setVerifying] = useState(false); // polling overlay state
+  // Ref to prevent empty-cart guard from redirecting to /cart after order is placed
+  const orderPlaced = useRef(false);
+  // Gateway order IDs stored so polling can query status after modal closes
+  const pendingGatewayId = useRef({ cashfree: null, razorpay: null });
+
+  const sellerGroups = cart?.seller_groups || {};
+  const deliveryBlocked = cart?.delivery_blocked;
 
   // Fetch saved addresses; pre-fill form from default or profile
   useEffect(() => {
@@ -58,7 +84,46 @@ export default function Checkout() {
       });
   }, [user]);
 
-  if (!cart || cart.items.length === 0) {
+  // ── Payment status polling (handles UPI in-processing / modal-close edge case) ──
+  const startPolling = (gatewayType, gatewayId) => {
+    setVerifying(true);
+    orderPlaced.current = true; // prevent empty-cart guard
+    const MAX_ATTEMPTS = 30; // 30 × 3s = 90 seconds
+    let attempts = 0;
+    const param = gatewayType === 'cashfree' ? 'cashfree_order_id' : 'razorpay_order_id';
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await api.get(`/orders/payment-status/?${param}=${gatewayId}`);
+        const { status: pStatus, order } = res.data;
+        if (pStatus === 'success') {
+          clearInterval(interval);
+          clearCart();
+          navigate('/checkout/success', { state: { order } });
+        } else if (pStatus === 'failed') {
+          clearInterval(interval);
+          orderPlaced.current = false;
+          setVerifying(false);
+          setError('Payment was not completed. Please try again.');
+        } else if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(interval);
+          orderPlaced.current = false;
+          setVerifying(false);
+          setError('Payment status is taking longer than expected. Check My Orders or contact support.');
+        }
+        // 'processing' → keep polling
+      } catch {
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(interval);
+          orderPlaced.current = false;
+          setVerifying(false);
+          setError('Could not verify payment status. Please check My Orders.');
+        }
+      }
+    }, 3000);
+  };
+
+  if (!orderPlaced.current && (!cart || !cart.items || cart.items.length === 0)) {
     navigate('/cart');
     return null;
   }
@@ -85,6 +150,12 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (deliveryBlocked) {
+      setError("Delivery is not available for your selected address. Please update the address or contact support.");
+      return;
+    }
+
     setLoading(true);
     try {
       let checkoutAddressId = selectedAddressId;
@@ -106,7 +177,7 @@ export default function Checkout() {
         try {
           const cartRes = await api.get('/cart/');
           currentCartId = cartRes.data.id;
-        } catch {}
+        } catch { }
       }
 
       // Build item list (used when no backend cart is available)
@@ -141,47 +212,155 @@ export default function Checkout() {
         };
       }
 
+      if (shipping.pincode) {
+        checkoutData.pincode = shipping.pincode;
+      }
+
       const response = await OrderService.checkout(checkoutData);
-      const { order, razorpay_order_id, amount } = response;
+      const { order, razorpay_order_id, amount, mock_payment, gateway } = response;
 
-      if (!razorpay_order_id) throw new Error('Payment session could not be created. Please try again.');
+      if (mock_payment) {
+        await clearCart();
+        navigate('/checkout/success', { state: { order } });
+        return;
+      }
 
-      const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-      const rzp = new window.Razorpay({
-        key: rzpKey,
-        amount: Math.round(amount * 100),
-        currency: 'INR',
-        name: 'Junglyst',
-        description: `Order ${order.order_number}`,
-        order_id: razorpay_order_id,
-        prefill: {
-          name: shipping.full_name || '',
-          email: shipping.email || '',
-          contact: shipping.phone || '',
-        },
-        theme: { color: '#1b2d2a' },
-        handler: async (paymentResponse) => {
-          try {
-            await OrderService.verifyPayment({
-              razorpay_order_id: paymentResponse.razorpay_order_id,
-              razorpay_payment_id: paymentResponse.razorpay_payment_id,
-              razorpay_signature: paymentResponse.razorpay_signature,
-            });
-            await clearCart();
-            navigate('/checkout/success', { state: { order } });
-          } catch {
+      if (gateway === 'razorpay') {
+        const ok = await loadRazorpayScript();
+        if (!ok) throw new Error('Failed to load Razorpay. Please refresh and try again.');
+
+        const { razorpay_order_id, razorpay_key_id, amount, currency } = response;
+        const rzpAmount = Math.round(parseFloat(amount) * 100);
+        // Store gateway ID for polling if modal closes during processing
+        pendingGatewayId.current.razorpay = razorpay_order_id;
+
+        const options = {
+          key: razorpay_key_id,
+          amount: rzpAmount,
+          currency: currency || 'INR',
+          order_id: razorpay_order_id,
+          name: 'JungLyst',
+          description: 'Order payment',
+          // Restrict checkout modal to UPI and QR only
+          config: {
+            display: {
+              blocks: {
+                upi: {
+                  name: 'Pay via UPI',
+                  instruments: [
+                    { method: 'upi', flows: ['collect'] },
+                    { method: 'upi', flows: ['qr'] },
+                  ],
+                },
+              },
+              sequence: ['block.upi'],
+              preferences: { show_default_blocks: false },
+            },
+          },
+          handler: async function (rzpRes) {
+            // Mark order placed immediately so the empty-cart guard
+            // doesn't redirect to /cart while verifyPayment runs
+            orderPlaced.current = true;
+            setLoading(true);
+            try {
+              const response = await OrderService.verifyPayment({
+                gateway: 'razorpay',
+                razorpay_order_id: rzpRes.razorpay_order_id,
+                razorpay_payment_id: rzpRes.razorpay_payment_id,
+                razorpay_signature: rzpRes.razorpay_signature,
+              });
+              clearCart();
+              navigate('/checkout/success', { state: { order: response.order } });
+            } catch (e) {
+              console.error('Razorpay verify failed:', e);
+              orderPlaced.current = false;
+              setError('Payment verified but order confirmation failed. Please contact support.');
+              setLoading(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              // If handler already fired (success), do nothing
+              if (orderPlaced.current) return;
+              // Otherwise payment might be in-flight — start polling
+              const rzpId = pendingGatewayId.current.razorpay;
+              if (rzpId) {
+                startPolling('razorpay', rzpId);
+              } else {
+                setLoading(false);
+              }
+            }
+          },
+          prefill: {
+            name: shipping.full_name,
+            email: shipping.email,
+            contact: shipping.phone,
+          },
+          theme: { color: '#1b2d2a' }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function () {
+          setError('Payment failed. Please try again.');
+          setLoading(false);
+        });
+        rzp.open();
+        return;
+      }
+
+      const { payment_session_id, cashfree_order_id } = response;
+      if (!payment_session_id) throw new Error('Payment session could not be created. Please try again.');
+      // Store gateway ID for polling if modal closes during processing
+      pendingGatewayId.current.cashfree = cashfree_order_id;
+
+      // Initialize Cashfree
+      const cashfree = await load({
+        mode: import.meta.env.VITE_CASHFREE_MODE || 'sandbox'
+      });
+
+      if (!cashfree) throw new Error('Payment SDK could not be initialized. Please refresh and try again.');
+
+      // Hosted checkout (backend enforces UPI-only)
+      const checkoutOptions = {
+        paymentSessionId: payment_session_id,
+        redirectTarget: "_modal",
+        components: ["order-details", "upi"],
+      };
+
+      cashfree.checkout(checkoutOptions).then((result) => {
+        if (result.error) {
+          setError('Payment failed. Please try again.');
+          setLoading(false);
+        } else if (result.paymentDetails) {
+          // Mark order placed immediately so the empty-cart guard
+          // doesn't redirect to /cart while verifyPayment runs
+          orderPlaced.current = true;
+          setLoading(true);
+          OrderService.verifyPayment({
+            cashfree_order_id: cashfree_order_id,
+          }).then((response) => {
+            clearCart();
+            navigate('/checkout/success', { state: { order: response.order } });
+          }).catch(() => {
+            orderPlaced.current = false;
             setError('Payment verified but order confirmation failed. Please contact support.');
             setLoading(false);
-          }
-        },
-        modal: {
-          ondismiss: () => {
+          });
+        } else {
+          // Modal closed without success or error — payment may still be processing
+          // (e.g. user entered PIN then closed the app before bank responded)
+          const cfId = pendingGatewayId.current.cashfree;
+          if (cfId) {
+            startPolling('cashfree', cfId);
+          } else {
             setLoading(false);
-            setError('Payment was cancelled. Your order has not been placed.');
           }
         }
+      }).catch((error) => {
+        console.error('Cashfree checkout error:', error);
+        setError('Payment initialization failed. Please try again.');
+        setLoading(false);
       });
-      rzp.open();
     } catch (err) {
       console.error('Checkout failed:', err);
       setError(err.response?.data?.error || err.message || 'Something went wrong. Please try again.');
@@ -203,6 +382,38 @@ export default function Checkout() {
 
   return (
     <div className="container" style={{ padding: '4rem 1rem 10rem' }}>
+
+      {/* ── Payment Verifying Overlay ── */}
+      {verifying && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          backgroundColor: 'rgba(27, 45, 42, 0.92)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '1.5rem',
+          backdropFilter: 'blur(8px)',
+        }}>
+          {/* Spinner */}
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            border: '4px solid rgba(255,255,255,0.15)',
+            borderTopColor: '#a3c4a8',
+            animation: 'spin 0.9s linear infinite',
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: 'white', fontWeight: 800, fontSize: '1.2rem', margin: 0 }}>
+              Verifying your payment…
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', marginTop: '0.5rem' }}>
+              Please don't close this page. This may take up to 90 seconds.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5 }}>
+            <ShieldCheck size={14} color="#a3c4a8" />
+            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>Secured by UPI</span>
+          </div>
+        </div>
+      )}
       <div style={{ marginBottom: '3rem' }}>
         <Link to="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none' }}>
           <ArrowLeft size={14} /> Back to Collection
@@ -346,7 +557,7 @@ export default function Checkout() {
                 <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '5px solid var(--brand-gold)', backgroundColor: 'white', flexShrink: 0 }} />
                 <div style={{ flexGrow: 1 }}>
                   <span style={{ fontWeight: 800, color: '#1b2d2a', display: 'block', fontSize: '0.95rem' }}>Secure Botanical Checkout</span>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Cards, UPI, NetBanking · Razorpay Secured</span>
+                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>UPI (Collect/QR) · Cashfree Secured</span>
                 </div>
                 <ShieldCheck size={20} color="var(--brand-gold)" />
               </div>
@@ -365,16 +576,18 @@ export default function Checkout() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '2rem', paddingRight: '0.5rem' }}>
               {cart.items.map(item => {
-                const product = item.product_details || (typeof item.product === 'object' ? item.product : {});
-                const variant = item.variant_details || (typeof item.variant === 'object' ? item.variant : {});
+                const product = item.product_details || (item.product && typeof item.product === 'object' ? item.product : {});
+                const variant = item.variant_details || (item.variant && typeof item.variant === 'object' ? item.variant : {});
                 return (
                   <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc' }}>
+                    <Link to={`/product/${product.slug || product.id}`} style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc', display: 'block' }}>
                       <img src={getImageUrl(variant.image_url || product.image_url || product.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} />
-                    </div>
+                    </Link>
                     <div style={{ flexGrow: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#1b2d2a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>{product.name || 'Botanical Specimen'}</h4>
+                        <Link to={`/product/${product.slug || product.id}`} style={{ textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
+                          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#1b2d2a' }}>{product.name || 'Botanical Specimen'}</h4>
+                        </Link>
                         <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
                           <Trash2 size={14} />
                         </button>
@@ -417,15 +630,21 @@ export default function Checkout() {
               </div>
             )}
 
+            {deliveryBlocked && (
+              <div style={{ padding: '1rem', borderRadius: '12px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.88rem', marginBottom: '1rem' }}>
+                Delivery is not available for your selected delivery address. Please update the address or choose a different shipping pin code.
+              </div>
+            )}
+
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading}
+              disabled={loading || deliveryBlocked}
               style={{
                 width: '100%', padding: '1.25rem',
-                backgroundColor: loading ? '#94a3b8' : '#1b2d2a',
+                backgroundColor: loading || deliveryBlocked ? '#94a3b8' : '#1b2d2a',
                 color: 'white', border: 'none', borderRadius: '14px',
-                fontWeight: 800, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
                 transition: 'opacity 0.2s'
               }}

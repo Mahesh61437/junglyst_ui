@@ -98,7 +98,7 @@ export default function Login() {
         textAlign: 'center'
       }}>
         <Link to="/" style={{ display: 'inline-block', marginBottom: '2.5rem' }}>
-          <NaturalLogo textColor="var(--bg-deep)" size="2rem" />
+          <NaturalLogo textColor="var(--bg-deep)" size={24} vertical={false} />
         </Link>
         
         {view === 'login' && (

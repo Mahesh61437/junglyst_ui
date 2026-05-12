@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, ShoppingBag, MapPin } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
 
 const STATUS_META = {
   pending:           { label: 'Pending Payment',    color: '#6b7280', bg: '#f3f4f6' },
@@ -79,6 +79,7 @@ export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.get('/orders/')
@@ -125,12 +126,12 @@ export default function MyOrders() {
 
             return (
               <div key={order.id} style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                {/* Order header */}
-                <button
-                  onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '1.75rem 2rem', textAlign: 'left' }}
-                >
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr auto', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.75rem 2rem', gap: '1rem', flexWrap: 'wrap' }}>
+                  {/* Left side - expandable content */}
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                    style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', minWidth: '600px', display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr', alignItems: 'center', gap: '1rem' }}
+                  >
                     {/* Order number + date */}
                     <div>
                       <p style={{ margin: 0, fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Order ID</p>
@@ -159,12 +160,23 @@ export default function MyOrders() {
                       <p style={{ margin: '0 0 0.4rem', fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Total</p>
                       <p style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: '#1b2d2a' }}>₹{parseFloat(order.total_amount).toLocaleString('en-IN')}</p>
                     </div>
+                  </button>
 
-                    <div style={{ color: '#cbd5e1' }}>
+                  {/* Right side - Action buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                    <button
+                      onClick={() => navigate(`/orders/${order.id}`)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, backgroundColor: '#f0f4f0', color: '#1b2d2a', border: '1px solid #d1fae5', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s ease', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e1fde0'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f0f4f0'; e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                      <Eye size={14} /> Track
+                    </button>
+                    <div style={{ color: '#cbd5e1', flexShrink: 0 }}>
                       {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
                   </div>
-                </button>
+                </div>
 
                 {/* Sub-orders expanded */}
                 {isExpanded && (

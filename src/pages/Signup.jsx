@@ -62,7 +62,7 @@ export default function Signup() {
         textAlign: 'center'
       }}>
         <Link to="/" style={{ display: 'inline-block', marginBottom: '2.5rem' }}>
-          <NaturalLogo textColor="var(--bg-deep)" size="2rem" />
+          <NaturalLogo textColor="var(--bg-deep)" size={24} vertical={false} />
         </Link>
 
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Join the Sanctuary</h1>

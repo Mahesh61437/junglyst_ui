@@ -11,7 +11,6 @@ export default function Cart() {
     cart, loading,
     updateItemQuantity, removeItem,
     checkPincode, pincodeChecking, pincodeResult, deliveryZone,
-    MIN_SELLER_SUBTOTAL,
   } = useCart();
   const { addToWishlist } = useWishlist();
   const navigate = useNavigate();
@@ -52,8 +51,6 @@ export default function Cart() {
 
   const handleCheckout = () => {
     if (cart.delivery_blocked) return;
-    const hasBelow = Object.values(sellerGroups).some(g => g.below_minimum);
-    if (hasBelow) return;
     trackInitiateCheckout({ value: cart.grand_total, numItems: cart.total_items });
     navigate('/checkout');
   };
@@ -137,15 +134,6 @@ export default function Cart() {
                     </span>
                   </div>
 
-                  {/* Min order warning (SHIP-003) */}
-                  {group.below_minimum && (
-                    <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '0.65rem 1rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Info size={14} color="#d97706" />
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#92400e' }}>
-                        Minimum order from {storeName} is ₹{MIN_SELLER_SUBTOTAL}. Add ₹{Math.ceil(MIN_SELLER_SUBTOTAL - group.subtotal)} more to proceed.
-                      </span>
-                    </div>
-                  )}
 
                   {/* Free shipping nudge */}
                   {group.nudge && (
@@ -282,37 +270,23 @@ export default function Cart() {
               </div>
             </div>
 
-            {/* Checkout button */}
-            {(() => {
-              const hasBelow = Object.values(sellerGroups).some(g => g.below_minimum);
-              const blocked = cart.delivery_blocked || hasBelow;
-              return (
-                <>
-                  <button
-                    onClick={handleCheckout}
-                    disabled={blocked}
-                    style={{
-                      width: '100%', padding: '1.25rem', backgroundColor: blocked ? '#94a3b8' : 'var(--bg-deep)',
-                      color: 'white', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1rem',
-                      cursor: blocked ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', gap: '0.75rem', boxShadow: blocked ? 'none' : '0 10px 30px rgba(10, 48, 41, 0.15)',
-                    }}
-                  >
-                    SECURE CHECKOUT <ChevronRight size={20} />
-                  </button>
-                  {hasBelow && (
-                    <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#d97706', fontWeight: 700, marginTop: '0.75rem' }}>
-                      Minimum ₹{MIN_SELLER_SUBTOTAL} required per seller to checkout.
-                    </p>
-                  )}
-                  {cart.delivery_blocked && (
-                    <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#ef4444', fontWeight: 700, marginTop: '0.75rem' }}>
-                      Delivery not available to this pincode.
-                    </p>
-                  )}
-                </>
-              );
-            })()}
+            <button
+              onClick={handleCheckout}
+              disabled={cart.delivery_blocked}
+              style={{
+                width: '100%', padding: '1.25rem', backgroundColor: cart.delivery_blocked ? '#94a3b8' : 'var(--bg-deep)',
+                color: 'white', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1rem',
+                cursor: cart.delivery_blocked ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '0.75rem', boxShadow: cart.delivery_blocked ? 'none' : '0 10px 30px rgba(10, 48, 41, 0.15)',
+              }}
+            >
+              SECURE CHECKOUT <ChevronRight size={20} />
+            </button>
+            {cart.delivery_blocked && (
+              <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#ef4444', fontWeight: 700, marginTop: '0.75rem' }}>
+                Delivery not available to this pincode.
+              </p>
+            )}
 
             <div style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>

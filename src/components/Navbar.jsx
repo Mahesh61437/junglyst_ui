@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -19,6 +19,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState(new URLSearchParams(location.search).get('search') || '');
   const profileRef = useRef(null);
 
   const isGrower = user?.is_staff && (user?.role === 'grower' || user?.role === 'admin');
@@ -33,6 +34,36 @@ export default function Navbar() {
     setIsMobileMenuOpen(false);
     setIsProfileOpen(false);
   }, [location]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(location.search);
+      const currentSearch = params.get('search') || '';
+      
+      if (searchInput !== currentSearch) {
+        if (searchInput) {
+          params.set('search', searchInput);
+        } else {
+          params.delete('search');
+        }
+        // Only navigate if we are on shop page or if there's actually something to search
+        if (location.pathname.startsWith('/shop') || searchInput) {
+          navigate(`/shop?${params.toString()}`);
+        }
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchInput, navigate, location.pathname]);
+
+  // Sync input with URL if it changes externally (e.g. back button)
+  useEffect(() => {
+    const query = new URLSearchParams(location.search).get('search') || '';
+    if (query !== searchInput) {
+      setSearchInput(query);
+    }
+  }, [location.search]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -52,6 +83,7 @@ export default function Navbar() {
     { name: 'Hardscape', path: '/shop/Hardscape' },
     { name: 'Verified Sellers', path: '/sellers' },
     { name: 'Care Guides', path: '/guides' },
+    { name: 'FAQ', path: '/#faq' },
   ];
 
   return (
@@ -90,14 +122,15 @@ export default function Navbar() {
           >
             <Menu size={24} />
           </button>
-
           <div className="desktop-only" style={{
             position: 'relative',
-            width: '240px'
+            width: '280px'
           }}>
             <input
               type="text"
               placeholder="Search Junglyst..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               style={{
                 width: '100%',
                 padding: '0.6rem 0.5rem 0.6rem 2.5rem',
@@ -113,6 +146,7 @@ export default function Navbar() {
             />
             <Search size={18} style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
           </div>
+
         </div>
 
         {/* Center: Brand Logo */}
@@ -124,7 +158,7 @@ export default function Navbar() {
           transform: scrolled ? 'scale(0.85)' : 'scale(1)',
           transition: 'transform var(--transition-base)'
         }}>
-          <NaturalLogo textColor="var(--text-primary)" size={scrolled ? 36 : 42} />
+          <NaturalLogo textColor="var(--text-primary)" size={scrolled ? 18 : 22} />
         </Link>
 
         {/* Right: Actions */}
@@ -458,6 +492,9 @@ export default function Navbar() {
                   <Link to="/profile" state={{ tab: 'identity' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <User size={18} /> Identity Details
                   </Link>
+                  <Link to="/orders" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Package size={18} /> My Orders
+                  </Link>
                   <Link to="/profile" state={{ tab: 'history' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <Package size={18} /> Acquisition History
                   </Link>
@@ -489,6 +526,14 @@ export default function Navbar() {
                 <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--brand-gold)' }}>Member Sign In</Link>
               </>
             )}
+
+            {/* Track Order - Available to all users (authenticated and guests) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+              <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Quick Access</p>
+              <Link to="/track" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Truck size={18} /> Track Order
+              </Link>
+            </div>
             {user && (
               <button
                 onClick={() => {

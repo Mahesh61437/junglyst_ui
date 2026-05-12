@@ -19,7 +19,7 @@ export const NotificationProvider = ({ children }) => {
     if (!user) return;
     api.get('/notifications/unread-count/')
       .then(res => setUnreadCount(res.data.count ?? 0))
-      .catch(() => {}); // never block UI
+      .catch(() => { }); // never block UI
   }, [user]);
 
   // ── Fetch full list (on demand when dropdown opens) ────────────────────────
@@ -34,7 +34,7 @@ export const NotificationProvider = ({ children }) => {
         setListLoaded(true);
         setUnreadCount(list.filter(n => !n.is_read).length);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [user]);
 
   // ── Mark one notification as read ──────────────────────────────────────────
@@ -43,14 +43,14 @@ export const NotificationProvider = ({ children }) => {
       prev.map(n => n.id === id ? { ...n, is_read: true } : n)
     );
     setUnreadCount(prev => Math.max(0, prev - 1));
-    api.post('/notifications/mark-read/', { id }).catch(() => {});
+    api.post('/notifications/mark-read/', { id }).catch(() => { });
   }, []);
 
   // ── Mark all as read ───────────────────────────────────────────────────────
   const markAllRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
-    api.post('/notifications/mark-read/').catch(() => {});
+    api.post('/notifications/mark-read/').catch(() => { });
   }, []);
 
   // ── Start / stop polling when auth changes ─────────────────────────────────

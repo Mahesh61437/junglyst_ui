@@ -9,19 +9,19 @@
   /* Premium Boutique Palette */
   --bg-primary: #ffffff;
   --bg-secondary: #f4f6f3; /* Soft Sage background */
-  --bg-deep: #1b2d2a;      /* Deep Forest Green */
+  --bg-deep: #0A3029;      /* Royal Swan Deep Green */
   
   --text-primary: #121d1b;   /* Almost black botanical green */
   --text-secondary: #5a6b67; /* Muted sage-grey */
   
-  --brand-green: #297f54;    /* Vibrant leaf green */
-  --brand-gold: #c5a059;     /* Premium gold accent */
+  --brand-green: #105c44;    /* Deeper botanical green */
+  --brand-gold: #D4AF37;     /* Royal Swan Gold */
   
-  --badge-trending-bg: #c5a059;
+  --badge-trending-bg: #D4AF37;
   --badge-trending-text: #ffffff;
   
   --badge-stock-bg: #e6f1ec;
-  --badge-stock-text: #297f54;
+  --badge-stock-text: #105c44;
 
   --border-subtle: #d8e0dc;
   
