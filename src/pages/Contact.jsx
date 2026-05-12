@@ -98,7 +98,7 @@ export default function Contact() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1rem' }}>
                   <Field label="Your Name *" name="name" type="text" value={form.name} onChange={handleChange} required placeholder="Ravi Kumar" />
                   <Field label="Email Address *" name="email" type="email" value={form.email} onChange={handleChange} required placeholder="ravi@example.com" />
                 </div>

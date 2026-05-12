@@ -335,7 +335,7 @@ export default function SellerOnboarding() {
       </header>
 
       {/* Main Content Layout */}
-      <main style={{ flexGrow: 1, display: 'grid', gridTemplateColumns: currentStep > 1 ? '1.2fr 1fr' : '1fr', gap: '4rem', padding: '4rem' }}>
+      <main style={{ flexGrow: 1, display: 'grid', gridTemplateColumns: currentStep > 1 ? 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))' : '1fr', gap: 'clamp(2rem,4vw,4rem)', padding: 'clamp(1.5rem,4vw,4rem)' }}>
 
         {/* Form Column */}
         <div style={{ maxWidth: '700px', justifySelf: 'center', width: '100%' }}>
@@ -365,7 +365,7 @@ export default function SellerOnboarding() {
               <p style={{ fontSize: '1.25rem', color: '#4b5563', lineHeight: 1.6, marginBottom: '3rem' }}>
                 Join the most exclusive community of botanical artisans. We provide the tools; you provide the beauty.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '4rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1.5rem', marginBottom: '4rem' }}>
                 <div style={{ padding: '2rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed' }}>
                   <Globe size={24} color="#E5C48B" style={{ marginBottom: '1rem' }} />
                   <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>Pan-India Logistics</h3>
@@ -581,7 +581,7 @@ export default function SellerOnboarding() {
                   </label>
                   <input name="firstProductName" value={formData.firstProductName} onChange={handleInputChange} placeholder="e.g. Monstera Albo Variegata" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: !formData.firstProductName ? '1px solid #e2e8f0' : '1px solid #10b981', fontSize: '1rem', outline: 'none' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1.5rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
                       <span>Launch Price (₹) <span style={{ color: '#ef4444' }}>*</span></span>

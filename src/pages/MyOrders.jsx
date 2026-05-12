@@ -130,7 +130,7 @@ export default function MyOrders() {
                   {/* Left side - expandable content */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                    style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', minWidth: '600px', display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr', alignItems: 'center', gap: '1rem' }}
+                    style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', alignItems: 'start', gap: '0.75rem 1rem' }}
                   >
                     {/* Order number + date */}
                     <div>

@@ -466,7 +466,7 @@ export default function Profile() {
                         const af = (field) => e => setAddrForm(prev => ({ ...prev, [field]: e.target.value }));
                         return (
                           <>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
                               <div>
                                 <label style={lStyle}>Full Name *</label>
                                 <input required type="text" value={addrForm.full_name} onChange={af('full_name')} style={iStyle} />
@@ -488,7 +488,7 @@ export default function Profile() {
                               <label style={lStyle}>Address Line 2 <span style={{ textTransform: 'none', fontWeight: 600 }}>(optional)</span></label>
                               <input placeholder="Apartment, area, etc." value={addrForm.address_line2} onChange={af('address_line2')} style={iStyle} />
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 110px), 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                               <div>
                                 <label style={lStyle}>City *</label>
                                 <input required value={addrForm.city} onChange={af('city')} style={iStyle} />

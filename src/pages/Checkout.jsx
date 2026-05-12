@@ -474,7 +474,7 @@ export default function Checkout() {
               )}
 
               {/* Always-visible form */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
                 <div>
                   <label style={labelStyle}>Full Name <span style={{ color: '#ef4444' }}>*</span></label>
                   <input required type="text" placeholder="Pavan Kumar" value={shipping.full_name} onChange={f('full_name')} style={inputStyle} />
@@ -500,7 +500,7 @@ export default function Checkout() {
                 <input placeholder="Apartment, suite, area, etc." value={shipping.address_line2} onChange={f('address_line2')} style={inputStyle} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 110px), 1fr))', gap: '1.25rem' }}>
                 <div>
                   <label style={labelStyle}>City <span style={{ color: '#ef4444' }}>*</span></label>
                   <input required value={shipping.city} onChange={f('city')} style={inputStyle} />

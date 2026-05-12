@@ -7,6 +7,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useNotifications } from '../context/NotificationContext';
 import NaturalLogo from './NaturalLogo';
 import NotificationBell from './NotificationBell';
+import MobileSearchOverlay from './MobileSearchOverlay';
 import { getImageUrl } from '../utils/imageUtils';
 
 export default function Navbar() {
@@ -17,6 +18,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(new URLSearchParams(location.search).get('search') || '');
@@ -107,38 +109,35 @@ export default function Navbar() {
       <div className="container" style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
         height: 'var(--nav-height-mobile)',
-        gap: '0.5rem'
+        gap: '0.5rem',
       }}>
-        {/* Left: Hamburger / Search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
+
+        {/* ── Mobile: Logo left ─────────────────────────────────────────────── */}
+        <div className="mobile-only" style={{ flexShrink: 0 }}>
+          <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', transform: scrolled ? 'scale(0.9)' : 'scale(1)', transition: 'transform var(--transition-base)' }}>
+            <NaturalLogo textColor="var(--text-primary)" size={scrolled ? 18 : 21} />
+          </Link>
+        </div>
+
+        {/* ── Desktop: Hamburger + Search left ──────────────────────────────── */}
+        <div className="desktop-flex" style={{ alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            style={{
-              background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center'
-            }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
             <Menu size={24} />
           </button>
-          <div className="desktop-only" style={{
-            position: 'relative',
-            width: '280px'
-          }}>
+          <div style={{ position: 'relative', width: '280px' }}>
             <input
               type="text"
               placeholder="Search Junglyst..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               style={{
-                width: '100%',
-                padding: '0.6rem 0.5rem 0.6rem 2.5rem',
-                border: 'none',
-                borderBottom: '1px solid var(--border-subtle)',
-                fontSize: '0.9rem',
-                outline: 'none',
-                backgroundColor: 'transparent',
+                width: '100%', padding: '0.6rem 0.5rem 0.6rem 2.5rem',
+                border: 'none', borderBottom: '1px solid var(--border-subtle)',
+                fontSize: '0.9rem', outline: 'none', backgroundColor: 'transparent',
                 transition: 'border-color var(--transition-fast)'
               }}
               onFocus={(e) => e.target.style.borderColor = 'var(--brand-gold)'}
@@ -146,14 +145,11 @@ export default function Navbar() {
             />
             <Search size={18} style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
           </div>
-
         </div>
 
-        {/* Center: Brand Logo */}
-        <Link to="/" style={{
-          textDecoration: 'none',
-          display: 'flex',
-          justifyContent: 'center',
+        {/* ── Desktop: Center Logo ───────────────────────────────────────────── */}
+        <Link to="/" className="desktop-flex" style={{
+          textDecoration: 'none', justifyContent: 'center',
           flexGrow: 1,
           transform: scrolled ? 'scale(0.85)' : 'scale(1)',
           transition: 'transform var(--transition-base)'
@@ -161,180 +157,133 @@ export default function Navbar() {
           <NaturalLogo textColor="var(--text-primary)" size={scrolled ? 18 : 22} />
         </Link>
 
-        {/* Right: Actions */}
+        {/* ── Right Actions ─────────────────────────────────────────────────── */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 'clamp(0.75rem, 2vw, 1.5rem)',
-          flexShrink: 0,
+          display: 'flex', alignItems: 'center',
+          gap: 'clamp(0.75rem, 2vw, 1.25rem)',
+          marginLeft: 'auto', flexShrink: 0,
           color: 'var(--text-primary)'
         }}>
+          {/* Admin — desktop only */}
           {user?.is_superuser && (
-            <Link to="/super-admin" style={{ color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}>
+            <Link to="/super-admin" className="desktop-flex" style={{ color: 'inherit', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}>
               <ShieldCheck size={20} strokeWidth={1.5} color="var(--brand-gold)" />
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: window.innerWidth > 768 ? 'block' : 'none', color: 'var(--brand-gold)' }}>Admin</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--brand-gold)' }}>Admin</span>
             </Link>
           )}
+
+          {/* Profile dropdown — desktop only */}
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-              {/* Profile Dropdown */}
-              <div ref={profileRef} style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setIsProfileOpen(prev => !prev)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.6rem',
-                    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)',
-                    padding: 0
-                  }}
-                >
-                  <div style={{
-                    width: '34px', height: '34px', borderRadius: '50%', overflow: 'hidden',
-                    border: '1.5px solid var(--brand-gold)',
-                    padding: '2px',
-                    transition: 'box-shadow 0.2s',
-                    boxShadow: isProfileOpen ? '0 0 0 3px rgba(229,196,139,0.25)' : 'none'
-                  }}>
-                    <img
-                      src={getImageUrl(user.avatar_url) || `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name || user.username}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`}
-                      alt="Profile"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                    />
+            <div ref={profileRef} className="desktop-only" style={{ position: 'relative', display: 'block' }}>
+              <button
+                onClick={() => setIsProfileOpen(prev => !prev)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 0 }}
+              >
+                <div style={{
+                  width: '34px', height: '34px', borderRadius: '50%', overflow: 'hidden',
+                  border: '1.5px solid var(--brand-gold)', padding: '2px',
+                  transition: 'box-shadow 0.2s',
+                  boxShadow: isProfileOpen ? '0 0 0 3px rgba(229,196,139,0.25)' : 'none'
+                }}>
+                  <img
+                    src={getImageUrl(user.avatar_url) || `https://api.dicebear.com/7.x/initials/svg?seed=${user.full_name || user.username}&backgroundColor=1b2d2a&fontFamily=serif&fontSize=40&fontWeight=700`}
+                    alt="Profile"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                  />
+                </div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {(user.full_name || user.username || 'User').split(' ')[0]}
+                </span>
+              </button>
+
+              {isProfileOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 12px)', right: 0,
+                  backgroundColor: 'white', borderRadius: '16px',
+                  border: '1px solid var(--border-subtle)', boxShadow: '0 20px 50px rgba(0,0,0,0.12)',
+                  minWidth: '220px', maxWidth: 'calc(100vw - 1rem)', overflow: 'hidden', zIndex: 100
+                }}>
+                  <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-secondary)' }}>
+                    <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: 0 }}>{user.full_name || user.username}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0', textTransform: 'capitalize' }}>
+                      {user.role === 'grower' ? '🌿 Grower' : user.role === 'admin' ? '⚙️ Admin' : '🪴 Collector'}
+                    </p>
                   </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', display: window.innerWidth > 768 ? 'block' : 'none' }}>
-                    {(user.full_name || user.username || 'User').split(' ')[0]}
-                  </span>
-                </button>
-
-                {/* Dropdown Panel */}
-                {isProfileOpen && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 12px)',
-                    right: 0,
-                    backgroundColor: 'white',
-                    borderRadius: '16px',
-                    border: '1px solid var(--border-subtle)',
-                    boxShadow: '0 20px 50px rgba(0,0,0,0.12)',
-                    minWidth: '220px',
-                    overflow: 'hidden',
-                    zIndex: 100
-                  }}>
-                    {/* User info header */}
-                    <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-secondary)' }}>
-                      <p style={{ fontWeight: 700, fontSize: '0.9rem', margin: 0 }}>{user.full_name || user.username}</p>
-                      <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0', textTransform: 'capitalize' }}>
-                        {user.role === 'grower' ? '🌿 Grower' : user.role === 'admin' ? '⚙️ Admin' : '🪴 Collector'}
-                      </p>
-                    </div>
-
-                    {/* Menu items */}
-                    <div style={{ padding: '0.5rem' }}>
+                  <div style={{ padding: '0.5rem' }}>
+                    {[
+                      { to: '/profile', label: 'Collector Hub', icon: <User size={16} /> },
+                      { to: '/profile', state: { tab: 'addresses' }, label: 'Saved Addresses', icon: <MapPin size={16} /> },
+                      ...(isGrower ? [{ to: '/seller/dashboard', label: 'Seller Dashboard', icon: <LayoutDashboard size={16} />, accent: true }] : []),
+                      ...(user.is_superuser ? [{ to: '/super-admin', label: 'Super Admin Portal', icon: <ShieldCheck size={16} /> }] : []),
+                    ].map(item => (
                       <Link
-                        to="/profile"
+                        key={item.label}
+                        to={item.to}
+                        state={item.state}
                         onClick={() => setIsProfileOpen(false)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: '0.75rem',
                           padding: '0.85rem 1rem', borderRadius: '10px',
-                          color: 'var(--text-primary)', textDecoration: 'none',
-                          fontSize: '0.875rem', fontWeight: 600,
-                          transition: 'background 0.15s'
+                          color: item.accent ? 'var(--brand-green)' : 'var(--text-primary)',
+                          textDecoration: 'none', fontSize: '0.875rem',
+                          fontWeight: item.accent ? 700 : 600, transition: 'background 0.15s'
                         }}
                         onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                         onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <User size={16} /> Collector Hub
+                        {item.icon} {item.label}
                       </Link>
-
-                      <Link
-                        to="/profile"
-                        state={{ tab: 'addresses' }}
-                        onClick={() => setIsProfileOpen(false)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '0.75rem',
-                          padding: '0.85rem 1rem', borderRadius: '10px',
-                          color: 'var(--text-primary)', textDecoration: 'none',
-                          fontSize: '0.875rem', fontWeight: 600,
-                          transition: 'background 0.15s'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                        onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <MapPin size={16} /> Saved Addresses
-                      </Link>
-
-                      {isGrower && (
-                        <Link
-                          to="/seller/dashboard"
-                          onClick={() => setIsProfileOpen(false)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                            padding: '0.85rem 1rem', borderRadius: '10px',
-                            color: 'var(--brand-green)', textDecoration: 'none',
-                            fontSize: '0.875rem', fontWeight: 700,
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <LayoutDashboard size={16} /> Seller Dashboard
-                        </Link>
-                      )}
-
-                      {user.is_superuser && (
-                        <Link
-                          to="/super-admin"
-                          onClick={() => setIsProfileOpen(false)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                            padding: '0.85rem 1rem', borderRadius: '10px',
-                            color: 'var(--text-primary)', textDecoration: 'none',
-                            fontSize: '0.875rem', fontWeight: 600,
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <ShieldCheck size={16} /> Super Admin Portal
-                        </Link>
-                      )}
-                      <button
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          logout();
-                          navigate('/login');
-                        }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '0.75rem',
-                          padding: '0.85rem 1rem', borderRadius: '10px',
-                          color: '#ef4444', textDecoration: 'none',
-                          fontSize: '0.875rem', fontWeight: 600,
-                          background: 'none', border: 'none', cursor: 'pointer', width: '100%',
-                          textAlign: 'left', transition: 'background 0.15s'
-                        }}
-                        onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                        onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <LogOut size={16} /> Secure Sign Out
-                      </button>
-
-                    </div>
+                    ))}
+                    <button
+                      onClick={() => { setIsProfileOpen(false); logout(); navigate('/login'); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                        padding: '0.85rem 1rem', borderRadius: '10px', color: '#ef4444',
+                        fontSize: '0.875rem', fontWeight: 600,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        width: '100%', textAlign: 'left', transition: 'background 0.15s'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                      onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <LogOut size={16} /> Secure Sign Out
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
-            <Link to="/login" style={{ color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Link to="/login" className="desktop-flex" style={{ color: 'inherit', alignItems: 'center', gap: '0.6rem' }}>
               <User size={20} strokeWidth={1.5} />
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: window.innerWidth > 768 ? 'block' : 'none' }}>Sign In</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sign In</span>
             </Link>
           )}
 
-          {/* Notification bell — only for authenticated users */}
+          {/* Mobile: search overlay trigger */}
+          <button
+            className="mobile-only"
+            onClick={() => setIsMobileSearchOpen(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', padding: '2px' }}
+            aria-label="Search"
+          >
+            <Search size={21} strokeWidth={1.5} />
+          </button>
+
+          {/* Notification bell — both mobile & desktop when logged in */}
           {user && <NotificationBell />}
 
+          {/* Mobile: sign-in icon when logged out */}
+          {!user && (
+            <Link to="/login" className="mobile-only" style={{ color: 'inherit', display: 'flex', alignItems: 'center' }}>
+              <User size={21} strokeWidth={1.5} />
+            </Link>
+          )}
+
+          {/* Wishlist — both mobile & desktop */}
           <Link to="/wishlist" style={{ color: 'inherit', position: 'relative', display: 'flex' }}>
-            <Heart size={20} strokeWidth={1.5} color={wishlist.length > 0 ? 'var(--brand-gold)' : 'currentColor'} fill={wishlist.length > 0 ? 'var(--brand-gold)' : 'none'} />
+            <Heart size={20} strokeWidth={1.5}
+              color={wishlist.length > 0 ? 'var(--brand-gold)' : 'currentColor'}
+              fill={wishlist.length > 0 ? 'var(--brand-gold)' : 'none'} />
             {wishlist.length > 0 && (
               <span style={{ position: 'absolute', top: '-6px', right: '-8px', backgroundColor: 'var(--bg-deep)', color: 'white', fontSize: '0.6rem', borderRadius: '50%', width: '15px', height: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
                 {wishlist.length}
@@ -342,7 +291,8 @@ export default function Navbar() {
             )}
           </Link>
 
-          <Link to="/cart" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', color: 'inherit' }}>
+          {/* Cart — desktop only; mobile uses the FAB */}
+          <Link to="/cart" className="desktop-flex" style={{ alignItems: 'center', gap: '0.5rem', position: 'relative', color: 'inherit' }}>
             <ShoppingCart size={20} strokeWidth={1.5} />
             {cart?.total_items > 0 && (
               <span style={{
@@ -356,6 +306,15 @@ export default function Navbar() {
               </span>
             )}
           </Link>
+
+          {/* Hamburger — mobile only */}
+          <button
+            className="mobile-only"
+            onClick={() => setIsMobileMenuOpen(true)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
+          >
+            <Menu size={24} />
+          </button>
         </div>
       </div>
 
@@ -389,10 +348,17 @@ export default function Navbar() {
         </div>
       </nav>
 
+      {/* Mobile Search Overlay */}
+      <MobileSearchOverlay
+        open={isMobileSearchOpen}
+        onClose={() => setIsMobileSearchOpen(false)}
+      />
+
       {/* Mobile Drawer Overlay */}
       {isMobileMenuOpen && (
         <div
           onClick={() => setIsMobileMenuOpen(false)}
+          onTouchEnd={() => setIsMobileMenuOpen(false)}
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(10, 31, 28, 0.4)', backdropFilter: 'blur(4px)',

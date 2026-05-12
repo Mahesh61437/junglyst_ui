@@ -74,6 +74,7 @@ export default function SellerDashboard() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 1024);
   const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -209,7 +210,11 @@ export default function SellerDashboard() {
     if (user) {
       fetchData();
     }
-    const handleResize = () => setIsSidebarOpen(window.innerWidth > 1024);
+    const handleResize = () => {
+      const wide = window.innerWidth > 1024;
+      setIsSidebarOpen(wide);
+      setIsMobileView(!wide);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [user]);
@@ -701,7 +706,7 @@ export default function SellerDashboard() {
     { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
   ];
 
-  const isMobile = window.innerWidth <= 1024;
+  const isMobile = isMobileView;
 
   return (
     <DashboardErrorBoundary>

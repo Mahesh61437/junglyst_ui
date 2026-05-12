@@ -296,12 +296,12 @@ export default function SellerStore() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           style={{ 
-            backgroundColor: 'var(--bg-deep, #1b2d2a)', 
-            borderRadius: '40px', 
-            padding: '6rem 4rem', 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1.2fr', 
-            gap: '6rem',
+            backgroundColor: 'var(--bg-deep, #1b2d2a)',
+            borderRadius: '40px',
+            padding: 'clamp(2.5rem,6vw,6rem) clamp(1.5rem,4vw,4rem)',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap: 'clamp(2rem,5vw,6rem)',
             alignItems: 'center',
             color: 'white', 
             position: 'relative', 

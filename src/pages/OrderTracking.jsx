@@ -50,21 +50,21 @@ export default function OrderTracking() {
   ];
 
   return (
-    <div className="container" style={{ padding: '4rem 1rem 10rem' }}>
-      <div style={{ marginBottom: '3rem' }}>
-        <button onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-           <ArrowLeft size={14} /> Go Back
+    <div className="container" style={{ padding: 'clamp(2rem,5vw,4rem) 1rem clamp(5rem,10vw,10rem)' }}>
+      <div style={{ marginBottom: 'clamp(1.5rem,4vw,3rem)' }}>
+        <button onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.68rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+           <ArrowLeft size={13} /> Go Back
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '4rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(2rem,4vw,4rem)', alignItems: 'start' }}>
         
         {/* Tracking Details (Left) */}
         <div className="slide-up">
-          <section style={{ backgroundColor: 'white', padding: '3.5rem', borderRadius: '32px', border: '1px solid #f1f5f9', marginBottom: '3rem' }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4rem' }}>
+          <section style={{ backgroundColor: 'white', padding: 'clamp(1.5rem,4vw,3.5rem)', borderRadius: '32px', border: '1px solid #f1f5f9', marginBottom: '3rem' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'clamp(2rem,5vw,4rem)', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                   <h1 style={{ fontSize: '2.5rem', fontFamily: 'var(--font-serif)', marginBottom: '0.5rem' }}>Acquisition Tracking</h1>
+                   <h1 style={{ fontSize: 'clamp(1.5rem,4vw,2.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.5rem' }}>Acquisition Tracking</h1>
                    <p style={{ color: '#64748b', fontWeight: 600 }}>Protocol Reference: #{order.order_number}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -75,32 +75,32 @@ export default function OrderTracking() {
              </div>
 
              {/* Visual Progress Bar */}
-             <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', marginBottom: '6rem' }}>
-                <div style={{ position: 'absolute', top: '24px', left: '0', right: '0', height: '2px', backgroundColor: '#f1f5f9', zIndex: 0 }}></div>
+             <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', marginBottom: 'clamp(3rem,7vw,6rem)' }}>
+                <div style={{ position: 'absolute', top: 'clamp(18px,3vw,24px)', left: '0', right: '0', height: '2px', backgroundColor: '#f1f5f9', zIndex: 0 }}></div>
                 {steps.map((step, idx) => (
                   <div key={idx} style={{ position: 'relative', zIndex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                    <div style={{ 
-                      width: '50px', 
-                      height: '50px', 
-                      borderRadius: '50%', 
-                      backgroundColor: step.active ? 'var(--bg-deep)' : 'white', 
+                    <div style={{
+                      width: 'clamp(36px,6vw,50px)',
+                      height: 'clamp(36px,6vw,50px)',
+                      borderRadius: '50%',
+                      backgroundColor: step.active ? 'var(--bg-deep)' : 'white',
                       border: step.active ? 'none' : '2px solid #f1f5f9',
                       color: step.active ? 'white' : '#cbd5e1',
-                      display: 'flex', 
-                      alignItems: 'center', 
+                      display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: '1rem',
+                      marginBottom: '0.75rem',
                       transition: 'all 0.3s ease'
                     }}>
                       {step.icon}
                     </div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: step.active ? 'var(--bg-deep)' : '#94a3b8' }}>{step.label}</span>
+                    <span style={{ fontSize: 'clamp(0.58rem,1.5vw,0.7rem)', fontWeight: 800, textTransform: 'uppercase', color: step.active ? 'var(--bg-deep)' : '#94a3b8' }}>{step.label}</span>
                   </div>
                 ))}
              </div>
 
              {/* Logistic Context */}
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 'clamp(1.5rem,3vw,3rem)' }}>
                 <div>
                    <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.25rem', color: 'var(--brand-gold)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <MapPin size={16} /> Delivery Sanctuary
@@ -133,12 +133,12 @@ export default function OrderTracking() {
           </section>
 
           {/* Specimen Manifest */}
-          <section style={{ backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #f1f5f9' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '2.5rem', fontFamily: 'var(--font-serif)' }}>Acquisition Manifest</h3>
+          <section style={{ backgroundColor: 'white', padding: 'clamp(1.25rem,3vw,3rem)', borderRadius: '32px', border: '1px solid #f1f5f9' }}>
+            <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.25rem)', fontWeight: 700, marginBottom: '2.5rem', fontFamily: 'var(--font-serif)' }}>Acquisition Manifest</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                {order.items.map(item => (
-                 <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px', gap: '1.5rem', alignItems: 'center' }}>
-                    <div style={{ width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+                 <div key={item.id} style={{ display: 'grid', gridTemplateColumns: 'clamp(60px,15vw,80px) 1fr auto', gap: 'clamp(0.75rem,2vw,1.5rem)', alignItems: 'center' }}>
+                    <div style={{ width: 'clamp(60px,15vw,80px)', height: 'clamp(60px,15vw,80px)', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
                        <img src={getImageUrl(item.product_image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={item.product_name} />
                     </div>
                     <div>
@@ -156,7 +156,7 @@ export default function OrderTracking() {
 
         {/* Financial Anchor (Right) */}
         <aside style={{ position: 'sticky', top: '8rem' }} className="slide-up">
-           <div style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '32px', border: '1px solid #f1f5f9' }}>
+           <div style={{ backgroundColor: 'white', padding: 'clamp(1.5rem,3vw,2.5rem)', borderRadius: '32px', border: '1px solid #f1f5f9' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '2rem', fontFamily: 'var(--font-serif)' }}>Financial Transcript</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem' }}>
                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Heart,
@@ -88,6 +88,8 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState('Standard');
   const [isMobile, setIsMobile] = useState(false);
+  // Guard against rapid double-taps / React Strict Mode double-fires calling add_item 2-3× at once
+  const isAddingToCart = useRef(false);
   const { addToCart, addItemToCart, LIGHT_FREE_THRESHOLD, HEAVY_FREE_THRESHOLD, cart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
@@ -221,20 +223,26 @@ export default function ProductDetails() {
   }, [hasStockLimit, stockLimit]);
 
   const handleBuyNow = async () => {
+    if (isAddingToCart.current) return;
     const safeQty = hasStockLimit ? Math.max(1, Math.min(quantity, Math.max(0, stockLimit))) : quantity;
     if (hasStockLimit && safeQty < 1) return;
-    
-    const existingItem = cart?.items?.find(i => 
-      i.product.id === id && (!selectedVariant?.id || i.variant?.id === selectedVariant?.id)
-    );
 
-    if (!existingItem) {
-      await addItemToCart(id, safeQty, selectedVariant?.id, product, selectedVariant);
-    } else if (existingItem.quantity < safeQty) {
-      // Only add the difference if the cart has less than what the user wants to buy right now
-      await addItemToCart(id, safeQty - existingItem.quantity, selectedVariant?.id, product, selectedVariant);
+    isAddingToCart.current = true;
+    try {
+      const existingItem = cart?.items?.find(i =>
+        i.product.id === id && (!selectedVariant?.id || i.variant?.id === selectedVariant?.id)
+      );
+
+      if (!existingItem) {
+        await addItemToCart(id, safeQty, selectedVariant?.id, product, selectedVariant);
+      } else if (existingItem.quantity < safeQty) {
+        // Only add the difference if the cart has less than what the user wants to buy right now
+        await addItemToCart(id, safeQty - existingItem.quantity, selectedVariant?.id, product, selectedVariant);
+      }
+    } finally {
+      isAddingToCart.current = false;
     }
-    
+
     navigate('/checkout');
   };
 
@@ -690,9 +698,15 @@ export default function ProductDetails() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button
                   onClick={async () => {
-                    const ok = await addItemToCart(id, quantity, selectedVariant?.id, product, selectedVariant);
-                    trackAddToCart({ productId: id, name, price: displayPrice });
-                    if (ok !== false) showToast('Specimen secured in your box.', 'success');
+                    if (isAddingToCart.current) return;
+                    isAddingToCart.current = true;
+                    try {
+                      const ok = await addItemToCart(id, quantity, selectedVariant?.id, product, selectedVariant);
+                      trackAddToCart({ productId: id, name, price: displayPrice });
+                      if (ok !== false) showToast('Specimen secured in your box.', 'success');
+                    } finally {
+                      isAddingToCart.current = false;
+                    }
                   }}
                   disabled={!selectedVariant || selectedVariant.stock <= 0}
                   style={{

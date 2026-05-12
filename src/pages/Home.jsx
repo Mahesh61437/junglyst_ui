@@ -18,7 +18,7 @@ function StatsBar({ stats }) {
   return (
     <div style={{ backgroundColor: 'var(--bg-deep)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="container">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(48%, 130px), 1fr))' }}>
           {items.map((item, i) => (
             <div key={i} style={{
               padding: 'clamp(1rem,2.5vw,1.75rem) 1rem',
