@@ -32,10 +32,12 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const cartItemIndex = cart.items.findIndex(item => item.product.id === id);
   const cartItem = cartItemIndex >= 0 ? cart.items[cartItemIndex] : null;
   const quantityInCart = cartItem ? cartItem.quantity : 0;
-  const variantId = variants?.length > 0 ? variants[0].id : null;
+  
+  const baseVariant = variants?.find(v => parseFloat(v.price) === minPrice) || variants?.[0];
+  const variantId = baseVariant ? baseVariant.id : null;
 
   const productData = { id, name, slug, image, seller, price };
-  const variantData = variants?.[0] ?? null;
+  const variantData = baseVariant ?? null;
 
   const handleAdd = (e) => {
     e.preventDefault();
