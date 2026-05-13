@@ -1,36 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Leaf, Droplets, Sun, Wind, ChevronRight, Search, Microscope } from 'lucide-react';
-
-const guides = [
-  {
-    id: 1,
-    title: "The Bucephalandra Compendium",
-    description: "An exhaustive guide to identifying and cultivating rare Bucephalandra variants in high-tech aquariums.",
-    category: "Aquatic Plants",
-    difficulty: "Medium",
-    time: "15 min read",
-    image: "https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    id: 2,
-    title: "Mastering Fern Propagation",
-    description: "Techniques for successful splitting and mounting of epiphytic ferns in terrariums and paludariums.",
-    category: "Terrarium",
-    difficulty: "Advanced",
-    time: "12 min read",
-    image: "https://images.unsplash.com/photo-1463123081488-789f998ac9c4?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    id: 3,
-    title: "Substrate Layering 101",
-    description: "Creating the perfect foundation for root health and long-term ecosystem stability.",
-    category: "Hardscape",
-    difficulty: "Easy",
-    time: "8 min read",
-    image: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=800"
-  }
-];
+import { blogs } from '../data/blogs';
 
 export default function CareGuides() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,12 +36,26 @@ export default function CareGuides() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '3rem' }}>
-        {guides.map(guide => (
-          <div key={guide.id} style={{ cursor: 'pointer', group: 'true' }}>
+        {blogs
+          .filter(guide => 
+            guide.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            guide.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            guide.category.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+          .map(guide => (
+          <Link 
+            key={guide.id}
+            to={`/blog/${guide.slug}`}
+            style={{ textDecoration: 'none', cursor: 'pointer', group: 'true' }}
+          >
             <div style={{ 
               position: 'relative', height: '300px', borderRadius: '32px', overflow: 'hidden', marginBottom: '2rem',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
-            }}>
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+              transition: 'transform 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
               <img 
                 src={guide.image} 
                 alt={guide.title} 
@@ -86,7 +71,7 @@ export default function CareGuides() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: '#64748b', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>
               <span>{guide.difficulty} Level</span>
               <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e2e8f0' }} />
-              <span>{guide.time}</span>
+              <span>{guide.readTime}</span>
             </div>
             
             <h3 style={{ fontSize: '1.75rem', fontWeight: 600, fontFamily: 'serif', color: '#0A3029', marginBottom: '1rem', lineHeight: 1.2 }}>
@@ -97,10 +82,10 @@ export default function CareGuides() {
               {guide.description}
             </p>
             
-            <button style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <div style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               Read Full Study <ChevronRight size={16} />
-            </button>
-          </div>
+            </div>
+          </Link>
         ))}
       </div>
 

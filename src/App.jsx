@@ -19,10 +19,12 @@ import Privacy from './pages/Privacy';
 import ShippingPolicy from './pages/ShippingPolicy';
 import RefundPolicy from './pages/RefundPolicy';
 import SellerPolicy from './pages/SellerPolicy';
+import FAQ from './pages/FAQ';
 import Profile from './pages/Profile';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import CareGuides from './pages/CareGuides';
+import BlogDetail from './pages/BlogDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import GstManagement from './pages/GstManagement';
@@ -70,10 +72,12 @@ function App() {
                 <Route path="shipping-policy" element={<ShippingPolicy />} />
                 <Route path="refund-policy" element={<RefundPolicy />} />
                 <Route path="seller-policy" element={<SellerPolicy />} />
+                <Route path="faq" element={<FAQ />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="about" element={<About />} />
                 <Route path="contact" element={<Contact />} />
                 <Route path="guides" element={<CareGuides />} />
+                <Route path="blog/:slug" element={<BlogDetail />} />
                 <Route path="checkout/success" element={<Success />} />
                 <Route path="checkout/failure" element={<Failure />} />
                 <Route path="orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
