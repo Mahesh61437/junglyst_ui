@@ -79,17 +79,27 @@ export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/orders/')
+    setLoading(true);
+    api.get(`/orders/?page=${page}`)
       .then(res => {
         const data = res.data;
-        setOrders(Array.isArray(data) ? data : (data.results || []));
+        if (data && typeof data === 'object' && 'results' in data) {
+          setOrders(data.results);
+          setTotalItems(data.count || 0);
+        } else {
+          const arr = Array.isArray(data) ? data : [];
+          setOrders(arr);
+          setTotalItems(arr.length);
+        }
       })
       .catch(err => console.error('Failed to load orders:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   if (loading) {
     return (
@@ -210,6 +220,30 @@ export default function MyOrders() {
               </div>
             );
           })}
+
+          {totalItems > 10 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid #f1f5f9', marginTop: '1rem' }}>
+              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                Showing {((page - 1) * 10) + 1} to {Math.min(page * 10, totalItems)} of {totalItems} orders
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  disabled={page === 1}
+                  onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', backgroundColor: page === 1 ? '#f8fafc' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', color: '#1e293b', fontWeight: 700, fontSize: '0.8rem' }}
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={page * 10 >= totalItems}
+                  onClick={() => { setPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', backgroundColor: page * 10 >= totalItems ? '#f8fafc' : 'white', cursor: page * 10 >= totalItems ? 'not-allowed' : 'pointer', color: '#1e293b', fontWeight: 700, fontSize: '0.8rem' }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
