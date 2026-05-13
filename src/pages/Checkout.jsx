@@ -241,19 +241,41 @@ export default function Checkout() {
           order_id: razorpay_order_id,
           name: 'JungLyst',
           description: 'Order payment',
-          // Restrict checkout modal to UPI and QR only
+          // Multiple payment methods: Cards, Net Banking, Wallets, UPI
           config: {
             display: {
               blocks: {
+                // Credit/Debit Cards
+                card: {
+                  name: 'Card Payments',
+                  instruments: [
+                    { method: 'card', flows: ['headless', 'recurring'] },
+                  ],
+                },
+                // Net Banking
+                netbanking: {
+                  name: 'Net Banking',
+                  instruments: [
+                    { method: 'netbanking' },
+                  ],
+                },
+                // Wallets & Digital Payment Apps
+                wallet: {
+                  name: 'Digital Wallets',
+                  instruments: [
+                    { method: 'wallet', flows: ['iframe'] },
+                  ],
+                },
+                // UPI - Direct & QR
                 upi: {
-                  name: 'Pay via UPI',
+                  name: 'UPI Payments',
                   instruments: [
                     { method: 'upi', flows: ['collect'] },
                     { method: 'upi', flows: ['qr'] },
                   ],
                 },
               },
-              sequence: ['block.upi'],
+              sequence: ['block.card', 'block.netbanking', 'block.wallet', 'block.upi'],
               preferences: { show_default_blocks: false },
             },
           },
@@ -320,11 +342,11 @@ export default function Checkout() {
 
       if (!cashfree) throw new Error('Payment SDK could not be initialized. Please refresh and try again.');
 
-      // Hosted checkout (backend enforces UPI-only)
+      // Hosted checkout with multiple payment methods
       const checkoutOptions = {
         paymentSessionId: payment_session_id,
         redirectTarget: "_modal",
-        components: ["order-details", "upi"],
+        components: ["order-details", "card", "netbanking", "upi", "wallet"],
       };
 
       cashfree.checkout(checkoutOptions).then((result) => {
@@ -547,17 +569,48 @@ export default function Checkout() {
               )}
             </section>
 
-            {/* Section 2: Payment */}
+            {/* Section 2: Payment Methods */}
             <section style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '24px', border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f0f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 900, color: '#1b2d2a' }}>2</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-serif)', margin: 0 }}>Payment Vault</h3>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-serif)', margin: 0 }}>Payment Methods</h3>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+                {/* Cards Payment */}
+                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💳</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Cards</div>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b' }}>Credit/Debit</div>
+                </div>
+
+                {/* Net Banking */}
+                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🏦</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Net Banking</div>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b' }}>All Major Banks</div>
+                </div>
+
+                {/* Digital Wallets */}
+                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📱</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Wallets</div>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b' }}>Google/PhonePe/Paytm</div>
+                </div>
+
+                {/* UPI */}
+                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #1b2d2a', backgroundColor: '#f0fdf4', textAlign: 'center', cursor: 'default' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💸</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>UPI</div>
+                  <div style={{ fontSize: '0.65rem', color: '#10b981' }}>Instant Transfer</div>
+                </div>
+              </div>
+
               <div style={{ border: '2px solid var(--brand-gold)', borderRadius: '16px', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', backgroundColor: '#fffdf9' }}>
                 <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '5px solid var(--brand-gold)', backgroundColor: 'white', flexShrink: 0 }} />
                 <div style={{ flexGrow: 1 }}>
-                  <span style={{ fontWeight: 800, color: '#1b2d2a', display: 'block', fontSize: '0.95rem' }}>Secure Botanical Checkout</span>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>UPI (Collect/QR) · Cashfree Secured</span>
+                  <span style={{ fontWeight: 800, color: '#1b2d2a', display: 'block', fontSize: '0.95rem' }}>Secure Payment Processing</span>
+                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Powered by Razorpay & Cashfree • Industry-leading encryption</span>
                 </div>
                 <ShieldCheck size={20} color="var(--brand-gold)" />
               </div>
