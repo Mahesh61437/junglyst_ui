@@ -320,6 +320,7 @@ export default function SellerDashboard() {
     } catch (error) {
       console.error("Dashboard fetch failed:", error);
       setError("The botanical archives are currently inaccessible. Please refresh or check your sanctuary credentials.");
+    } finally {
       setLoading(false);
     }
   };
