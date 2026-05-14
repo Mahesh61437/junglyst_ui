@@ -247,7 +247,7 @@ export default function SellerDashboard() {
         page_size: productPageSize 
       });
       if (prodsData && typeof prodsData === 'object' && 'results' in prodsData) {
-        setProducts(prodsData.results);
+        setProducts(prodsData.results || []);
         setProductTotal(prodsData.count || 0);
       } else {
         const prodsArray = Array.isArray(prodsData) ? prodsData : [];
@@ -275,7 +275,7 @@ export default function SellerDashboard() {
       } else {
         const prodsData = await ProductService.getProducts({ seller: user.id, page: 1, page_size: 10 });
         if (prodsData && typeof prodsData === 'object' && 'results' in prodsData) {
-          setProducts(prodsData.results);
+          setProducts(prodsData.results || []);
           setProductTotal(prodsData.count || 0);
         } else {
           const prodsArray = Array.isArray(prodsData) ? prodsData : [];
