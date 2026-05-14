@@ -77,7 +77,7 @@ export default function Failure() {
 
         <div style={{ marginTop: '4rem', borderTop: '1px solid #f1f5f9', paddingTop: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.85rem' }}>
-            <MessageSquare size={16} /> Need help? support@junglyst.com
+            <MessageSquare size={16} /> Need help? admin@junglyst.com
           </div>
         </div>
       </div>

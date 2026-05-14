@@ -105,7 +105,7 @@ export default function RefundPolicy() {
             <strong>Document immediately:</strong> Take clear photographs or an unboxing video showing the specimen, its condition, and the packaging (including sealing tape intact or damaged). This evidence is mandatory.
           </li>
           <li>
-            <strong>Submit your claim:</strong> Email us at <strong>support@junglyst.com</strong> with Subject: <em>"Claim – [Your Order Number]"</em>. Include your order number, reason for claim, and attach all photos/video. Alternatively, use the "Raise a Dispute" option in My Orders on your account.
+            <strong>Submit your claim:</strong> Email us at <strong>admin@junglyst.com</strong> with Subject: <em>"Claim – [Your Order Number]"</em>. Include your order number, reason for claim, and attach all photos/video. Alternatively, use the "Raise a Dispute" option in My Orders on your account.
           </li>
           <li>
             <strong>Assessment:</strong> Our team will review your claim within 48 business hours. We may contact the Seller for their assessment and the packaging photograph taken at dispatch.
@@ -142,7 +142,7 @@ export default function RefundPolicy() {
         <p>Orders may be cancelled by the buyer before the Seller confirms dispatch. Once the order status moves to "Dispatched", cancellation is not possible. To cancel an order:</p>
         <ul style={{ paddingLeft: '1.5rem', marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <li>Log in to your account, go to "My Orders", and select "Request Cancellation" if the option is available.</li>
-          <li>Or email <strong>support@junglyst.com</strong> immediately with your order number.</li>
+          <li>Or email <strong>admin@junglyst.com</strong> immediately with your order number.</li>
         </ul>
         <p style={{ marginTop: '1rem' }}>If the Seller has already prepared the specimen for dispatch, a cancellation may be declined. Approved cancellation refunds are processed within 5–7 business days to the original payment method.</p>
       </Section>

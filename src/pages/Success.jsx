@@ -362,7 +362,7 @@ export default function Success() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
               <AlertCircle size={16} />
-              Help: support@junglyst.com
+              Help: admin@junglyst.com
             </div>
           </div>
           <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>

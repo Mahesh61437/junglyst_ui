@@ -52,10 +52,10 @@ export default function Contact() {
             <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.6rem', color: 'var(--bg-deep)', marginBottom: '2rem' }}>Contact Details</h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              <ContactItem icon={<Mail size={20} />} label="General & Orders" value="support@junglyst.com" href="mailto:support@junglyst.com" />
+              <ContactItem icon={<Mail size={20} />} label="General & Orders" value="admin@junglyst.com" href="mailto:admin@junglyst.com" />
               <ContactItem icon={<Mail size={20} />} label="Seller Inquiries" value="sellers@junglyst.com" href="mailto:sellers@junglyst.com" />
               <ContactItem icon={<Mail size={20} />} label="Legal & Privacy" value="legal@junglyst.com" href="mailto:legal@junglyst.com" />
-              <ContactItem icon={<Phone size={20} />} label="WhatsApp Support" value="+91 98XXX XXXXX" href="https://wa.me/91XXXXXXXXXX" />
+              <ContactItem icon={<Phone size={20} />} label="WhatsApp Support" value="+91 80757 41370" href="https://wa.me/918075741370" />
               <ContactItem icon={<MapPin size={20} />} label="Registered Office" value="Bengaluru, Karnataka, India" />
             </div>
 
@@ -125,7 +125,7 @@ export default function Contact() {
 
                 {status === 'error' && (
                   <p style={{ fontSize: '0.8rem', color: '#dc2626', background: '#fef2f2', padding: '0.75rem 1rem', borderRadius: '8px' }}>
-                    Something went wrong. Please try again or email us directly at support@junglyst.com.
+                    Something went wrong. Please try again or email us directly at admin@junglyst.com.
                   </p>
                 )}
 

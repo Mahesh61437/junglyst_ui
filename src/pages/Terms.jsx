@@ -36,7 +36,7 @@ export default function Terms() {
       </Section>
 
       <Section n="4" title="User Accounts">
-        <p>You are responsible for maintaining the confidentiality of your account credentials. You agree to notify Junglyst immediately at <strong>support@junglyst.com</strong> if you suspect any unauthorised access. Junglyst will not be liable for any loss resulting from unauthorised use of your account. You may not transfer your account to any other person.</p>
+        <p>You are responsible for maintaining the confidentiality of your account credentials. You agree to notify Junglyst immediately at <strong>admin@junglyst.com</strong> if you suspect any unauthorised access. Junglyst will not be liable for any loss resulting from unauthorised use of your account. You may not transfer your account to any other person.</p>
       </Section>
 
       <Section n="5" title="Live Specimen Acknowledgement">

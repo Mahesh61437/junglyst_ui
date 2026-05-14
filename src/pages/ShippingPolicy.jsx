@@ -135,7 +135,7 @@ export default function ShippingPolicy() {
       </Section>
 
       <Section n="9" title="Contact for Shipping Issues">
-        <p>For any shipping-related concerns, contact us at <strong>support@junglyst.com</strong> or raise a query through our <a href="/contact" style={{ color: 'var(--brand-gold)', fontWeight: 700 }}>Contact page</a>. Please have your order number and AWB number ready for faster resolution.</p>
+        <p>For any shipping-related concerns, contact us at <strong>admin@junglyst.com</strong> or raise a query through our <a href="/contact" style={{ color: 'var(--brand-gold)', fontWeight: 700 }}>Contact page</a>. Please have your order number and AWB number ready for faster resolution.</p>
       </Section>
     </PolicyLayout>
   );
