@@ -336,8 +336,12 @@ export default function Checkout() {
       pendingGatewayId.current.cashfree = cashfree_order_id;
 
       // Initialize Cashfree
+      const mode = (import.meta.env.VITE_CASHFREE_MODE || 'sandbox').toLowerCase();
+      const appId = import.meta.env.VITE_CASHFREE_APP_ID;
+      console.log('[CHECKOUT] Loading Cashfree SDK with mode:', mode, 'appId:', appId);
       const cashfree = await load({
-        mode: import.meta.env.VITE_CASHFREE_MODE || 'sandbox'
+        mode: mode,
+        appId: appId
       });
 
       if (!cashfree) throw new Error('Payment SDK could not be initialized. Please refresh and try again.');
@@ -351,7 +355,8 @@ export default function Checkout() {
 
       cashfree.checkout(checkoutOptions).then((result) => {
         if (result.error) {
-          setError('Payment failed. Please try again.');
+          console.error('[CHECKOUT] Cashfree error:', result.error);
+          setError(`Payment failed: ${result.error || 'Unknown error'}. Please try again.`);
           setLoading(false);
         } else if (result.paymentDetails) {
           // Mark order placed immediately so the empty-cart guard
@@ -379,8 +384,8 @@ export default function Checkout() {
           }
         }
       }).catch((error) => {
-        console.error('Cashfree checkout error:', error);
-        setError('Payment initialization failed. Please try again.');
+        console.error('[CHECKOUT] Cashfree checkout error:', error);
+        setError(`Payment initialization failed: ${error?.message || error || 'Unknown error'}. Please try again.`);
         setLoading(false);
       });
     } catch (err) {
