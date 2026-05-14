@@ -87,7 +87,7 @@ export default function Checkout() {
   // ── Payment status polling (handles UPI in-processing / modal-close edge case) ──
   const startPolling = (gatewayType, gatewayId) => {
     setVerifying(true);
-    orderPlaced.current = true; // prevent empty-cart guard
+    orderPlaced.current = true;
     const MAX_ATTEMPTS = 30; // 30 × 3s = 90 seconds
     let attempts = 0;
     const param = gatewayType === 'cashfree' ? 'cashfree_order_id' : 'razorpay_order_id';
@@ -104,20 +104,19 @@ export default function Checkout() {
           clearInterval(interval);
           orderPlaced.current = false;
           setVerifying(false);
-          setError('Payment was not completed. Please try again.');
+          navigate('/checkout/failure', { state: { error: 'Payment was declined. Please try a different payment method.' } });
         } else if (attempts >= MAX_ATTEMPTS) {
           clearInterval(interval);
           orderPlaced.current = false;
           setVerifying(false);
-          setError('Payment status is taking longer than expected. Check My Orders or contact support.');
+          navigate('/checkout/failure', { state: { error: 'Payment status is taking longer than expected. Please check My Orders or contact support.' } });
         }
-        // 'processing' → keep polling
       } catch {
         if (attempts >= MAX_ATTEMPTS) {
           clearInterval(interval);
           orderPlaced.current = false;
           setVerifying(false);
-          setError('Could not verify payment status. Please check My Orders.');
+          navigate('/checkout/failure', { state: { error: 'Could not verify payment status. Please check My Orders or contact support.' } });
         }
       }
     }, 3000);
@@ -296,8 +295,8 @@ export default function Checkout() {
             } catch (e) {
               console.error('Razorpay verify failed:', e);
               orderPlaced.current = false;
-              setError('Payment verified but order confirmation failed. Please contact support.');
-              setLoading(false);
+              setVerifying(false);
+              navigate('/checkout/failure', { state: { error: 'Payment verified but order confirmation failed. Please contact support.' } });
             }
           },
           modal: {
@@ -323,8 +322,8 @@ export default function Checkout() {
 
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function () {
-          setError('Payment failed. Please try again.');
           setLoading(false);
+          navigate('/checkout/failure', { state: { error: 'Payment failed. Please try a different payment method or retry.' } });
         });
         rzp.open();
         return;
@@ -356,13 +355,11 @@ export default function Checkout() {
       cashfree.checkout(checkoutOptions).then((result) => {
         if (result.error) {
           console.error('[CHECKOUT] Cashfree error:', result.error);
-          setError(`Payment failed: ${result.error || 'Unknown error'}. Please try again.`);
           setLoading(false);
+          navigate('/checkout/failure', { state: { error: result.error?.message || 'Payment was not completed. Please try again.' } });
         } else if (result.paymentDetails) {
-          // Mark order placed immediately so the empty-cart guard
-          // doesn't redirect to /cart while verifyPayment runs
           orderPlaced.current = true;
-          setLoading(true);
+          setVerifying(true); // show blocking overlay while we confirm with backend
           OrderService.verifyPayment({
             cashfree_order_id: cashfree_order_id,
           }).then((response) => {
@@ -370,12 +367,11 @@ export default function Checkout() {
             navigate('/checkout/success', { state: { order: response.order } });
           }).catch(() => {
             orderPlaced.current = false;
-            setError('Payment verified but order confirmation failed. Please contact support.');
-            setLoading(false);
+            setVerifying(false);
+            navigate('/checkout/failure', { state: { error: 'Payment was received but order confirmation failed. Please contact support.' } });
           });
         } else {
           // Modal closed without success or error — payment may still be processing
-          // (e.g. user entered PIN then closed the app before bank responded)
           const cfId = pendingGatewayId.current.cashfree;
           if (cfId) {
             startPolling('cashfree', cfId);
@@ -385,8 +381,8 @@ export default function Checkout() {
         }
       }).catch((error) => {
         console.error('[CHECKOUT] Cashfree checkout error:', error);
-        setError(`Payment initialization failed: ${error?.message || error || 'Unknown error'}. Please try again.`);
         setLoading(false);
+        navigate('/checkout/failure', { state: { error: error?.message || 'Payment could not be initialized. Please try again.' } });
       });
     } catch (err) {
       console.error('Checkout failed:', err);
@@ -437,7 +433,7 @@ export default function Checkout() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5 }}>
             <ShieldCheck size={14} color="#a3c4a8" />
-            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>Secured by UPI</span>
+            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>Secured by Cashfree Payments</span>
           </div>
         </div>
       )}
@@ -615,7 +611,7 @@ export default function Checkout() {
                 <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '5px solid var(--brand-gold)', backgroundColor: 'white', flexShrink: 0 }} />
                 <div style={{ flexGrow: 1 }}>
                   <span style={{ fontWeight: 800, color: '#1b2d2a', display: 'block', fontSize: '0.95rem' }}>Secure Payment Processing</span>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Powered by Razorpay & Cashfree • Industry-leading encryption</span>
+                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Powered by Cashfree Payments • Industry-leading encryption</span>
                 </div>
                 <ShieldCheck size={20} color="var(--brand-gold)" />
               </div>
