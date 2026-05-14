@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useNavigationType } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { ProductService } from '../services/ProductService';
@@ -9,6 +9,7 @@ import { Search, X, Leaf, SlidersHorizontal, Check } from 'lucide-react';
 export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
+  const navigationType = useNavigationType(); // 'POP' = back button, 'PUSH' = forward nav
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState('Featured');
@@ -34,14 +35,23 @@ export default function Shop() {
     };
   }, []);
 
-  const [categories, setCategories] = useState({});
-  const [difficulties, setDifficulties] = useState({
+  // Restore filter state when user navigates back (POP), otherwise start fresh
+  const _saved = navigationType === 'POP' ? (() => { try { return JSON.parse(sessionStorage.getItem('shopFilters') || 'null'); } catch { return null; } })() : null;
+
+  const [categories, setCategories] = useState(_saved?.categories || {});
+  const [difficulties, setDifficulties] = useState(_saved?.difficulties || {
     'Easy': false,
     'Medium': false,
     'Advanced': false,
   });
+  const [page, setPage] = useState(_saved?.page || 1);
 
-  // Load categories from API
+  // Restore sortBy from saved state on back navigation
+  useEffect(() => {
+    if (_saved?.sortBy) setSortBy(_saved.sortBy);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load categories from API, preserving any already-active selections
   useEffect(() => {
     ProductService.getCategories().then(data => {
       const cats = data.results || data || [];
@@ -53,8 +63,13 @@ export default function Shop() {
     }).catch(() => {});
   }, []);
 
-  const [page, setPage] = useState(1);
+  // Persist filter state to sessionStorage so back navigation can restore it
+  useEffect(() => {
+    sessionStorage.setItem('shopFilters', JSON.stringify({ categories, difficulties, page, sortBy }));
+  }, [categories, difficulties, page, sortBy]);
+
   const gridRef = useRef(null);
+  const isFirstRender = useRef(true);
 
   // ── Derive API query params from filter state ──────────────────────────────
   const activeCats = useMemo(
@@ -111,21 +126,21 @@ export default function Shop() {
   }, [products, activeCats]);
 
   // ── Sync URL category param into filter state ──────────────────────────────
+  // Fires on every navbar category click; also clears all filters on plain /shop
   useEffect(() => {
-    if (category) {
-      setCategories(prev => ({
-        ...Object.keys(prev).reduce((acc, k) => ({ ...acc, [k]: false }), {}),
-        [category]: true,
-      }));
-      setPage(1);
-    }
-  }, [category]);
+    if (navigationType === 'POP') return; // back button: restore from sessionStorage instead
+    setCategories(prev => {
+      const cleared = Object.keys(prev).reduce((acc, k) => ({ ...acc, [k]: false }), {});
+      return category ? { ...cleared, [category]: true } : cleared;
+    });
+    setDifficulties(prev => Object.keys(prev).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
+    setPage(1);
+  }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Scroll to grid top on page change ─────────────────────────────────────
+  // ── Scroll to top on pagination change (skip first render — ScrollToTop handles entry) ──
   useEffect(() => {
-    if (gridRef.current) {
-      gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);
 
   const handleCategoryChange = (cat) => {
