@@ -583,25 +583,25 @@ export default function Checkout() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 {/* Cards Payment */}
-                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                {/*<div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
                   <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💳</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Cards</div>
                   <div style={{ fontSize: '0.65rem', color: '#64748b' }}>Credit/Debit</div>
-                </div>
+                </div>*/}
 
                 {/* Net Banking */}
-                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                {/*<div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
                   <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🏦</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Net Banking</div>
                   <div style={{ fontSize: '0.65rem', color: '#64748b' }}>All Major Banks</div>
-                </div>
+                </div>*/}
 
                 {/* Digital Wallets */}
-                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                {/*<div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
                   <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📱</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Wallets</div>
                   <div style={{ fontSize: '0.65rem', color: '#64748b' }}>Google/PhonePe/Paytm</div>
-                </div>
+                </div>*/}
 
                 {/* UPI */}
                 <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #1b2d2a', backgroundColor: '#f0fdf4', textAlign: 'center', cursor: 'default' }}>
