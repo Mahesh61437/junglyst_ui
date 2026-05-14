@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -12,10 +12,27 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [formData, setFormData] = useState({ email: '', password: '' });
-  
+
   const [resetEmail, setResetEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+
+  // 60-second OTP cooldown timer
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const cooldownRef = useRef(null);
+
+  const startCooldown = (seconds = 60) => {
+    setOtpCooldown(seconds);
+    clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setOtpCooldown(prev => {
+        if (prev <= 1) { clearInterval(cooldownRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => () => clearInterval(cooldownRef.current), []);
 
   const { login } = useAuth();
   const { syncAfterLogin } = useWishlist();
@@ -40,18 +57,21 @@ export default function Login() {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
+    if (otpCooldown > 0) return;
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
     try {
       const res = await api.post('/core/forgot-password/', { email: resetEmail });
       setSuccessMsg(res.data.message || "OTP sent to email if account exists.");
+      startCooldown(60);
       setTimeout(() => {
         setSuccessMsg(null);
         setView('resetPassword');
       }, 2000);
     } catch (err) {
-      console.error(err);
+      const retryAfter = err.response?.data?.retry_after;
+      if (retryAfter) startCooldown(retryAfter);
       setError(err.response?.data?.error || "Failed to send OTP.");
     } finally {
       setLoading(false);
@@ -243,18 +263,18 @@ export default function Login() {
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              disabled={loading}
-              style={{ 
-                width: '100%', 
-                padding: '1.125rem', 
-                backgroundColor: 'var(--bg-deep)', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '12px', 
-                fontWeight: 800, 
-                cursor: 'pointer', 
+            <button
+              type="submit"
+              disabled={loading || otpCooldown > 0}
+              style={{
+                width: '100%',
+                padding: '1.125rem',
+                backgroundColor: otpCooldown > 0 ? '#94a3b8' : 'var(--bg-deep)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 800,
+                cursor: otpCooldown > 0 ? 'not-allowed' : 'pointer',
                 fontSize: '1rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -265,8 +285,8 @@ export default function Login() {
                 marginBottom: '1rem'
               }}
             >
-              {loading ? 'Sending...' : 'Send OTP'}
-              <ArrowRight size={18} />
+              {loading ? 'Sending…' : otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Send OTP'}
+              {!loading && otpCooldown === 0 && <ArrowRight size={18} />}
             </button>
 
             <button 
@@ -329,18 +349,18 @@ export default function Login() {
               </div>
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
-              style={{ 
-                width: '100%', 
-                padding: '1.125rem', 
-                backgroundColor: 'var(--bg-deep)', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '12px', 
-                fontWeight: 800, 
-                cursor: 'pointer', 
+              style={{
+                width: '100%',
+                padding: '1.125rem',
+                backgroundColor: 'var(--bg-deep)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
                 fontSize: '1rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -351,22 +371,47 @@ export default function Login() {
                 marginBottom: '1rem'
               }}
             >
-              {loading ? 'Resetting...' : 'Reset Password'}
-              <ArrowRight size={18} />
+              {loading ? 'Resetting…' : 'Reset Password'}
+              {!loading && <ArrowRight size={18} />}
             </button>
 
-            <button 
-              type="button" 
+            {/* Resend OTP */}
+            <div style={{ textAlign: 'center', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Didn't receive it?{' '}
+              <button
+                type="button"
+                disabled={otpCooldown > 0}
+                onClick={async () => {
+                  if (otpCooldown > 0) return;
+                  setError(null); setSuccessMsg(null);
+                  try {
+                    const res = await api.post('/core/forgot-password/', { email: resetEmail });
+                    setSuccessMsg(res.data.message || 'OTP resent.');
+                    startCooldown(60);
+                  } catch (err) {
+                    const retryAfter = err.response?.data?.retry_after;
+                    if (retryAfter) startCooldown(retryAfter);
+                    setError(err.response?.data?.error || 'Failed to resend OTP.');
+                  }
+                }}
+                style={{ background: 'none', border: 'none', padding: 0, fontWeight: 700, cursor: otpCooldown > 0 ? 'not-allowed' : 'pointer', color: otpCooldown > 0 ? '#94a3b8' : 'var(--brand-gold)', fontSize: '0.85rem' }}
+              >
+                {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Resend OTP'}
+              </button>
+            </div>
+
+            <button
+              type="button"
               onClick={() => { setError(null); setSuccessMsg(null); setView('login'); }}
-              style={{ 
-                width: '100%', 
-                padding: '1.125rem', 
-                backgroundColor: 'transparent', 
-                color: 'var(--text-secondary)', 
-                border: '1px solid var(--border-subtle)', 
-                borderRadius: '12px', 
-                fontWeight: 700, 
-                cursor: 'pointer', 
+              style={{
+                width: '100%',
+                padding: '1.125rem',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
                 fontSize: '0.9rem',
                 display: 'flex',
                 alignItems: 'center',
