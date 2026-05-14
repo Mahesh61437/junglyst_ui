@@ -164,6 +164,9 @@ export default function SellerDashboard() {
   });
 
   const [uploading, setUploading] = useState(null);
+  const [productPage, setProductPage] = useState(1);
+  const [productPageSize, setProductPageSize] = useState(10);
+  const [productTotal, setProductTotal] = useState(0);
 
   // Fulfillment state
   const [selectedOrders, setSelectedOrders] = useState(new Set());
@@ -211,9 +214,15 @@ export default function SellerDashboard() {
       fetchData();
     }
     const handleResize = () => {
-      const wide = window.innerWidth > 1024;
-      setIsSidebarOpen(wide);
-      setIsMobileView(!wide);
+      setIsMobileView(prevMobile => {
+        const wide = window.innerWidth > 1024;
+        const newMobile = !wide;
+        if (prevMobile !== newMobile) {
+          // Only force the sidebar state when crossing the 1024px boundary
+          setIsSidebarOpen(wide);
+        }
+        return newMobile;
+      });
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -229,14 +238,51 @@ export default function SellerDashboard() {
     }
   }, [success, formError]);
 
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const prodsData = await ProductService.getProducts({ 
+        seller: user.id, 
+        page: productPage, 
+        page_size: productPageSize 
+      });
+      if (prodsData && typeof prodsData === 'object' && 'results' in prodsData) {
+        setProducts(prodsData.results);
+        setProductTotal(prodsData.count || 0);
+      } else {
+        const prodsArray = Array.isArray(prodsData) ? prodsData : [];
+        setProducts(prodsArray);
+        setProductTotal(prodsArray.length);
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user && activeTab === 'products') {
+      fetchProducts();
+    }
+  }, [user, productPage, productPageSize, activeTab]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ── Fast path: fetch products immediately so UI is responsive ──
-      const prodsData = await ProductService.getProducts({ seller: user.id, no_pagination: true });
-      const prodsArray = Array.isArray(prodsData.results) ? prodsData.results : (Array.isArray(prodsData) ? prodsData : []);
-      setProducts(prodsArray);
-      setLoading(false);   // unblock the UI as soon as products arrive
+      if (activeTab === 'products') {
+        fetchProducts();
+      } else {
+        const prodsData = await ProductService.getProducts({ seller: user.id, page: 1, page_size: 10 });
+        if (prodsData && typeof prodsData === 'object' && 'results' in prodsData) {
+          setProducts(prodsData.results);
+          setProductTotal(prodsData.count || 0);
+        } else {
+          const prodsArray = Array.isArray(prodsData) ? prodsData : [];
+          setProducts(prodsArray);
+          setProductTotal(prodsArray.length);
+        }
+      }
 
       // ── Background path: orders, profile metrics, categories (lazy) ──
       const [ordsData, profileData, catsData] = await Promise.all([
@@ -765,7 +811,7 @@ export default function SellerDashboard() {
           flexDirection: 'column',
           position: isMobile ? 'fixed' : 'sticky',
           top: 0,
-          left: isMobile ? (isSidebarOpen ? 0 : '-280px') : 0,
+          left: isMobile ? (isSidebarOpen ? '0px' : '-280px') : '0px',
           height: '100vh',
           zIndex: 1001,
           transition: isMobile
@@ -775,11 +821,24 @@ export default function SellerDashboard() {
           overflow: 'hidden'
         }}>
           <div style={{ padding: '3rem 2rem', minWidth: '280px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '4rem' }}>
-              <div style={{ backgroundColor: spotlight.brand_color || '#E5C48B', padding: '0.6rem', borderRadius: '12px', transition: 'background-color 0.3s' }}>
-                <Leaf size={24} color="white" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4rem' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: isMobile ? 'pointer' : 'default' }}
+                onClick={() => { if (isMobile) setIsSidebarOpen(false); }}
+              >
+                <div style={{ backgroundColor: spotlight.brand_color || '#E5C48B', padding: '0.6rem', borderRadius: '12px', transition: 'background-color 0.3s' }}>
+                  <Leaf size={24} color="white" />
+                </div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'serif', margin: 0 }}>Junglyst</h2>
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'serif' }}>Junglyst</h2>
+              {isMobile && (
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', padding: '0.5rem' }}
+                >
+                  <X size={24} />
+                </button>
+              )}
             </div>
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -844,8 +903,8 @@ export default function SellerDashboard() {
               {isMobile && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <button
-                    onClick={() => setIsSidebarOpen(true)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', flexShrink: 0, padding: '0.5rem', borderRadius: '10px' }}
+                    onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', flexShrink: 0, padding: '0.5rem', borderRadius: '10px', position: 'relative', zIndex: 9999, pointerEvents: 'auto' }}
                   >
                     <Menu size={24} />
                   </button>
@@ -1507,6 +1566,43 @@ export default function SellerDashboard() {
                       ))}
                     </tbody>
                   </table>
+                  {productTotal > 0 && (
+                    <div style={{ padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #edf2ed', gap: '1rem' }}>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        Showing {((productPage - 1) * productPageSize) + 1} to {Math.min(productPage * productPageSize, productTotal)} of {productTotal} specimens
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <select
+                          value={productPageSize}
+                          onChange={(e) => {
+                            setProductPageSize(Number(e.target.value));
+                            setProductPage(1);
+                          }}
+                          style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.8rem', color: '#1e293b', cursor: 'pointer', outline: 'none' }}
+                        >
+                          <option value={10}>10 per page</option>
+                          <option value={20}>20 per page</option>
+                          <option value={50}>50 per page</option>
+                        </select>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            disabled={productPage === 1}
+                            onClick={() => setProductPage(p => p - 1)}
+                            style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage === 1 ? '#f8fafc' : 'white', cursor: productPage === 1 ? 'not-allowed' : 'pointer', color: '#1e293b' }}
+                          >
+                            Prev
+                          </button>
+                          <button
+                            disabled={productPage * productPageSize >= productTotal}
+                            onClick={() => setProductPage(p => p + 1)}
+                            style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage * productPageSize >= productTotal ? '#f8fafc' : 'white', cursor: productPage * productPageSize >= productTotal ? 'not-allowed' : 'pointer', color: '#1e293b' }}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -63,7 +63,7 @@ export default function Success() {
         </div>
 
         {/* Main Grid Layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '3rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
 
           {/* Left: Order Summary */}
           <div>
