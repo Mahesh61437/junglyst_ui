@@ -209,7 +209,6 @@ export default function SellerDashboard() {
   ];
 
   useEffect(() => {
-    console.log("Dashboard mount. User:", user?.email, "AuthLoading:", authLoading);
     if (user) {
       fetchData();
     }
@@ -270,9 +269,9 @@ export default function SellerDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (activeTab === 'products') {
-        fetchProducts();
-      } else {
+      // Products are loaded by their own useEffect (keyed on productPage/productPageSize/activeTab).
+      // fetchData only fetches the non-product data to avoid duplicate product API calls.
+      if (activeTab !== 'products') {
         const prodsData = await ProductService.getProducts({ seller: user.id, page: 1, page_size: 10 });
         if (prodsData && typeof prodsData === 'object' && 'results' in prodsData) {
           setProducts(prodsData.results || []);

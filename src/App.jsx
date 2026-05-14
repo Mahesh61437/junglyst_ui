@@ -34,6 +34,7 @@ import MyOrders from './pages/MyOrders';
 import OrderTracking from './pages/OrderTracking';
 import TrackOrder from './pages/TrackOrder';
 import RequireAuth from './components/RequireAuth';
+import ScrollToTop from './components/ScrollToTop';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -55,6 +56,7 @@ function App() {
         <ToastProvider>
         <CartProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <PageViewTracker />
             <Routes>
               {/* Buyer Storefront (Uses Navbar/Footer layout) */}

@@ -3,6 +3,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, Package, Truck, Calendar, ArrowRight, UserPlus, Mail, Copy, Check, MapPin, Phone, Clock, AlertCircle, ShoppingBag, CreditCard, Leaf } from 'lucide-react';
 import { trackPurchase } from '../utils/metaPixel';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { getImageUrl } from '../utils/imageUtils';
 
 export default function Success() {
@@ -10,13 +11,15 @@ export default function Success() {
   const navigate = useNavigate();
   const order = location.state?.order;
   const { user } = useAuth();
+  const { clearCart } = useCart();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    clearCart();
     if (order) {
       trackPurchase({ orderId: order.order_number, value: order.total_amount ?? order.grand_total });
     }
-  }, [order]);
+  }, []);
 
   const copyOrderId = () => {
     navigator.clipboard.writeText(order.order_number);

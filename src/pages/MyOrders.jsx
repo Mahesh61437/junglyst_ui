@@ -84,8 +84,9 @@ export default function MyOrders() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
-    api.get(`/orders/?page=${page}`)
+    api.get(`/orders/?page=${page}`, { signal: controller.signal })
       .then(res => {
         const data = res.data;
         if (data && typeof data === 'object' && 'results' in data) {
@@ -97,8 +98,9 @@ export default function MyOrders() {
           setTotalItems(arr.length);
         }
       })
-      .catch(err => console.error('Failed to load orders:', err))
+      .catch(err => { if (err.name !== 'CanceledError') console.error('Failed to load orders:', err); })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [page]);
 
   if (loading) {

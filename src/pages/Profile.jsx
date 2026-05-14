@@ -70,15 +70,9 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    if (user && activeTab === 'history') {
-      fetchOrders();
-    }
-  }, [user, activeTab]);
-
-  useEffect(() => {
-    if (user && activeTab === 'addresses') {
-      fetchAddresses();
-    }
+    if (!user) return;
+    if (activeTab === 'history') fetchOrders();
+    else if (activeTab === 'addresses') fetchAddresses();
   }, [user, activeTab]);
 
   const fetchAddresses = async () => {
