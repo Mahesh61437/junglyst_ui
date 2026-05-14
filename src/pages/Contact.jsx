@@ -55,7 +55,7 @@ export default function Contact() {
               <ContactItem icon={<Mail size={20} />} label="General & Orders" value="admin@junglyst.com" href="mailto:admin@junglyst.com" />
               <ContactItem icon={<Mail size={20} />} label="Seller Inquiries" value="sellers@junglyst.com" href="mailto:sellers@junglyst.com" />
               <ContactItem icon={<Mail size={20} />} label="Legal & Privacy" value="legal@junglyst.com" href="mailto:legal@junglyst.com" />
-              <ContactItem icon={<Phone size={20} />} label="WhatsApp Support" value="+91 80757 41370" href="https://wa.me/918075741370" />
+              <ContactItem icon={<Phone size={20} />} label="WhatsApp Support" value="+91 80747 51370" href="https://wa.me/918074751370" />
               <ContactItem icon={<MapPin size={20} />} label="Registered Office" value="Bengaluru, Karnataka, India" />
             </div>
 
