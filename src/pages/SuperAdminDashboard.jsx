@@ -546,7 +546,7 @@ export default function SuperAdminDashboard() {
   }, []);
 
   const refreshCategories = () => {
-    api.get('/core/categories/').then(res => setCategories(res.data || [])).catch(() => {});
+    api.get('/core/categories/').then(res => setCategories(res.data.results || res.data || [])).catch(() => {});
   };
 
   useEffect(() => { refreshCategories(); }, []);
@@ -659,7 +659,29 @@ export default function SuperAdminDashboard() {
     );
   }
 
-  const { overall_analytics, sellers, orders } = data;
+  if (!data) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>
+        <h2>No Data Available</h2>
+        <p>Failed to load dashboard data. Please refresh the page.</p>
+      </div>
+    );
+  }
+
+  const { 
+    overall_analytics = {
+      revenue_this_month: 0,
+      orders_this_month: 0,
+      total_sellers: 0,
+      total_users: 0,
+    },
+    sellers = [], 
+    orders = {
+      pending: [],
+      transit: [],
+      delivered: []
+    }
+  } = data;
 
   const filteredSellers = sellers.filter(s =>
     (s.store_name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
@@ -740,10 +762,10 @@ export default function SuperAdminDashboard() {
           <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Monthly Overview</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
             {[
-              { title: 'Revenue (Month)', value: `₹${overall_analytics.revenue_this_month.toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--brand-gold)' },
-              { title: 'Orders (Month)', value: overall_analytics.orders_this_month, icon: <Package size={24} />, color: 'var(--brand-green)' },
-              { title: 'Active Sellers', value: overall_analytics.total_sellers, icon: <Store size={24} />, color: '#3b82f6' },
-              { title: 'Total Collectors', value: overall_analytics.total_users, icon: <Users size={24} />, color: '#8b5cf6' },
+              { title: 'Revenue (Month)', value: `₹${(overall_analytics.revenue_this_month || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--brand-gold)' },
+              { title: 'Orders (Month)', value: overall_analytics.orders_this_month || 0, icon: <Package size={24} />, color: 'var(--brand-green)' },
+              { title: 'Active Sellers', value: overall_analytics.total_sellers || 0, icon: <Store size={24} />, color: '#3b82f6' },
+              { title: 'Total Collectors', value: overall_analytics.total_users || 0, icon: <Users size={24} />, color: '#8b5cf6' },
             ].map((stat, idx) => (
               <div key={idx} style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: `${stat.color}15`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

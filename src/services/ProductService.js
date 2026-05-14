@@ -89,7 +89,7 @@ export const ProductService = {
   getCategories: async () => {
     try {
       const response = await api.get('/core/categories/');
-      return response.data;
+      return response.data.results || response.data || [];
     } catch (error) {
       console.error('Error fetching categories:', error);
       throw error;
@@ -101,7 +101,7 @@ export const ProductService = {
     try {
       const params = categoryId ? { category: categoryId } : {};
       const response = await api.get('/core/subcategories/', { params });
-      return response.data;
+      return response.data.results || response.data || [];
     } catch (error) {
       console.error('Error fetching subcategories:', error);
       throw error;

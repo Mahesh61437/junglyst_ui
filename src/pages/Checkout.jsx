@@ -336,8 +336,12 @@ export default function Checkout() {
       pendingGatewayId.current.cashfree = cashfree_order_id;
 
       // Initialize Cashfree
+      const mode = (import.meta.env.VITE_CASHFREE_MODE || 'sandbox').toLowerCase();
+      const appId = import.meta.env.VITE_CASHFREE_APP_ID;
+      console.log('[CHECKOUT] Loading Cashfree SDK with mode:', mode, 'appId:', appId);
       const cashfree = await load({
-        mode: import.meta.env.VITE_CASHFREE_MODE || 'sandbox'
+        mode: mode,
+        appId: appId
       });
 
       if (!cashfree) throw new Error('Payment SDK could not be initialized. Please refresh and try again.');
@@ -351,7 +355,8 @@ export default function Checkout() {
 
       cashfree.checkout(checkoutOptions).then((result) => {
         if (result.error) {
-          setError('Payment failed. Please try again.');
+          console.error('[CHECKOUT] Cashfree error:', result.error);
+          setError(`Payment failed: ${result.error || 'Unknown error'}. Please try again.`);
           setLoading(false);
         } else if (result.paymentDetails) {
           // Mark order placed immediately so the empty-cart guard
@@ -379,8 +384,8 @@ export default function Checkout() {
           }
         }
       }).catch((error) => {
-        console.error('Cashfree checkout error:', error);
-        setError('Payment initialization failed. Please try again.');
+        console.error('[CHECKOUT] Cashfree checkout error:', error);
+        setError(`Payment initialization failed: ${error?.message || error || 'Unknown error'}. Please try again.`);
         setLoading(false);
       });
     } catch (err) {
@@ -578,25 +583,25 @@ export default function Checkout() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 {/* Cards Payment */}
-                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                {/*<div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
                   <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💳</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Cards</div>
                   <div style={{ fontSize: '0.65rem', color: '#64748b' }}>Credit/Debit</div>
-                </div>
+                </div>*/}
 
                 {/* Net Banking */}
-                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                {/*<div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
                   <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🏦</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Net Banking</div>
                   <div style={{ fontSize: '0.65rem', color: '#64748b' }}>All Major Banks</div>
-                </div>
+                </div>*/}
 
                 {/* Digital Wallets */}
-                <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
+                {/*<div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}>
                   <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📱</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', marginBottom: '0.25rem' }}>Wallets</div>
                   <div style={{ fontSize: '0.65rem', color: '#64748b' }}>Google/PhonePe/Paytm</div>
-                </div>
+                </div>*/}
 
                 {/* UPI */}
                 <div style={{ padding: '1rem', borderRadius: '12px', border: '2px solid #1b2d2a', backgroundColor: '#f0fdf4', textAlign: 'center', cursor: 'default' }}>
