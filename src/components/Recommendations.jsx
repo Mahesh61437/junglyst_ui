@@ -40,21 +40,19 @@ export default function Recommendations({ category, currentProductId }) {
       }}>
         Specimens You May Highly Value
       </h3>
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(4, 1fr)', 
-        gap: '2rem' 
-      }}>
+      <div className="grid-responsive">
         {products.map(product => (
-          <ProductCard 
-            key={product.id} 
+          <ProductCard
+            key={product.id}
             id={product.id}
+            slug={product.slug}
             name={product.name || product.title}
             price={product.price}
             image={product.imageUrl || product.image_url || product.image}
             reviews={product.rating || 4.8}
             stockStatus={product.stock > 0 ? "In Stock" : "Listing Soon"}
             seller={product.seller}
+            stock={product.stock}
           />
         ))}
       </div>

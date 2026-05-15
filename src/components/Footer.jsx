@@ -2,28 +2,29 @@ import { Link } from 'react-router-dom';
 import NaturalLogo from './NaturalLogo';
 
 export default function Footer() {
+
   return (
-    <footer style={{ 
-      backgroundColor: 'var(--bg-secondary)', 
+    <footer style={{
+      backgroundColor: 'var(--bg-secondary)',
       padding: '6rem 0 3rem',
       borderTop: '1px solid var(--border-subtle)',
       fontFamily: 'var(--font-sans)',
       color: 'var(--text-primary)'
     }}>
       <div className="container">
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-          gap: '4rem',
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '3rem',
           marginBottom: '5rem'
         }}>
           {/* Brand Identity */}
-          <div style={{ maxWidth: '320px' }}>
+          <div style={{ maxWidth: '300px', gridColumn: 'span 1' }}>
             <NaturalLogo size={42} />
-            <p style={{ 
-              marginTop: '1.5rem', 
-              fontSize: '0.925rem', 
-              color: 'var(--text-secondary)', 
+            <p style={{
+              marginTop: '1.5rem',
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
               lineHeight: 1.7,
               fontStyle: 'italic'
             }}>
@@ -31,24 +32,77 @@ export default function Footer() {
             </p>
           </div>
 
+          {/* The Collection */}
+          <div>
+            <h4 style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', color: 'var(--brand-gold)' }}>The Collection</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <FooterLink to="/shop">All Specimens</FooterLink>
+              <FooterLink to="/sellers">Verified Sellers</FooterLink>
+              <FooterLink to="/guides">Care Guides</FooterLink>
+              <FooterLink to="/about">About Junglyst</FooterLink>
+              <FooterLink to="/contact">Contact Us</FooterLink>
+            </div>
+          </div>
+
+          {/* Marketplace */}
+          <div>
+            <h4 style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', color: 'var(--brand-gold)' }}>Marketplace</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <FooterLink to="/seller/dashboard">Seller Login</FooterLink>
+              <FooterLink to="/seller-policy">Seller Policy</FooterLink>
+              <FooterLink to="/shipping-policy">Shipping Info</FooterLink>
+              <FooterLink to="/refund-policy">Refunds & Returns</FooterLink>
+            </div>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <h4 style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', color: 'var(--brand-gold)' }}>Legal</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <FooterLink to="/terms">Terms & Conditions</FooterLink>
+              <FooterLink to="/privacy">Privacy Policy</FooterLink>
+              <FooterLink to="/shipping-policy">Shipping Policy</FooterLink>
+              <FooterLink to="/refund-policy">DOA Policy</FooterLink>
+              <FooterLink to="/faq">FAQ</FooterLink>
+            </div>
+          </div>
         </div>
 
-        <div style={{ 
-          borderTop: '1px solid rgba(255,255,255,0.1)', 
+        <div style={{
+          borderTop: '1px solid var(--border-subtle)',
           paddingTop: '2rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
           fontSize: '0.75rem',
-          opacity: 0.5
+          color: 'var(--text-secondary)',
+          opacity: 0.6,
         }}>
-          <p>&copy; 2026 Junglyst Botanical. Cultivating excellence in India.</p>
-          <div style={{ display: 'flex', gap: '2rem' }}>
-             <Link to="/terms" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Terms of Service</Link>
-             <Link to="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Privacy Policy</Link>
+          <p>&copy; 2026 Junglyst Botanical Private Limited. Bengaluru, India.</p>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <FooterLink to="/terms">Terms</FooterLink>
+            <FooterLink to="/privacy">Privacy</FooterLink>
+            <FooterLink to="/shipping-policy">Shipping</FooterLink>
+            <FooterLink to="/refund-policy">Refunds</FooterLink>
+            <FooterLink to="/contact">Contact</FooterLink>
           </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterLink({ to, children }) {
+  return (
+    <Link
+      to={to}
+      style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.15s' }}
+      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+    >
+      {children}
+    </Link>
   );
 }

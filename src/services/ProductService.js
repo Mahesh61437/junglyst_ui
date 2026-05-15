@@ -15,8 +15,8 @@ export const ProductService = {
   // Get single product details
   getProduct: async (idOrSlug) => {
     try {
-      // Use pk lookup if id looks like a UUID, else slug
-      const path = idOrSlug.length > 30 ? `/core/products/id/${idOrSlug}/` : `/core/products/${idOrSlug}/`;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+      const path = isUUID ? `/core/products/id/${idOrSlug}/` : `/core/products/${idOrSlug}/`;
       const response = await api.get(path);
       return response.data;
     } catch (error) {
@@ -36,13 +36,24 @@ export const ProductService = {
     }
   },
 
-  // Update product details
+  // Update product details (full update)
   updateProduct: async (id, productData) => {
     try {
       const response = await api.put(`/core/products/id/${id}/`, productData);
       return response.data;
     } catch (error) {
       console.error(`Error updating product ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Partial update (e.g. archive: { is_active: false })
+  patchProduct: async (id, partialData) => {
+    try {
+      const response = await api.patch(`/core/products/id/${id}/`, partialData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error patching product ${id}:`, error);
       throw error;
     }
   },
@@ -78,7 +89,7 @@ export const ProductService = {
   getCategories: async () => {
     try {
       const response = await api.get('/core/categories/');
-      return response.data;
+      return response.data.results || response.data || [];
     } catch (error) {
       console.error('Error fetching categories:', error);
       throw error;
@@ -90,7 +101,7 @@ export const ProductService = {
     try {
       const params = categoryId ? { category: categoryId } : {};
       const response = await api.get('/core/subcategories/', { params });
-      return response.data;
+      return response.data.results || response.data || [];
     } catch (error) {
       console.error('Error fetching subcategories:', error);
       throw error;

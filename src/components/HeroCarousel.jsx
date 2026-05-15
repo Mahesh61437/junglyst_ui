@@ -1,233 +1,161 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUtils';
 
-const slides = [
+// Fallback slides shown when no sellers are marked is_featured yet.
+// Replace/remove once real promoted sellers exist in the DB.
+const FALLBACK_SLIDES = [
   {
-    type: 'spotlight',
-    title: 'Aquatic Exotica',
-    subtitle: 'Verified Sanctuary',
-    highlight: 'KERALA, INDIA',
-    description: 'Mastering the art of rare Bucephalandra and moss cultivation for over two decades. Discover farm-direct specimens of unparalleled vitality.',
-    cta: 'Visit Sanctuary',
-    link: '/shop',
-    image: 'https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?w=1600&q=80',
-    color: 'var(--brand-gold)'
+    id: '__fallback_1',
+    banner_url: 'https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?w=1600&q=80',
+    store_name: 'Aquatic Exotica',
+    tagline: 'Mastering rare Bucephalandra & moss cultivation for over two decades.',
+    bio: 'Farm-direct specimens of unparalleled vitality, sourced from Kerala\'s finest private greenhouse.',
+    brand_color: '#0A3029',
+    location_city: 'Kerala',
+    slug: null, // no real store page yet
   },
-  {
-    type: 'specimen',
-    title: 'Bucephalandra Ghost',
-    subtitle: 'Masterpiece Specimen',
-    highlight: 'RARE ARRIVAL',
-    description: 'The elusive Ghost variant, known for its iridescent purple and deep blue hues. A crowning jewel for any high-end aquascape.',
-    cta: 'View Specimen',
-    link: '/shop',
-    image: 'https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?w=1600&q=80',
-    color: '#e9d5ff'
-  },
-  {
-    type: 'specimen',
-    title: 'Bucephalandra Godzilla',
-    subtitle: 'Rare Masterpiece',
-    highlight: 'LIMITED ARRIVAL',
-    description: 'A prehistoric-looking beauty with extremely ruffled edges and a deep bluish iridescence. The ultimate focal point for professional aquascapes.',
-    cta: 'View Specimen',
-    link: '/shop',
-    image: 'https://firebasestorage.googleapis.com/v0/b/aqua-india-61437.firebasestorage.app/o/Ghodzilla%2Fgodzilla001.jpg?alt=media&token=a1a518a9-0bd4-4fe9-b895-844584a5efef',
-    color: '#86efac'
-  }
 ];
 
-export default function HeroCarousel() {
+function buildSlides(sellers) {
+  if (sellers && sellers.length > 0) return sellers;
+  return FALLBACK_SLIDES;
+}
+
+export default function HeroCarousel({ sellers = [] }) {
+  const slides = buildSlides(sellers);
   const [current, setCurrent] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+
+  const go = (next) => {
+    if (transitioning || slides.length <= 1) return;
+    setTransitioning(true);
+    setTimeout(() => {
+      setCurrent(next);
+      setTransitioning(false);
+    }, 500);
+  };
+
+  const prev = () => go((current - 1 + slides.length) % slides.length);
+  const next = () => go((current + 1) % slides.length);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      handleNext();
-    }, 8000);
-    return () => clearInterval(timer);
-  }, [current]);
+    if (slides.length <= 1) return;
+    const t = setInterval(next, 7000);
+    return () => clearInterval(t);
+  }, [current, slides.length]);
 
-  const handleNext = () => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrent((prev) => (prev + 1) % slides.length);
-      setIsTransitioning(false);
-    }, 600);
-  };
-
-  const handlePrev = () => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrent((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-      setIsTransitioning(false);
-    }, 600);
-  };
-
-  const currentSlide = slides[current];
+  const slide = slides[current] || slides[0];
+  const isReal = Boolean(slide?.slug); // real sellers always have a slug; fallbacks have slug: null
+  const storeLink = isReal ? `/store/${slide.slug}` : '/shop';
 
   return (
-    <section style={{ 
-      height: window.innerWidth > 768 ? '85vh' : '70vh', 
-      position: 'relative', 
-      backgroundColor: 'var(--bg-deep)', 
-      overflow: 'hidden',
-    }}>
-      {/* Background Image Layer */}
-      {slides.map((slide, idx) => (
-        <div 
-          key={idx}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: `url(${slide.image})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            opacity: current === idx ? 0.6 : 0,
-            transition: 'opacity 1.2s ease-in-out, transform 10s linear',
-            transform: current === idx ? 'scale(1.1)' : 'scale(1)',
-            zIndex: 1
-          }}
-        />
+    <section style={{ position: 'relative', backgroundColor: 'var(--bg-deep)', overflow: 'hidden', height: 'clamp(420px, 62vh, 720px)' }}>
+
+      {/* Background images — layered, cross-fade */}
+      {slides.map((s, i) => (
+        <div key={s.id || i} style={{
+          position: 'absolute', inset: 0, zIndex: 1,
+          backgroundImage: `url(${getImageUrl(s.banner_url) || '/assets/default-banner.jpg'})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          opacity: current === i ? 0.55 : 0,
+          transition: 'opacity 1s ease-in-out',
+          transform: current === i ? 'scale(1.04)' : 'scale(1)',
+          transitionProperty: 'opacity, transform',
+          transitionDuration: current === i ? '1s, 9s' : '1s, 0s',
+        }} />
       ))}
 
-      {/* Glassmorphic Overlay Gradient */}
+      {/* Gradient overlay */}
       <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: window.innerWidth > 768 
-          ? 'linear-gradient(to right, rgba(10,31,28,0.9) 0%, rgba(10,31,28,0.4) 50%, transparent 100%)'
-          : 'linear-gradient(to top, rgba(10,31,28,0.9) 0%, rgba(10,31,28,0.5) 60%, transparent 100%)',
-        zIndex: 2
+        position: 'absolute', inset: 0, zIndex: 2,
+        background: 'linear-gradient(105deg, rgba(10,31,28,0.92) 0%, rgba(10,31,28,0.55) 55%, rgba(10,31,28,0.2) 100%)',
       }} />
 
-      {/* Content Layer */}
-      <div className="container" style={{ 
-        position: 'relative', 
-        zIndex: 10, 
-        height: '100%', 
-        display: 'flex', 
-        alignItems: window.innerWidth > 768 ? 'center' : 'flex-end',
-        paddingBottom: window.innerWidth > 768 ? '0' : '6rem'
-      }}>
-        <div style={{ 
-          maxWidth: '700px',
-          opacity: isTransitioning ? 0 : 1,
-          transform: isTransitioning ? 'translateY(10px)' : 'translateY(0)',
-          transition: 'all 0.6s ease-out'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <span style={{ 
-              color: currentSlide.color, 
-              fontWeight: 800, 
-              fontSize: '0.75rem', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.25em',
-            }}>
-              {currentSlide.highlight}
+      {/* Content */}
+      <div className="container" style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', alignItems: 'center' }}>
+        <div style={{ maxWidth: '620px', opacity: transitioning ? 0 : 1, transform: transitioning ? 'translateY(12px)' : 'translateY(0)', transition: 'opacity 0.5s, transform 0.5s' }}>
+
+          {/* Eyebrow */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <ShieldCheck size={14} color="var(--brand-gold)" />
+            <span style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+              {isReal ? 'Featured Sanctuary' : 'Welcome to Junglyst'}
             </span>
-            <div style={{ width: '40px', height: '1px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white', fontSize: '0.7rem', fontWeight: 700, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {currentSlide.type === 'spotlight' && <ShieldCheck size={14} color="var(--brand-gold)" />}
-              {currentSlide.subtitle}
-            </span>
+            {slide.location_city && (
+              <>
+                <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.7rem' }}>
+                  <MapPin size={11} /> {slide.location_city}
+                </span>
+              </>
+            )}
           </div>
 
-          <h1 style={{ 
-            fontSize: window.innerWidth > 768 ? '5rem' : '3rem', 
-            fontFamily: 'var(--font-serif)', 
-            lineHeight: 1.1, 
-            color: 'white',
-            marginBottom: '1.5rem',
-            letterSpacing: '-0.02em'
-          }}>
-            {currentSlide.title}
+          {/* Store name */}
+          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontFamily: 'var(--font-serif)', color: 'white', lineHeight: 1.08, marginBottom: '1rem', letterSpacing: '-0.02em' }}>
+            {slide.store_name}
           </h1>
 
-          <p style={{ 
-            fontSize: window.innerWidth > 768 ? '1.25rem' : '1rem', 
-            color: 'rgba(255,255,255,0.8)', 
-            lineHeight: 1.6, 
-            marginBottom: '3rem',
-            maxWidth: '550px'
-          }}>
-            {currentSlide.description}
+          {/* Tagline / bio */}
+          <p style={{ fontSize: 'clamp(0.9rem, 1.8vw, 1.1rem)', color: 'rgba(255,255,255,0.72)', lineHeight: 1.65, marginBottom: '2.25rem', maxWidth: '500px' }}>
+            {slide.tagline || slide.bio}
           </p>
 
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Link to={currentSlide.link} className="btn btn-primary" style={{ padding: '1.125rem 3rem', backgroundColor: 'white', color: 'var(--bg-deep)' }}>
-              {currentSlide.cta}
+          {/* CTAs */}
+          <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link to={storeLink} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.875rem 2.25rem', borderRadius: '100px', backgroundColor: 'white', color: 'var(--bg-deep)', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none', letterSpacing: '0.04em' }}>
+              {isReal ? 'Visit Sanctuary' : 'Shop Now'} <ArrowRight size={15} />
             </Link>
-            <Link to="/shop" style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.75rem', 
-              color: 'white', 
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              textDecoration: 'none',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em'
-            }}>
-              Explore Collection <ArrowRight size={20} />
-            </Link>
+            {isReal && (
+              <Link to="/sellers" style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600, fontSize: '0.8rem', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                All Growers
+              </Link>
+            )}
           </div>
         </div>
+
+        {/* Logo badge — bottom-right of content area */}
+        {(slide.logo_url || slide.icon_url) && (
+          <div style={{ position: 'absolute', bottom: '2.5rem', right: 0, width: '72px', height: '72px', borderRadius: '18px', backgroundColor: 'white', padding: '6px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', opacity: transitioning ? 0 : 1, transition: 'opacity 0.5s' }}>
+            <img src={getImageUrl(slide.icon_url || slide.logo_url)} alt={slide.store_name}
+              onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} />
+          </div>
+        )}
       </div>
 
-      {/* Navigation Controls */}
-      <div style={{ 
-        position: 'absolute', 
-        bottom: '3rem', 
-        right: '5%', 
-        zIndex: 20,
-        display: window.innerWidth > 768 ? 'flex' : 'none',
-        alignItems: 'center',
-        gap: '2.5rem'
-      }}>
-        <div style={{ color: 'white', fontFamily: 'var(--font-serif)', fontSize: '1.25rem', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-          <span style={{ fontSize: '2.5rem', fontWeight: 700 }}>0{current + 1}</span>
-          <span style={{ opacity: 0.3 }}>/</span>
-          <span style={{ opacity: 0.5 }}>0{slides.length}</span>
+      {/* Prev / Next — only when multiple slides */}
+      {slides.length > 1 && (
+        <div style={{ position: 'absolute', bottom: '2rem', right: 'max(1.5rem, calc((100vw - 1280px)/2 + 1.5rem))', zIndex: 20, display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <span style={{ color: 'white', fontFamily: 'var(--font-serif)', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+            <span style={{ fontSize: '2rem', fontWeight: 700 }}>0{current + 1}</span>
+            <span style={{ opacity: 0.3, fontSize: '0.9rem' }}>/ 0{slides.length}</span>
+          </span>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            {[{ fn: prev, icon: <ChevronLeft size={20} /> }, { fn: next, icon: <ChevronRight size={20} /> }].map(({ fn, icon }, i) => (
+              <button key={i} onClick={fn} style={{ width: '44px', height: '44px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+              >{icon}</button>
+            ))}
+          </div>
         </div>
+      )}
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button 
-            onClick={handlePrev}
-            style={{ 
-              width: '56px', height: '56px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)',
-              background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.2s'
-            }}>
-            <ChevronLeft size={24} />
-          </button>
-          <button 
-            onClick={handleNext}
-            style={{ 
-              width: '56px', height: '56px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)',
-              background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.2s'
-            }}>
-            <ChevronRight size={24} />
-          </button>
+      {/* Dot navigation */}
+      {slides.length > 1 && (
+        <div style={{ position: 'absolute', bottom: '2.5rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.5rem', zIndex: 20 }}>
+          {slides.map((_, i) => (
+            <button key={i} onClick={() => go(i)} style={{ width: i === current ? '22px' : '7px', height: '7px', borderRadius: '4px', backgroundColor: i === current ? 'var(--brand-gold)' : 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', transition: 'all 0.35s', padding: 0 }} />
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* Progress Line */}
-      <div style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        height: '4px',
-        backgroundColor: 'var(--brand-gold)',
-        width: `${((current + 1) / slides.length) * 100}%`,
-        transition: 'width 0.8s ease-out',
-        zIndex: 30
-      }} />
+      {/* Progress bar */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', backgroundColor: 'var(--brand-gold)', width: `${((current + 1) / slides.length) * 100}%`, transition: 'width 0.6s ease-out', zIndex: 30 }} />
     </section>
   );
 }
-

@@ -1,22 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
 :root {
   /* Premium Boutique Palette */
   --bg-primary: #ffffff;
   --bg-secondary: #f4f6f3; /* Soft Sage background */
-  --bg-deep: #1b2d2a;      /* Deep Forest Green */
+  --bg-deep: #0A3029;      /* Royal Swan Deep Green */
   
   --text-primary: #121d1b;   /* Almost black botanical green */
   --text-secondary: #5a6b67; /* Muted sage-grey */
   
-  --brand-green: #297f54;    /* Vibrant leaf green */
-  --brand-gold: #c5a059;     /* Premium gold accent */
+  --brand-green: #105c44;    /* Deeper botanical green */
+  --brand-gold: #D4AF37;     /* Royal Swan Gold */
   
-  --badge-trending-bg: #c5a059;
+  --badge-trending-bg: #D4AF37;
   --badge-trending-text: #ffffff;
   
   --badge-stock-bg: #e6f1ec;
-  --badge-stock-text: #297f54;
+  --badge-stock-text: #105c44;
 
   --border-subtle: #d8e0dc;
   
@@ -44,6 +49,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -53,6 +59,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4 {
@@ -78,6 +85,37 @@ button {
 }
 
 /* Layout Utilities */
+/* ── Layout & Navbar ── */
+:root {
+  --nav-height-desktop: 110px;
+  --nav-height-mobile: 70px;
+  --nav-z-index: 1000;
+  --modal-z-index: 2000;
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--nav-z-index);
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all var(--transition-base);
+}
+
+.main-content {
+  padding-top: var(--nav-height-desktop);
+  min-height: 100vh;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    padding-top: var(--nav-height-mobile);
+  }
+}
+
 .container {
   max-width: var(--max-w-screen);
   margin: 0 auto;
@@ -88,6 +126,31 @@ button {
   .container {
     padding: 0 1rem;
   }
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .desktop-only {
+    display: none;
+  }
+  .mobile-only {
+    display: block;
+  }
+}
+
+.img-fill {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 /* Buttons */
@@ -142,6 +205,11 @@ button {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* Responsive Grid Helper */
 .grid-responsive {
   display: grid;
@@ -172,4 +240,212 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Visibility helpers */
+.mobile-only  { display: none !important; }
+.desktop-only { display: block !important; }
+.desktop-flex { display: flex !important; }
+
+@media (max-width: 1024px) {
+  .mobile-only       { display: flex !important; }
+  .mobile-only-block { display: block !important; }
+  .desktop-only      { display: none !important; }
+  .desktop-flex      { display: none !important; }
+}
+
+/* ── Product Card ── */
+
+/* Desktop / tablet: vertical stack */
+.product-card-layout {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Desktop image is square */
+.product-card-img-wrapper {
+  aspect-ratio: 1 / 1;
+}
+
+/* Desktop title */
+.product-card-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  font-family: var(--font-serif);
+  line-height: 1.15;
+  margin-bottom: 0.4rem;
+  -webkit-line-clamp: 2;
+  min-height: 2.7rem;
+  letter-spacing: -0.015em;
+}
+
+/* Desktop content padding */
+.product-card-content {
+  padding: 1.5rem;
+}
+
+/* ── Mobile (≤ 768 px): Compact Grid ── */
+@media (max-width: 768px) {
+
+  /* 2-column grid for better scannability */
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Card reverts to vertical stack but compact */
+  .product-card-layout {
+    flex-direction: column !important;
+    border-radius: 20px !important;
+  }
+
+  /* Compact image wrapper */
+  .product-card-img-wrapper {
+    width: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+  }
+
+  /* Compact content */
+  .product-card-content {
+    padding: 0.75rem !important;
+    gap: 0.25rem;
+  }
+
+  /* Product name - smaller and more compact */
+  .product-card-title {
+    font-size: 0.875rem !important;
+    min-height: 2.2rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 0.25rem !important;
+    -webkit-line-clamp: 2;
+  }
+
+  /* Price & Footer - Clean and aligned */
+  .product-card-footer {
+    margin-top: 0.5rem !important;
+    padding-top: 0.5rem !important;
+    border-top: 1px solid rgba(0,0,0,0.04) !important;
+    justify-content: space-between !important;
+  }
+
+  /* Seller name */
+  .product-card-seller {
+    margin-bottom: 0.2rem !important;
+  }
+
+  /* Hide specific elements on very small screens if needed */
+  .mobile-hide { display: none !important; }
+}
+
+/* ── Small phones (≤ 420 px) ── */
+@media (max-width: 420px) {
+  .grid-responsive {
+    gap: 0.5rem !important;
+  }
+  .product-card-content {
+    padding: 0.6rem !important;
+  }
+  .product-card-title {
+    font-size: 0.8rem !important;
+  }
+}
+
+/* ── Small phones (≤ 420 px) ── */
+@media (max-width: 420px) {
+  .product-card-img-wrapper {
+    width: 110px !important;
+    min-width: 110px !important;
+  }
+  .product-card-title {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* ── Touch devices: always show add-to-cart action bar ── */
+/* On mobile there is no hover; the .card-actions overlay stays hidden forever.
+   @media (hover: none) targets all touch-primary devices correctly. */
+@media (hover: none) {
+  .card-actions {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    pointer-events: all !important;
+  }
+  /* Disable the card lift on touch (no hover intent) */
+  .product-card:hover {
+    transform: none !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.02) !important;
+  }
+}
+
+/* ── Category rail: hide scrollbar cross-browser ── */
+.category-rail-scroll::-webkit-scrollbar { display: none; }
+.category-rail-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── VerifiedSellers stats: wrap gracefully on small screens ── */
+@media (max-width: 480px) {
+  .stats-bar-grid {
+    flex-direction: column !important;
+  }
+  .stats-bar-grid > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .stats-bar-grid > div:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ── Hero sections: prevent overflow on mobile ── */
+@media (max-width: 768px) {
+  /* Prevent huge serif titles from bleeding outside viewport */
+  h1, h2 {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Give sections sensible vertical padding on mobile */
+  section {
+    overflow-x: hidden;
+  }
+
+  /* Quick add button: larger tap target on mobile */
+  .quick-add-btn {
+    padding: 0.9rem !important;
+    font-size: 0.75rem !important;
+    min-height: 44px;
+  }
+}
+
+/* ── Shop page: filter sidebar stacking ── */
+@media (max-width: 1024px) {
+  .shop-layout {
+    flex-direction: column !important;
+  }
+  .shop-sidebar {
+    width: 100% !important;
+    position: static !important;
+  }
+}
+
+/* ── Checkout / Cart: stack form and summary on mobile ── */
+@media (max-width: 768px) {
+  .checkout-grid {
+    flex-direction: column !important;
+  }
+  .checkout-summary {
+    width: 100% !important;
+  }
+}
+
+/* ── Notification dropdown: fixed full-width on mobile ── */
+@media (max-width: 1024px) {
+  .notif-dropdown {
+    position: fixed !important;
+    top: var(--nav-height-mobile) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-height: calc(100vh - var(--nav-height-mobile) - 16px) !important;
+    border-radius: 16px !important;
+  }
 }

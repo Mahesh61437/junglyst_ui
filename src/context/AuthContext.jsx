@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import api from '../services/api';
+import { identifyUser, resetUser } from '../utils/posthog';
 
 const AuthContext = createContext();
 
@@ -17,12 +18,17 @@ export function AuthProvider({ children }) {
       try {
         const token = localStorage.getItem('junglyst_token');
         const savedUser = localStorage.getItem('junglyst_user');
-        
+
         if (token && savedUser) {
           setUser(JSON.parse(savedUser));
-          // Optionally verify token with backend
-          // const res = await api.get('/auth/me/');
-          // setUser(res.data);
+          try {
+            const res = await api.get('/core/me/');
+            setUser(res.data);
+            localStorage.setItem('junglyst_user', JSON.stringify(res.data));
+            identifyUser(res.data);
+          } catch (e) {
+            console.error("Failed to fetch fresh user profile:", e);
+          }
         }
       } catch (error) {
         console.error("Auth hydration failed:", error);
@@ -48,8 +54,9 @@ export function AuthProvider({ children }) {
       localStorage.setItem('junglyst_token', access);
       localStorage.setItem('junglyst_refresh', refresh);
       localStorage.setItem('junglyst_user', JSON.stringify(userInfo));
-      
+
       setUser(userInfo);
+      identifyUser(userInfo);
       return userInfo;
     } catch (error) {
       console.error("Login failed:", error);
@@ -73,7 +80,9 @@ export function AuthProvider({ children }) {
         username: safeUsername,
         password: userData.password,
         phone: userData.phone,
-        role: userData.role || 'collector'
+        role: userData.role || 'collector',
+        first_name: userData.first_name,
+        last_name: userData.last_name
       });
 
       // Auto-login after registration
@@ -89,6 +98,7 @@ export function AuthProvider({ children }) {
 
 
   const logout = () => {
+    resetUser();
     setUser(null);
     localStorage.removeItem('junglyst_user');
     localStorage.removeItem('junglyst_token');
@@ -103,7 +113,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
