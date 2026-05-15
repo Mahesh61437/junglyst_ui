@@ -5,12 +5,10 @@ import {
   Leaf,
   MapPin,
   CreditCard,
-  PackagePlus,
   Globe,
   ArrowRight,
   ArrowLeft,
   ShieldCheck,
-  Camera,
   Store,
   Palette,
   Upload,
@@ -18,7 +16,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import api from '../services/api';
-import { ProductService } from '../services/ProductService';
 import SellerOnboardingPreview from '../components/SellerOnboardingPreview';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,8 +23,6 @@ export default function SellerOnboarding() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
   const [error, setError] = useState(null);
-  const [categories, setCategories] = useState([]);
-
   const [isApproved, setIsApproved] = useState(null);
   const [checkedEmail, setCheckedEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,12 +48,6 @@ export default function SellerOnboarding() {
       bannerUrl: '',
       taxId: '',
       payoutBank: '',
-      firstProductName: '',
-      firstProductPrice: '',
-      firstProductStock: '',
-      firstProductWeight: '',
-      firstProductCategoryId: '',
-      firstProductSubCategoryId: '',
       logoName: '',
       iconName: '',
       bannerName: ''
@@ -90,18 +79,6 @@ export default function SellerOnboarding() {
     };
     checkAccess();
   }, [user, navigate]);
-
-  useEffect(() => {
-    const fetchCats = async () => {
-      try {
-        const data = await ProductService.getCategories();
-        setCategories(Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : []));
-      } catch (err) {
-        console.error("Failed to fetch categories:", err);
-      }
-    };
-    fetchCats();
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('junglyst_onboarding_draft', JSON.stringify(formData));
@@ -181,8 +158,6 @@ export default function SellerOnboarding() {
         return formData.description.trim().length >= 10;
       case 5:
         return formData.taxId.trim().length >= 5 && formData.payoutBank.trim().length >= 5;
-      case 6:
-        return formData.firstProductName && formData.firstProductPrice > 0;
       default:
         return true;
     }
@@ -191,7 +166,7 @@ export default function SellerOnboarding() {
   const nextStep = () => {
     if (validateStep()) {
       setError(null);
-      setCurrentStep(prev => Math.min(prev + 1, 6));
+      setCurrentStep(prev => Math.min(prev + 1, 5));
     } else {
       setError("Please complete all required fields for this step before continuing.");
     }
@@ -233,7 +208,6 @@ export default function SellerOnboarding() {
   const handleCompleteOnboarding = async () => {
     setLoading(true);
     try {
-      // 1. Create/Update the seller profile
       const response = await api.post('/sellers/dashboard/', {
         store_name: formData.storeName,
         expertise: formData.tagline,
@@ -245,25 +219,10 @@ export default function SellerOnboarding() {
         banner_url: formData.bannerUrl
       });
 
-      // Update global user state with new role (returned from backend)
       if (response.data.user) {
         updateUser(response.data.user);
       }
 
-      // 2. Create the first product if name is provided
-      if (formData.firstProductName) {
-        await ProductService.createProduct({
-          name: formData.firstProductName,
-          price: formData.firstProductPrice,
-          stock: formData.firstProductStock,
-          weight: formData.firstProductWeight || 0.5,
-          description: "Initial specimen listing during onboarding.",
-          category_id: formData.firstProductCategoryId,
-          sub_category_id: formData.firstProductSubCategoryId
-        });
-      }
-
-      // 3. Clear drafts after success
       localStorage.removeItem('junglyst_onboarding_draft');
       localStorage.removeItem('junglyst_onboarding_step');
 
@@ -283,7 +242,6 @@ export default function SellerOnboarding() {
     { id: 3, title: 'Branding', icon: <Palette size={16} /> },
     { id: 4, title: 'Logistics', icon: <MapPin size={16} /> },
     { id: 5, title: 'Compliance', icon: <ShieldCheck size={16} /> },
-    { id: 6, title: 'First Listing', icon: <PackagePlus size={16} /> }
   ];
 
   return (
@@ -567,57 +525,6 @@ export default function SellerOnboarding() {
             </div>
           )}
 
-          {currentStep === 6 && (
-            <div style={{ animation: 'fadeIn 0.5s ease' }}>
-              <div style={{ marginBottom: '2.5rem' }}>
-                <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', color: '#0A3029', marginBottom: '0.5rem' }}>Launch Specimen</h2>
-                <p style={{ color: '#6b7280' }}>Ready to list your first masterpiece?</p>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Specimen Name <span style={{ color: '#ef4444' }}>*</span></span>
-                    {!formData.firstProductName && <span style={{ color: '#ef4444', fontSize: '0.7rem' }}>Required</span>}
-                  </label>
-                  <input name="firstProductName" value={formData.firstProductName} onChange={handleInputChange} placeholder="e.g. Monstera Albo Variegata" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: !formData.firstProductName ? '1px solid #e2e8f0' : '1px solid #10b981', fontSize: '1rem', outline: 'none' }} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1.5rem' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Launch Price (₹) <span style={{ color: '#ef4444' }}>*</span></span>
-                      {(!formData.firstProductPrice || formData.firstProductPrice <= 0) && <span style={{ color: '#ef4444', fontSize: '0.7rem' }}>Must be {'>'} 0</span>}
-                    </label>
-                    <input name="firstProductPrice" type="number" value={formData.firstProductPrice} onChange={handleInputChange} placeholder="4999" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: (!formData.firstProductPrice || formData.firstProductPrice <= 0) ? '1px solid #e2e8f0' : '1px solid #10b981', fontSize: '1rem', outline: 'none' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stock</label>
-                    <input name="firstProductStock" type="number" value={formData.firstProductStock} onChange={handleInputChange} placeholder="5" style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }} />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Marketplace Category</label>
-                  <select name="firstProductCategoryId" value={formData.firstProductCategoryId} onChange={handleInputChange} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', appearance: 'none', backgroundColor: 'white' }}>
-                    <option value="">Select Category</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
-                {formData.firstProductCategoryId && (
-                  <div style={{ animation: 'slideDown 0.3s ease' }}>
-                    <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sub Category</label>
-                    <select name="firstProductSubCategoryId" value={formData.firstProductSubCategoryId} onChange={handleInputChange} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', appearance: 'none', backgroundColor: 'white' }}>
-                      <option value="">Select Sub Category (Optional)</option>
-                      {categories.find(c => String(c.id) === String(formData.firstProductCategoryId))?.subcategories?.map(sub => (
-                        <option key={sub.id} value={sub.id}>{sub.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Nav Controls */}
           <div style={{ marginTop: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {currentStep > 1 ? (
@@ -627,7 +534,7 @@ export default function SellerOnboarding() {
             ) : <div />}
 
             <div style={{ display: 'flex', gap: '1rem' }}>
-              {currentStep < 6 ? (
+              {currentStep < 5 ? (
                 <button onClick={nextStep} style={{ backgroundColor: formData.brandColor, color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 2.5rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'background-color 0.3s' }}>
                   CONTINUE <ArrowRight size={18} />
                 </button>
