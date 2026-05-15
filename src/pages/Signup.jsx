@@ -1,15 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, ShieldCheck, ArrowRight, Heart } from 'lucide-react';
+import { User, Mail, ShieldCheck, ArrowRight, Heart, Leaf } from 'lucide-react';
 import NaturalLogo from '../components/NaturalLogo';
+import api from '../services/api';
 
 export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'collector' });
+  const [isGrowerEmail, setIsGrowerEmail] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const email = formData.email;
+    if (!email || !email.includes('@')) {
+      setIsGrowerEmail(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.post('/sellers/check-email/', { email });
+        setIsGrowerEmail(!!res.data.is_allowed);
+      } catch {
+        setIsGrowerEmail(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [formData.email]);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -20,7 +39,7 @@ export default function Signup() {
         throw new Error("Registration service is temporarily unavailable.");
       }
 
-      await register({
+      const loggedInUser = await register({
         email: formData.email,
         password: formData.password,
         username: formData.email,
@@ -30,8 +49,8 @@ export default function Signup() {
       });
 
       const { trackSignup } = await import('../utils/posthog');
-      trackSignup({ method: 'email', role: formData.role });
-      navigate('/');
+      trackSignup({ method: 'email', role: loggedInUser?.role || formData.role });
+      navigate(loggedInUser?.role === 'grower' ? '/seller/onboarding' : '/');
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.email?.[0] ||
@@ -115,9 +134,15 @@ export default function Signup() {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem' }}
+                style={{ width: '100%', padding: '0.85rem 1rem 0.85rem 2.8rem', borderRadius: '12px', border: isGrowerEmail ? '1px solid #10b981' : '1px solid var(--border-subtle)', outline: 'none', fontSize: '1rem', transition: 'border-color 0.2s' }}
               />
             </div>
+            {isGrowerEmail && (
+              <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '0.6rem 0.875rem' }}>
+                <Leaf size={14} color="#16a34a" />
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#16a34a' }}>Grower invitation detected — you'll be set up as a Seller</span>
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
