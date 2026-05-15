@@ -22,7 +22,7 @@ import { ProductService } from '../services/ProductService';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
-import { trackViewContent, trackAddToCart, trackAddToWishlist } from '../utils/metaPixel';
+import { trackProductViewed, trackAddToCart, trackAddToWishlist } from '../utils/posthog';
 import ReviewSection from '../components/ReviewSection';
 import Recommendations from '../components/Recommendations';
 import TrustBadges from '../components/TrustBadges';
@@ -189,7 +189,7 @@ export default function ProductDetails() {
         if (data.variants && data.variants.length > 0) {
           setSelectedVariant(data.variants[0]);
         }
-        trackViewContent({ productId: id, name: data.name, price: data.variants?.[0]?.price || data.price });
+        trackProductViewed({ productId: id, name: data.name, price: data.variants?.[0]?.price || data.price, category: data.category, seller: data.seller?.seller_profile?.store_name || data.seller?.full_name });
       } catch (error) {
         console.error("Failed to fetch product:", error);
       } finally {
@@ -478,7 +478,7 @@ export default function ProductDetails() {
               </div>
 
               <button 
-                onClick={() => toggleWishlist({ id: product.id || product._id, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
+                onClick={() => { const pid = product.id || product._id; toggleWishlist({ id: pid, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller }); if (!isInWishlist(pid)) trackAddToWishlist({ productId: pid, name, price: displayPrice }); }}
                 style={{
                   width: '100%', marginTop: '1.5rem', padding: '1rem', borderRadius: '14px', border: '1px dashed var(--brand-gold)',
                   backgroundColor: 'transparent', fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', cursor: 'pointer'
@@ -591,7 +591,7 @@ export default function ProductDetails() {
                   {name}
                 </h1>
                 <button
-                  onClick={() => toggleWishlist({ id: product.id || product._id, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
+                  onClick={() => { const pid = product.id || product._id; toggleWishlist({ id: pid, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller }); if (!isInWishlist(pid)) trackAddToWishlist({ productId: pid, name, price: displayPrice }); }}
                   style={{
                     background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '50%',
                     width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -702,7 +702,7 @@ export default function ProductDetails() {
                     isAddingToCart.current = true;
                     try {
                       const ok = await addItemToCart(id, quantity, selectedVariant?.id, product, selectedVariant);
-                      trackAddToCart({ productId: id, name, price: displayPrice });
+                      trackAddToCart({ productId: id, name, price: displayPrice, quantity });
                       if (ok !== false) showToast('Specimen secured in your box.', 'success');
                     } finally {
                       isAddingToCart.current = false;
@@ -782,7 +782,7 @@ export default function ProductDetails() {
                 </div>
 
                 <button
-                  onClick={() => toggleWishlist({ id: product.id || product._id, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller })}
+                  onClick={() => { const pid = product.id || product._id; toggleWishlist({ id: pid, name, price: displayPrice, image: (product?.imageUrl || product?.image_url || product?.image), seller: product?.seller }); if (!isInWishlist(pid)) trackAddToWishlist({ productId: pid, name, price: displayPrice }); }}
                   style={{
                     width: '100%', marginTop: '1.5rem', padding: '1rem', borderRadius: '14px', border: '1px dashed var(--brand-gold)',
                     backgroundColor: 'transparent', fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', cursor: 'pointer'

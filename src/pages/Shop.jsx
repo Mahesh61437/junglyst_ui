@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { trackSearch } from '../utils/posthog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams, useNavigationType } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -152,6 +153,15 @@ export default function Shop() {
     setDifficulties(prev => ({ ...prev, [diff]: !prev[diff] }));
     setPage(1);
   };
+
+  // Track search events with 700ms debounce (fires once user stops typing)
+  useEffect(() => {
+    if (!searchTerm.trim()) return;
+    const t = setTimeout(() => {
+      trackSearch({ query: searchTerm.trim(), resultsCount: data?.count ?? null });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
 
   // Sync search from URL
   useEffect(() => {

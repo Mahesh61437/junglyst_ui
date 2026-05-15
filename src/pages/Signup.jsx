@@ -29,6 +29,8 @@ export default function Signup() {
         role: formData.role
       });
 
+      const { trackSignup } = await import('../utils/posthog');
+      trackSignup({ method: 'email', role: formData.role });
       navigate('/');
     } catch (err) {
       console.error(err);

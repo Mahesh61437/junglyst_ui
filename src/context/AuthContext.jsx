@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import api from '../services/api';
+import { identifyUser, resetUser } from '../utils/posthog';
 
 const AuthContext = createContext();
 
@@ -24,6 +25,7 @@ export function AuthProvider({ children }) {
             const res = await api.get('/core/me/');
             setUser(res.data);
             localStorage.setItem('junglyst_user', JSON.stringify(res.data));
+            identifyUser(res.data);
           } catch (e) {
             console.error("Failed to fetch fresh user profile:", e);
           }
@@ -54,6 +56,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('junglyst_user', JSON.stringify(userInfo));
 
       setUser(userInfo);
+      identifyUser(userInfo);
       return userInfo;
     } catch (error) {
       console.error("Login failed:", error);
@@ -95,6 +98,7 @@ export function AuthProvider({ children }) {
 
 
   const logout = () => {
+    resetUser();
     setUser(null);
     localStorage.removeItem('junglyst_user');
     localStorage.removeItem('junglyst_token');

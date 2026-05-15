@@ -1,5 +1,7 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, RefreshCw, MessageSquare, ArrowLeft, Clock, ShoppingBag } from 'lucide-react';
+import { useEffect } from 'react';
+import { trackEvent } from '../utils/posthog';
 
 export default function Failure() {
   const location = useLocation();
@@ -7,6 +9,10 @@ export default function Failure() {
   const error = location.state?.error || 'An unexpected error occurred during checkout.';
 
   const isPending = error.toLowerCase().includes('longer than expected') || error.toLowerCase().includes('check my orders');
+
+  useEffect(() => {
+    trackEvent(isPending ? 'payment_pending' : 'payment_failed', { reason: error });
+  }, []);
 
   return (
     <div className="container" style={{ padding: '6rem 1rem 10rem' }}>

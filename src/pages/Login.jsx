@@ -46,6 +46,8 @@ export default function Login() {
     try {
       await login(formData);
       syncAfterLogin().catch(() => null);
+      const { trackLogin } = await import('../utils/posthog');
+      trackLogin({ method: 'email' });
       navigate('/');
     } catch (err) {
       console.error(err);

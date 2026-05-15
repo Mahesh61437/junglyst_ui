@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { trackInitiateCheckout } from '../utils/metaPixel';
+import { trackCheckoutInitiated } from '../utils/posthog';
 import { Trash2, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -51,7 +51,7 @@ export default function Cart() {
 
   const handleCheckout = () => {
     if (cart.delivery_blocked) return;
-    trackInitiateCheckout({ value: cart.grand_total, numItems: cart.total_items });
+    trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.total_items });
     navigate('/checkout');
   };
 

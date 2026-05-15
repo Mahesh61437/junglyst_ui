@@ -1,6 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
-import { trackPageView } from './utils/metaPixel';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
@@ -42,12 +40,6 @@ import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 
-function PageViewTracker() {
-  const location = useLocation();
-  useEffect(() => { trackPageView(); }, [location.pathname]);
-  return null;
-}
-
 function App() {
   return (
     <AuthProvider>
@@ -57,7 +49,6 @@ function App() {
         <CartProvider>
           <BrowserRouter>
             <ScrollToTop />
-            <PageViewTracker />
             <Routes>
               {/* Buyer Storefront (Uses Navbar/Footer layout) */}
               <Route path="/" element={<MainLayout />}>

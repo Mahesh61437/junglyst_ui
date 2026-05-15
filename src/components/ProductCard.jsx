@@ -4,7 +4,7 @@ import { Star, ShoppingCart, Heart, CheckCircle, Plus, Minus } from 'lucide-reac
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
-import { trackAddToCart, trackAddToWishlist } from '../utils/metaPixel';
+import { trackAddToCart, trackAddToWishlist } from '../utils/posthog';
 
 export default function ProductCard({ id, slug, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants, stock }) {
   const productPath = `/product/${slug || id}`;
@@ -44,7 +44,7 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
     e.stopPropagation();
     if (isSoldOut) return;
     addItemToCart(id, 1, variantId, productData, variantData);
-    trackAddToCart({ productId: id, name, price });
+    trackAddToCart({ productId: id, name, price, quantity: 1 });
   };
 
   const handleRemove = (e) => {

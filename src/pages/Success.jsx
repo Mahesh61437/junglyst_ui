@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, Package, Truck, Calendar, ArrowRight, UserPlus, Mail, Copy, Check, MapPin, Phone, Clock, AlertCircle, ShoppingBag, CreditCard, Leaf } from 'lucide-react';
-import { trackPurchase } from '../utils/metaPixel';
+import { trackOrderPlaced } from '../utils/posthog';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { getImageUrl } from '../utils/imageUtils';
@@ -17,7 +17,7 @@ export default function Success() {
   useEffect(() => {
     clearCart();
     if (order) {
-      trackPurchase({ orderId: order.order_number, value: order.total_amount ?? order.grand_total });
+      trackOrderPlaced({ orderId: order.order_number, value: order.total_amount ?? order.grand_total, numItems: order.items?.length });
     }
   }, []);
 

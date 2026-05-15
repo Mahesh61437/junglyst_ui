@@ -260,6 +260,10 @@ export default function SuperAdminDashboard() {
   const [paymentGateway, setPaymentGateway] = useState('cashfree');
   const [paymentGatewaySaving, setPaymentGatewaySaving] = useState(false);
 
+  // Logistics provider toggle
+  const [logisticsProvider, setLogisticsProvider] = useState('nimbuspost');
+  const [logisticsProviderSaving, setLogisticsProviderSaving] = useState(false);
+
   // ── Data fetching ────────────────────────────────────────────────────────────
 
   const fetchPromoSellers = async () => {
@@ -609,6 +613,10 @@ export default function SuperAdminDashboard() {
     api.get('/payments/gateway-settings/')
       .then(res => setPaymentGateway(res.data.active_gateway || 'cashfree'))
       .catch(() => setPaymentGateway('cashfree'));
+
+    api.get('/shipping/provider-settings/')
+      .then(res => setLogisticsProvider(res.data.active_provider || 'nimbuspost'))
+      .catch(() => setLogisticsProvider('nimbuspost'));
   }, [user, authLoading, navigate]);
 
   const setGateway = async (gw) => {
@@ -620,6 +628,18 @@ export default function SuperAdminDashboard() {
       alert('Failed to update payment gateway. Please try again.');
     } finally {
       setPaymentGatewaySaving(false);
+    }
+  };
+
+  const setLogisticsProviderChoice = async (provider) => {
+    setLogisticsProviderSaving(true);
+    try {
+      const res = await api.patch('/shipping/provider-settings/', { active_provider: provider });
+      setLogisticsProvider(res.data.active_provider);
+    } catch (e) {
+      alert('Failed to update logistics provider. Please try again.');
+    } finally {
+      setLogisticsProviderSaving(false);
     }
   };
 
@@ -748,6 +768,47 @@ export default function SuperAdminDashboard() {
                     fontWeight: 800,
                     fontSize: '0.8rem',
                     opacity: paymentGatewaySaving ? 0.6 : 1
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Logistics Provider Control */}
+        <section>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Logistics Provider
+          </h2>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '1.25rem', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '1rem', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 900, color: 'var(--bg-deep)', marginBottom: '0.25rem' }}>
+                Active provider: {logisticsProvider === 'shiprocket' ? 'Shiprocket' : 'NimbusPost'}
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.4 }}>
+                This controls which courier aggregator is used for all new shipments.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+              {[
+                { id: 'nimbuspost', label: 'NimbusPost' },
+                { id: 'shiprocket', label: 'Shiprocket' },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setLogisticsProviderChoice(opt.id)}
+                  disabled={logisticsProviderSaving}
+                  style={{
+                    padding: '0.6rem 1rem',
+                    borderRadius: '10px',
+                    border: logisticsProvider === opt.id ? '2px solid var(--bg-deep)' : '1px solid #e2e8f0',
+                    backgroundColor: logisticsProvider === opt.id ? '#f0fdf4' : 'white',
+                    cursor: logisticsProviderSaving ? 'not-allowed' : 'pointer',
+                    fontWeight: 800,
+                    fontSize: '0.8rem',
+                    opacity: logisticsProviderSaving ? 0.6 : 1,
                   }}
                 >
                   {opt.label}

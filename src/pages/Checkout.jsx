@@ -7,6 +7,7 @@ import api from '../services/api';
 import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 import { load } from '@cashfreepayments/cashfree-js';
+import { trackEvent } from '../utils/posthog';
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -49,6 +50,13 @@ export default function Checkout() {
 
   const sellerGroups = cart?.seller_groups || {};
   const deliveryBlocked = cart?.delivery_blocked;
+
+  // Fire checkout_initiated once when user lands on checkout with a valid cart
+  useEffect(() => {
+    if (cart?.items?.length) {
+      trackEvent('checkout_page_viewed', { value: cart.grand_total, num_items: cart.items.length });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch saved addresses; pre-fill form from default or profile
   useEffect(() => {
@@ -104,6 +112,7 @@ export default function Checkout() {
           clearInterval(interval);
           orderPlaced.current = false;
           setVerifying(false);
+          trackEvent('payment_failed', { reason: 'declined' });
           navigate('/checkout/failure', { state: { error: 'Payment was declined. Please try a different payment method.' } });
         } else if (attempts >= MAX_ATTEMPTS) {
           clearInterval(interval);
@@ -156,6 +165,7 @@ export default function Checkout() {
     }
 
     setLoading(true);
+    trackEvent('payment_initiated', { value: cart?.grand_total, num_items: cart?.items?.length, gateway: 'pending' });
     try {
       let checkoutAddressId = selectedAddressId;
 
@@ -323,6 +333,7 @@ export default function Checkout() {
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function () {
           setLoading(false);
+          trackEvent('payment_failed', { reason: 'gateway_failed', gateway: 'razorpay' });
           navigate('/checkout/failure', { state: { error: 'Payment failed. Please try a different payment method or retry.' } });
         });
         rzp.open();
@@ -356,6 +367,7 @@ export default function Checkout() {
         if (result.error) {
           console.error('[CHECKOUT] Cashfree error:', result.error);
           setLoading(false);
+          trackEvent('payment_failed', { reason: result.error?.message || 'not_completed', gateway: 'cashfree' });
           navigate('/checkout/failure', { state: { error: result.error?.message || 'Payment was not completed. Please try again.' } });
         } else if (result.paymentDetails) {
           orderPlaced.current = true;
