@@ -259,10 +259,12 @@ export default function SuperAdminDashboard() {
   // Payment gateway toggle
   const [paymentGateway, setPaymentGateway] = useState('cashfree');
   const [paymentGatewaySaving, setPaymentGatewaySaving] = useState(false);
+  const [paymentConfirm, setPaymentConfirm] = useState(null); // { id, label } of gateway pending confirmation
 
   // Logistics provider toggle
   const [logisticsProvider, setLogisticsProvider] = useState('nimbuspost');
   const [logisticsProviderSaving, setLogisticsProviderSaving] = useState(false);
+  const [shippingConfirm, setShippingConfirm] = useState(null); // { id, label } of provider pending confirmation
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -619,27 +621,31 @@ export default function SuperAdminDashboard() {
       .catch(() => setLogisticsProvider('nimbuspost'));
   }, [user, authLoading, navigate]);
 
-  const setGateway = async (gw) => {
+  const confirmAndSetGateway = async () => {
+    if (!paymentConfirm) return;
     setPaymentGatewaySaving(true);
     try {
-      const res = await api.patch('/payments/gateway-settings/', { active_gateway: gw });
+      const res = await api.patch('/payments/gateway-settings/', { active_gateway: paymentConfirm.id });
       setPaymentGateway(res.data.active_gateway);
     } catch (e) {
       alert('Failed to update payment gateway. Please try again.');
     } finally {
       setPaymentGatewaySaving(false);
+      setPaymentConfirm(null);
     }
   };
 
-  const setLogisticsProviderChoice = async (provider) => {
+  const confirmAndSetLogistics = async () => {
+    if (!shippingConfirm) return;
     setLogisticsProviderSaving(true);
     try {
-      const res = await api.patch('/shipping/provider-settings/', { active_provider: provider });
+      const res = await api.patch('/shipping/provider-settings/', { active_provider: shippingConfirm.id });
       setLogisticsProvider(res.data.active_provider);
     } catch (e) {
       alert('Failed to update logistics provider. Please try again.');
     } finally {
       setLogisticsProviderSaving(false);
+      setShippingConfirm(null);
     }
   };
 
@@ -757,20 +763,20 @@ export default function SuperAdminDashboard() {
               ].map(opt => (
                 <button
                   key={opt.id}
-                  onClick={() => setGateway(opt.id)}
-                  disabled={paymentGatewaySaving}
+                  onClick={() => { if (paymentGateway !== opt.id) setPaymentConfirm(opt); }}
+                  disabled={paymentGatewaySaving || paymentGateway === opt.id}
                   style={{
                     padding: '0.6rem 1rem',
                     borderRadius: '10px',
                     border: paymentGateway === opt.id ? '2px solid var(--bg-deep)' : '1px solid #e2e8f0',
                     backgroundColor: paymentGateway === opt.id ? '#f0fdf4' : 'white',
-                    cursor: paymentGatewaySaving ? 'not-allowed' : 'pointer',
+                    cursor: (paymentGatewaySaving || paymentGateway === opt.id) ? 'default' : 'pointer',
                     fontWeight: 800,
                     fontSize: '0.8rem',
                     opacity: paymentGatewaySaving ? 0.6 : 1
                   }}
                 >
-                  {opt.label}
+                  {opt.label} {paymentGateway === opt.id && '✓'}
                 </button>
               ))}
             </div>
@@ -798,20 +804,20 @@ export default function SuperAdminDashboard() {
               ].map(opt => (
                 <button
                   key={opt.id}
-                  onClick={() => setLogisticsProviderChoice(opt.id)}
-                  disabled={logisticsProviderSaving}
+                  onClick={() => { if (logisticsProvider !== opt.id) setShippingConfirm(opt); }}
+                  disabled={logisticsProviderSaving || logisticsProvider === opt.id}
                   style={{
                     padding: '0.6rem 1rem',
                     borderRadius: '10px',
                     border: logisticsProvider === opt.id ? '2px solid var(--bg-deep)' : '1px solid #e2e8f0',
                     backgroundColor: logisticsProvider === opt.id ? '#f0fdf4' : 'white',
-                    cursor: logisticsProviderSaving ? 'not-allowed' : 'pointer',
+                    cursor: (logisticsProviderSaving || logisticsProvider === opt.id) ? 'default' : 'pointer',
                     fontWeight: 800,
                     fontSize: '0.8rem',
                     opacity: logisticsProviderSaving ? 0.6 : 1,
                   }}
                 >
-                  {opt.label}
+                  {opt.label} {logisticsProvider === opt.id && '✓'}
                 </button>
               ))}
             </div>
@@ -1569,6 +1575,68 @@ export default function SuperAdminDashboard() {
               <button onClick={() => setCreatingProduct(false)} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>Cancel</button>
               <button onClick={saveNewProduct} disabled={createProductSaving} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: createProductSaving ? 0.6 : 1 }}>
                 {createProductSaving ? 'Creating...' : 'Create Product'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Gateway Confirmation Modal */}
+      {paymentConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div onClick={() => setPaymentConfirm(null)} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(10,20,18,0.55)', backdropFilter: 'blur(4px)' }} />
+          <div style={{ position: 'relative', backgroundColor: 'white', borderRadius: '20px', padding: '2.5rem', maxWidth: '420px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <IndianRupee size={26} color="#92400e" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Switch Payment Gateway?</h3>
+            <p style={{ color: '#64748b', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+              You are switching to <strong style={{ color: 'var(--bg-deep)' }}>{paymentConfirm.label}</strong>.
+            </p>
+            <p style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2rem' }}>
+              This will immediately affect all active checkout sessions.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setPaymentConfirm(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', color: '#64748b' }}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndSetGateway}
+                disabled={paymentGatewaySaving}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem', opacity: paymentGatewaySaving ? 0.6 : 1 }}
+              >
+                {paymentGatewaySaving ? 'Switching…' : 'Yes, Switch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Provider Confirmation Modal */}
+      {shippingConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div onClick={() => setShippingConfirm(null)} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(10,20,18,0.55)', backdropFilter: 'blur(4px)' }} />
+          <div style={{ position: 'relative', backgroundColor: 'white', borderRadius: '20px', padding: '2.5rem', maxWidth: '420px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <Truck size={26} color="#1d4ed8" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Switch Logistics Provider?</h3>
+            <p style={{ color: '#64748b', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+              You are switching to <strong style={{ color: 'var(--bg-deep)' }}>{shippingConfirm.label}</strong>.
+            </p>
+            <p style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2rem' }}>
+              All new shipment bookings will use this provider from this point forward.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setShippingConfirm(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', color: '#64748b' }}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndSetLogistics}
+                disabled={logisticsProviderSaving}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem', opacity: logisticsProviderSaving ? 0.6 : 1 }}
+              >
+                {logisticsProviderSaving ? 'Switching…' : 'Yes, Switch'}
               </button>
             </div>
           </div>

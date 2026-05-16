@@ -48,7 +48,7 @@ export default function Signup() {
         role: formData.role
       });
 
-      const { trackSignup } = await import('../utils/posthog');
+      const { trackSignup } = await import('../utils/analytics');
       trackSignup({ method: 'email', role: loggedInUser?.role || formData.role });
       navigate(loggedInUser?.role === 'grower' ? '/seller/onboarding' : '/');
     } catch (err) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, Package, Truck, Calendar, ArrowRight, UserPlus, Mail, Copy, Check, MapPin, Phone, Clock, AlertCircle, ShoppingBag, CreditCard, Leaf } from 'lucide-react';
-import { trackOrderPlaced } from '../utils/posthog';
+import { trackOrderPlaced } from '../utils/analytics';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { getImageUrl } from '../utils/imageUtils';

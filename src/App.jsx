@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
@@ -33,6 +34,9 @@ import OrderTracking from './pages/OrderTracking';
 import TrackOrder from './pages/TrackOrder';
 import RequireAuth from './components/RequireAuth';
 import ScrollToTop from './components/ScrollToTop';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { trackPageView } from './utils/analytics';
 
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -40,14 +44,25 @@ import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 
+/** Fires Meta Pixel PageView + PostHog $pageview on every SPA navigation */
+function NavigationTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageView(window.location.href);
+  }, [location.pathname, location.search]);
+  return null;
+}
+
 function App() {
   return (
-    <AuthProvider>
+    <HelmetProvider>
+      <AuthProvider>
       <NotificationProvider>
       <WishlistProvider>
         <ToastProvider>
         <CartProvider>
           <BrowserRouter>
+            <NavigationTracker />
             <ScrollToTop />
             <Routes>
               {/* Buyer Storefront (Uses Navbar/Footer layout) */}
@@ -95,6 +110,7 @@ function App() {
       </WishlistProvider>
       </NotificationProvider>
     </AuthProvider>
+    </HelmetProvider>
   );
 }
 
