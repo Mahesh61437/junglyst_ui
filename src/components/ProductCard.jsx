@@ -4,7 +4,7 @@ import { Star, ShoppingCart, Heart, CheckCircle, Plus, Minus } from 'lucide-reac
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
-import { trackAddToCart, trackAddToWishlist } from '../utils/posthog';
+import { trackAddToCart, trackAddToWishlist } from '../utils/analytics';
 
 export default function ProductCard({ id, slug, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants, stock }) {
   const productPath = `/product/${slug || id}`;

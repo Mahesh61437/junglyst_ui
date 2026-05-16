@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { trackCheckoutInitiated } from '../utils/posthog';
+import { trackCheckoutInitiated } from '../utils/analytics';
 import { Trash2, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';

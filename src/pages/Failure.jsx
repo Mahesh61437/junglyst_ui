@@ -1,7 +1,7 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, RefreshCw, MessageSquare, ArrowLeft, Clock, ShoppingBag } from 'lucide-react';
 import { useEffect } from 'react';
-import { trackEvent } from '../utils/posthog';
+import { trackEvent } from '../utils/analytics';
 
 export default function Failure() {
   const location = useLocation();

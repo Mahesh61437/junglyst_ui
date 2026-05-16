@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import api from '../services/api';
-import { identifyUser, resetUser } from '../utils/posthog';
+import { identifyUser, resetUser } from '../utils/analytics';
 
 const AuthContext = createContext();
 
