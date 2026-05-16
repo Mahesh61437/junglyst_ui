@@ -82,10 +82,12 @@ export default function SellerDashboard() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [newProduct, setNewProduct] = useState({
     name: '', scientific_name: '', category_id: '', sub_category_id: '', tagline: '', origin: '', description: '',
-    care_level: 'Easy', light_requirements: 'Medium', growth_rate: 'Moderate',
+    care_level: 'Easy', care_level_max: 'Easy',
+    light_requirements: 'Low', light_requirements_max: 'Medium',
+    growth_rate: 'Moderate', growth_rate_max: 'Moderate',
     is_rare: false,
     variants: [{
-      name: 'Standard', base_price: '', gst_rate: '0',
+      name: '', variant_type: 'Plant', base_price: '', gst_rate: '0',
       commission_rate: '10.0', price: '', stock: '',
       item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
     }],
@@ -120,15 +122,12 @@ export default function SellerDashboard() {
   useEffect(() => {
     const updatedVariants = newProduct.variants.map(v => {
       const base = parseFloat(v.base_price) || 0;
-      const gst = parseFloat(v.gst_rate) || 0;
-      const comm = parseFloat(v.commission_rate) || 10.0;
-
-      const gstAmt = base * (gst / 100);
-      const commAmt = base * (comm / 100);
-      const finalPrice = (base + gstAmt + commAmt).toFixed(2);
+      // Seller price is GST-inclusive. Junglyst adds 10% commission on top.
+      const comm = 10.0;
+      const finalPrice = (base * (1 + comm / 100)).toFixed(2);
 
       if (v.price !== finalPrice) {
-        return { ...v, price: finalPrice };
+        return { ...v, price: finalPrice, gst_rate: '0', commission_rate: String(comm) };
       }
       return v;
     });
@@ -167,6 +166,11 @@ export default function SellerDashboard() {
   const [productPage, setProductPage] = useState(1);
   const [productPageSize, setProductPageSize] = useState(10);
   const [productTotal, setProductTotal] = useState(0);
+
+  // Product status tabs & bulk selection
+  const [productStatusTab, setProductStatusTab] = useState('published'); // 'published' | 'drafts' | 'archived'
+  const [selectedProducts, setSelectedProducts] = useState(new Set());
+  const [bulkActing, setBulkActing] = useState(false);
 
   // Fulfillment state
   const [selectedOrders, setSelectedOrders] = useState(new Set());
@@ -240,10 +244,12 @@ export default function SellerDashboard() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const prodsData = await ProductService.getProducts({ 
-        seller: user.id, 
-        page: productPage, 
-        page_size: productPageSize 
+      // Fetch all seller products (all statuses) — backend filters nothing when seller= is passed without is_active
+      const prodsData = await ProductService.getProducts({
+        seller: user.id,
+        page: productPage,
+        page_size: productPageSize,
+        no_pagination: undefined,
       });
       if (prodsData && typeof prodsData === 'object' && 'results' in prodsData) {
         setProducts(prodsData.results || []);
@@ -413,22 +419,23 @@ export default function SellerDashboard() {
     }
   };
 
-  const handleAddProduct = async (e, addAnother = false) => {
+  const handleAddProduct = async (e, addAnother = false, isDraft = false) => {
     if (e) e.preventDefault();
 
-    // Client-side Validation
+    // Client-side Validation — skip strict validation for drafts
     const errors = {};
     if (!newProduct.name) errors.name = "Specimen name is required";
-    if (!newProduct.category_id) errors.category_id = "Please select a category";
-    if (!newProduct.description) errors.description = "Botanical description is required";
+    if (!isDraft) {
+      if (!newProduct.category_id) errors.category_id = "Please select a category";
+      if (!newProduct.description) errors.description = "Botanical description is required";
 
-    newProduct.variants.forEach((v, idx) => {
-      if (!v.name) errors[`variant_${idx}_name`] = "Variant name required";
-      if (!v.base_price) errors[`variant_${idx}_base_price`] = "Price required";
-      if (!v.stock && v.stock !== 0) errors[`variant_${idx}_stock`] = "Stock required";
-      if (!v.packed_weight_grams) errors[`variant_${idx}_packed_weight_grams`] = "Packed weight required";
-      else if (parseInt(v.packed_weight_grams) < 1 || parseInt(v.packed_weight_grams) > 30000) errors[`variant_${idx}_packed_weight_grams`] = "Must be 1–30,000g";
-    });
+      newProduct.variants.forEach((v, idx) => {
+        if (!v.base_price) errors[`variant_${idx}_base_price`] = "Price required";
+        if (!v.stock && v.stock !== 0) errors[`variant_${idx}_stock`] = "Stock required";
+        if (!v.packed_weight_grams) errors[`variant_${idx}_packed_weight_grams`] = "Packed weight required";
+        else if (parseInt(v.packed_weight_grams) < 1 || parseInt(v.packed_weight_grams) > 30000) errors[`variant_${idx}_packed_weight_grams`] = "Must be 1–30,000g";
+      });
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -442,22 +449,47 @@ export default function SellerDashboard() {
     try {
       const payload = { ...newProduct };
 
-      // Filter out invalid/empty variants (already validated above but keeping as safety)
-      payload.variants = payload.variants.filter(v => v.name && v.base_price !== '' && v.stock !== '');
+      // Draft flag — only set on create. Editing preserves existing draft/published state.
+      if (!editingProduct) {
+        payload.is_draft = isDraft;
+        if (isDraft) payload.is_active = false;
+      }
+
+      // Merge botanical range fields into single string, e.g. "Easy to Medium" or "Easy"
+      const mergeRange = (min, max) => (min === max || !max) ? min : `${min} to ${max}`;
+      payload.care_level = mergeRange(payload.care_level, payload.care_level_max);
+      payload.light_requirements = mergeRange(payload.light_requirements, payload.light_requirements_max);
+      payload.growth_rate = mergeRange(payload.growth_rate, payload.growth_rate_max);
+      // Strip UI-only range fields before sending to backend
+      delete payload.care_level_max;
+      delete payload.light_requirements_max;
+      delete payload.growth_rate_max;
+
+      // Auto-build variant name from type + optional label (e.g. "Rhizome — Small")
+      payload.variants = payload.variants
+        .filter(v => v.base_price !== '' && v.stock !== '')
+        .map(v => ({
+          ...v,
+          name: v.name?.trim()
+            ? `${v.variant_type} — ${v.name.trim()}`
+            : v.variant_type,
+        }));
       payload.images = payload.images.filter(img => img.image_url.trim() !== '');
 
       if (editingProduct) await ProductService.updateProduct(editingProduct.id, payload);
       else await ProductService.createProduct(payload);
 
-      setSuccess(editingProduct ? "Specimen updated successfully" : "New specimen listed successfully");
+      setSuccess(isDraft ? "Draft saved — complete it anytime from your Collection" : (editingProduct ? "Specimen updated successfully" : "New specimen listed successfully"));
 
       if (addAnother) {
         setNewProduct({
           name: '', scientific_name: '', category_id: '', sub_category_id: '', tagline: '', origin: '', description: '',
-          care_level: 'Easy', light_requirements: 'Medium', growth_rate: 'Moderate',
+          care_level: 'Easy', care_level_max: 'Easy',
+          light_requirements: 'Low', light_requirements_max: 'Medium',
+          growth_rate: 'Moderate', growth_rate_max: 'Moderate',
           is_rare: false,
           variants: [{
-            name: 'Standard', base_price: '', gst_rate: '0',
+            name: '', variant_type: 'Plant', base_price: '', gst_rate: '0',
             commission_rate: '10.0', stock: '',
             item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
           }],
@@ -469,6 +501,7 @@ export default function SellerDashboard() {
         setIsModalOpen(false);
         setEditingProduct(null);
         setActiveTab('products');
+        setProductStatusTab(isDraft ? 'drafts' : 'published');
         await fetchData();   // refresh product list with updated data
       }
     } catch (error) {
@@ -489,15 +522,16 @@ export default function SellerDashboard() {
       tagline: "A rare and beautiful specimen for your botanical sanctuary.",
       origin: "Southeast Asia",
       description: "This specimen has been meticulously acclimated in our private greenhouse. It exhibits vibrant coloration and robust root growth. Perfect for advanced collectors seeking a centerpiece for their display.",
-      care_level: ['Easy', 'Medium', 'Advanced'][Math.floor(Math.random() * 3)],
-      light_requirements: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
-      growth_rate: ['Slow', 'Moderate', 'Fast'][Math.floor(Math.random() * 3)],
+      care_level: 'Easy', care_level_max: 'Medium',
+      light_requirements: 'Low', light_requirements_max: 'Medium',
+      growth_rate: 'Moderate', growth_rate_max: 'Moderate',
       is_rare: Math.random() > 0.7,
       variants: [{
-        name: 'Standard Pot',
+        name: 'Standard',
+        variant_type: 'Pot',
         base_price: '1200',
-        gst_rate: String(cat.gst_percentage || 12),
-        commission_rate: String(cat.commission_rate || 20),
+        gst_rate: '0',
+        commission_rate: '10.0',
         stock: '15',
         item_category: 'light',
         packed_weight_grams: '800',
@@ -537,6 +571,25 @@ export default function SellerDashboard() {
         }
       }
     });
+  };
+
+  const handleBulkProductAction = async (action) => {
+    const ids = [...selectedProducts];
+    if (!ids.length) return;
+    setBulkActing(true);
+    try {
+      await api.post('/core/products/bulk-action/', { action, ids });
+      const labels = { publish: 'published', archive: 'archived', unarchive: 'restored', delete: 'deleted' };
+      setSuccess(`${ids.length} specimen${ids.length > 1 ? 's' : ''} ${labels[action]} successfully`);
+      setSelectedProducts(new Set());
+      if (action === 'publish') setProductStatusTab('published');
+      else if (action === 'archive') setProductStatusTab('archived');
+      await fetchProducts();
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Bulk action failed');
+    } finally {
+      setBulkActing(false);
+    }
   };
 
   const handleUnarchiveProduct = async () => {
@@ -701,10 +754,11 @@ export default function SellerDashboard() {
     const cleanVariants = p.variants?.length > 0
       ? p.variants.map(v => ({
         id: v.id,
-        name: v.name || 'Standard',
+        name: v.name || '',
+        variant_type: v.variant_type || 'Plant',
         base_price: v.base_price ?? '',
-        gst_rate: v.gst_rate ?? '0',
-        commission_rate: v.commission_rate ?? '10.0',
+        gst_rate: '0',
+        commission_rate: '10.0',
         stock: v.stock ?? '',
         item_category: v.item_category ?? 'light',
         packed_weight_grams: v.packed_weight_grams ?? '',
@@ -712,7 +766,7 @@ export default function SellerDashboard() {
         width: v.width ?? '10',
         height: v.height ?? '10',
       }))
-      : [{ name: 'Standard', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
+      : [{ name: '', variant_type: 'Plant', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
 
     // Sanitize images — strip backend-only fields
     const cleanImages = p.images?.length > 0
@@ -732,9 +786,12 @@ export default function SellerDashboard() {
       tagline: p.tagline || '',
       origin: p.origin || '',
       description: p.description || '',
-      care_level: p.care_level || 'Easy',
-      light_requirements: p.light_requirements || 'Medium',
-      growth_rate: p.growth_rate || 'Moderate',
+      care_level: p.care_level?.split(' to ')[0] || 'Easy',
+      care_level_max: p.care_level?.split(' to ')[1] || p.care_level?.split(' to ')[0] || 'Easy',
+      light_requirements: p.light_requirements?.split(' to ')[0] || 'Low',
+      light_requirements_max: p.light_requirements?.split(' to ')[1] || p.light_requirements?.split(' to ')[0] || 'Medium',
+      growth_rate: p.growth_rate?.split(' to ')[0] || 'Moderate',
+      growth_rate_max: p.growth_rate?.split(' to ')[1] || p.growth_rate?.split(' to ')[0] || 'Moderate',
       is_rare: p.is_rare || false,
       variants: cleanVariants,
       images: cleanImages,
@@ -924,9 +981,13 @@ export default function SellerDashboard() {
                   setEditingProduct(null);
                   setNewProduct({
                     name: '', scientific_name: '', category_id: '', sub_category_id: '', description: '',
-                    tagline: '', origin: '', care_level: 'Easy', light_requirements: 'Medium', growth_rate: 'Moderate', is_rare: false,
+                    tagline: '', origin: '',
+                    care_level: 'Easy', care_level_max: 'Easy',
+                    light_requirements: 'Low', light_requirements_max: 'Medium',
+                    growth_rate: 'Moderate', growth_rate_max: 'Moderate',
+                    is_rare: false,
                     variants: [{
-                      name: 'Standard', base_price: '', gst_rate: '0',
+                      name: '', variant_type: 'Plant', base_price: '', gst_rate: '0',
                       commission_rate: '10.0', price: '', stock: '',
                       item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
                     }],
@@ -1430,181 +1491,243 @@ export default function SellerDashboard() {
                 </div>
               )}
 
-              {activeTab === 'products' && (
-                <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflowX: 'auto' }}>
-                  {Object.keys(inlineStocks).length > 0 && (
-                    <div style={{ padding: '1rem 1.5rem', backgroundColor: '#f0fdf4', borderBottom: '1px solid #edf2ed', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>{Object.keys(inlineStocks).length} unsaved stock update{Object.keys(inlineStocks).length > 1 ? 's' : ''}</span>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button onClick={() => setInlineStocks({})} style={{ padding: '0.4rem 1rem', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Cancel</button>
-                        <button onClick={handleBulkStockUpdate} disabled={loading} style={{ padding: '0.4rem 1.25rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
-                          Update All Stock
+              {activeTab === 'products' && (() => {
+                // Categorise products into tabs
+                const published = products.filter(p => p.is_active && !p.is_draft);
+                const drafts    = products.filter(p => p.is_draft);
+                const archived  = products.filter(p => !p.is_active && !p.is_draft);
+                const tabList = [
+                  { key: 'published', label: 'Published', count: published.length, color: '#22c55e' },
+                  { key: 'drafts',    label: 'Drafts',    count: drafts.length,    color: '#f59e0b' },
+                  { key: 'archived',  label: 'Archived',  count: archived.length,  color: '#9ca3af' },
+                ];
+                const visibleProducts = productStatusTab === 'published' ? published : productStatusTab === 'drafts' ? drafts : archived;
+                const allSelected = visibleProducts.length > 0 && visibleProducts.every(p => selectedProducts.has(p.id));
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Status tabs */}
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {tabList.map(tab => (
+                        <button
+                          key={tab.key}
+                          onClick={() => { setProductStatusTab(tab.key); setSelectedProducts(new Set()); }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.55rem 1.1rem', borderRadius: '10px',
+                            border: productStatusTab === tab.key ? `2px solid ${tab.color}` : '1.5px solid #e2e8f0',
+                            backgroundColor: productStatusTab === tab.key ? `${tab.color}18` : 'white',
+                            color: productStatusTab === tab.key ? '#1b2d2a' : '#6b7280',
+                            fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.18s',
+                          }}
+                        >
+                          {tab.label}
+                          <span style={{ backgroundColor: tab.color, color: 'white', borderRadius: '50px', padding: '0.1rem 0.5rem', fontSize: '0.68rem', fontWeight: 800 }}>{tab.count}</span>
                         </button>
-                      </div>
+                      ))}
                     </div>
-                  )}
-                  <table style={{ width: '100%', minWidth: isMobile ? '100%' : '800px', borderCollapse: 'collapse' }}>
-                    <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
-                      <tr>
-                        <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Specimen</th>
-                        {!isMobile && (
+
+                    {/* Bulk selection toolbar */}
+                    {selectedProducts.size > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.875rem 1.25rem', backgroundColor: '#1b2d2a', borderRadius: '14px', color: 'white' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>{selectedProducts.size} selected</span>
+                        {productStatusTab === 'drafts' && (
+                          <button onClick={() => handleBulkProductAction('publish')} disabled={bulkActing} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '8px', backgroundColor: '#22c55e', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                            <Eye size={13} /> Publish
+                          </button>
+                        )}
+                        {productStatusTab === 'published' && (
+                          <button onClick={() => handleBulkProductAction('archive')} disabled={bulkActing} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '8px', backgroundColor: '#f59e0b', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                            <Archive size={13} /> Archive
+                          </button>
+                        )}
+                        {productStatusTab === 'archived' && (
                           <>
-                            <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Seller Payout</th>
-                            <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Buyer Price</th>
-                            <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Stock</th>
-                            <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Status</th>
-                            <th style={{ padding: '1.5rem 2rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em', textAlign: 'right' }}>Actions</th>
+                            <button onClick={() => handleBulkProductAction('unarchive')} disabled={bulkActing} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '8px', backgroundColor: '#22c55e', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                              <Eye size={13} /> Restore
+                            </button>
                           </>
                         )}
-                        {isMobile && <th style={{ padding: '1.5rem 2rem', width: '60px' }}></th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {products.length === 0 ? (
-                        <tr>
-                          <td colSpan="6" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
-                            <Package size={48} style={{ opacity: 0.2, marginBottom: '1.5rem', display: 'block', margin: '0 auto 1.5rem' }} />
-                            <p>No specimens listed yet. Add your first specimen above.</p>
-                          </td>
-                        </tr>
-                      ) : products.map(p => (
-                        <React.Fragment key={p.id}>
-                          <tr style={{ borderBottom: '1px solid #edf2ed', opacity: p.is_active ? 1 : 0.55, transition: 'opacity 0.2s', cursor: isMobile ? 'pointer' : 'default' }} onClick={() => isMobile && setExpandedProductId(prev => prev === p.id ? null : p.id)}>
-                            <td style={{ padding: '1.5rem 2rem' }}>
-                              <div 
-                                onClick={() => window.open(`/product/${p.slug || p.id}`, '_blank')}
-                                style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}
-                              >
-                                <img
-                                  src={p.image_url || p.image || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%23edf2ed" rx="8"/%3E%3C/svg%3E'}
-                                  style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #edf2ed', flexShrink: 0 }}
-                                  alt={p.name}
-                                />
-                                <div>
-                                  <span style={{ fontWeight: 700, display: 'block', color: '#1b2d2a' }}>{p.name || p.title}</span>
-                                  {p.scientific_name && <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>{p.scientific_name}</span>}
-                                </div>
-                              </div>
-                            </td>
-                            {!isMobile && (
-                              <>
-                                <td style={{ padding: '1.5rem 2rem', fontWeight: 700, color: '#10b981' }}>₹{p.base_price}</td>
-                                <td style={{ padding: '1.5rem 2rem', fontWeight: 700 }}>₹{p.price}</td>
-                                <td style={{ padding: '1.5rem 2rem' }}>
-                                  <input 
-                                    type="number" 
-                                    min="0"
-                                    value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock} 
-                                    onChange={(e) => setInlineStocks(prev => ({...prev, [p.id]: e.target.value}))}
-                                    style={{ width: '70px', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700, textAlign: 'center' }}
-                                  />
-                                </td>
-                                <td style={{ padding: '1.5rem 2rem' }}>
-                                  {p.is_active ? (
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.9rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#dcfce7', color: '#166534', letterSpacing: '0.05em' }}>
-                                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
-                                      Active
-                                    </span>
-                                  ) : (
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.9rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#f3f4f6', color: '#6b7280', letterSpacing: '0.05em' }}>
-                                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#9ca3af', display: 'inline-block' }} />
-                                      Archived
-                                    </span>
-                                  )}
-                                </td>
-                                <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
-                                  <button onClick={(e) => { e.stopPropagation(); handleEditProduct(p); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '0.5rem', borderRadius: '8px', transition: 'background 0.2s' }} title="Edit specimen">
-                                    <Pencil size={18} />
-                                  </button>
-                                </td>
-                              </>
-                            )}
-                            {isMobile && (
-                              <td style={{ padding: '1.5rem 2rem', textAlign: 'right', color: '#94a3b8' }}>
-                                {expandedProductId === p.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                              </td>
-                            )}
-                          </tr>
-                          {isMobile && expandedProductId === p.id && (
-                            <tr style={{ backgroundColor: '#f8faf9', borderBottom: '1px solid #edf2ed' }}>
-                              <td colSpan="2" style={{ padding: '1.5rem 2rem' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                  <div>
-                                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Seller Payout</p>
-                                    <p style={{ fontWeight: 700, color: '#10b981' }}>₹{p.base_price}</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Buyer Price</p>
-                                    <p style={{ fontWeight: 700 }}>₹{p.price}</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Stock</p>
-                                    <input 
-                                      type="number" 
-                                      min="0"
-                                      value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock} 
-                                      onChange={(e) => setInlineStocks(prev => ({...prev, [p.id]: e.target.value}))}
-                                      style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Status</p>
-                                    {p.is_active ? (
-                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 800, color: '#166534' }}><span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} /> Active</span>
-                                    ) : (
-                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 800, color: '#6b7280' }}><span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#9ca3af', display: 'inline-block' }} /> Archived</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <button onClick={() => handleEditProduct(p)} style={{ width: '100%', backgroundColor: '#1b2d2a', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                  <Pencil size={16} /> Edit Specimen
-                                </button>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                  {productTotal > 0 && (
-                    <div style={{ padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #edf2ed', gap: '1rem' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                        Showing {((productPage - 1) * productPageSize) + 1} to {Math.min(productPage * productPageSize, productTotal)} of {productTotal} specimens
+                        <button onClick={() => handleBulkProductAction('delete')} disabled={bulkActing} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '8px', backgroundColor: '#ef4444', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                          <Trash2 size={13} /> Delete
+                        </button>
+                        <button onClick={() => setSelectedProducts(new Set())} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem' }}>Clear</button>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <select
-                          value={productPageSize}
-                          onChange={(e) => {
-                            setProductPageSize(Number(e.target.value));
-                            setProductPage(1);
-                          }}
-                          style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.8rem', color: '#1e293b', cursor: 'pointer', outline: 'none' }}
-                        >
-                          <option value={10}>10 per page</option>
-                          <option value={20}>20 per page</option>
-                          <option value={50}>50 per page</option>
-                        </select>
+                    )}
+
+                    {/* Stock update banner */}
+                    {Object.keys(inlineStocks).length > 0 && (
+                      <div style={{ padding: '1rem 1.5rem', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>{Object.keys(inlineStocks).length} unsaved stock update{Object.keys(inlineStocks).length > 1 ? 's' : ''}</span>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            disabled={productPage === 1}
-                            onClick={() => setProductPage(p => p - 1)}
-                            style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage === 1 ? '#f8fafc' : 'white', cursor: productPage === 1 ? 'not-allowed' : 'pointer', color: '#1e293b' }}
-                          >
-                            Prev
-                          </button>
-                          <button
-                            disabled={productPage * productPageSize >= productTotal}
-                            onClick={() => setProductPage(p => p + 1)}
-                            style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage * productPageSize >= productTotal ? '#f8fafc' : 'white', cursor: productPage * productPageSize >= productTotal ? 'not-allowed' : 'pointer', color: '#1e293b' }}
-                          >
-                            Next
+                          <button onClick={() => setInlineStocks({})} style={{ padding: '0.4rem 1rem', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Cancel</button>
+                          <button onClick={handleBulkStockUpdate} disabled={loading} style={{ padding: '0.4rem 1.25rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                            Update All Stock
                           </button>
                         </div>
                       </div>
+                    )}
+
+                    {/* Product table */}
+                    <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflowX: 'auto' }}>
+                      <table style={{ width: '100%', minWidth: isMobile ? '100%' : '800px', borderCollapse: 'collapse' }}>
+                        <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
+                          <tr>
+                            <th style={{ padding: '1.25rem 1rem 1.25rem 1.5rem', width: '40px' }}>
+                              <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={e => setSelectedProducts(e.target.checked ? new Set(visibleProducts.map(p => p.id)) : new Set())}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
+                              />
+                            </th>
+                            <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Specimen</th>
+                            {!isMobile && (
+                              <>
+                                <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Seller Payout</th>
+                                <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Buyer Price</th>
+                                <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em' }}>Stock</th>
+                                <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.08em', textAlign: 'right' }}>Actions</th>
+                              </>
+                            )}
+                            {isMobile && <th style={{ padding: '1.25rem 1.5rem', width: '60px' }}></th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {visibleProducts.length === 0 ? (
+                            <tr>
+                              <td colSpan="6" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
+                                <Package size={48} style={{ opacity: 0.2, marginBottom: '1.5rem', display: 'block', margin: '0 auto 1.5rem' }} />
+                                <p>{productStatusTab === 'drafts' ? 'No drafts saved yet.' : productStatusTab === 'archived' ? 'No archived specimens.' : 'No specimens listed yet. Add your first specimen above.'}</p>
+                              </td>
+                            </tr>
+                          ) : visibleProducts.map(p => (
+                            <React.Fragment key={p.id}>
+                              <tr style={{ borderBottom: '1px solid #edf2ed', opacity: p.is_active || p.is_draft ? 1 : 0.65, transition: 'opacity 0.2s', cursor: isMobile ? 'pointer' : 'default' }} onClick={() => isMobile && setExpandedProductId(prev => prev === p.id ? null : p.id)}>
+                                <td style={{ padding: '1.25rem 1rem 1.25rem 1.5rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedProducts.has(p.id)}
+                                    onChange={e => {
+                                      setSelectedProducts(prev => {
+                                        const next = new Set(prev);
+                                        e.target.checked ? next.add(p.id) : next.delete(p.id);
+                                        return next;
+                                      });
+                                    }}
+                                    onClick={e => e.stopPropagation()}
+                                    style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
+                                  />
+                                </td>
+                                <td style={{ padding: '1.25rem 1.5rem' }}>
+                                  <div
+                                    onClick={() => !p.is_draft && window.open(`/product/${p.slug || p.id}`, '_blank')}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: p.is_draft ? 'default' : 'pointer' }}
+                                  >
+                                    <img
+                                      src={p.image_url || p.image || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%23edf2ed" rx="8"/%3E%3C/svg%3E'}
+                                      style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #edf2ed', flexShrink: 0 }}
+                                      alt={p.name}
+                                    />
+                                    <div>
+                                      <span style={{ fontWeight: 700, display: 'block', color: '#1b2d2a' }}>{p.name || p.title}</span>
+                                      {p.scientific_name && <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>{p.scientific_name}</span>}
+                                      {p.is_draft && <span style={{ display: 'inline-block', marginTop: '0.2rem', padding: '0.1rem 0.5rem', borderRadius: '6px', fontSize: '0.62rem', fontWeight: 800, backgroundColor: '#fef3c7', color: '#92400e' }}>DRAFT</span>}
+                                    </div>
+                                  </div>
+                                </td>
+                                {!isMobile && (
+                                  <>
+                                    <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, color: '#10b981' }}>₹{p.base_price || '—'}</td>
+                                    <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700 }}>₹{p.price || '—'}</td>
+                                    <td style={{ padding: '1.25rem 1.5rem' }}>
+                                      {p.is_draft ? (
+                                        <span style={{ color: '#9ca3af', fontSize: '0.82rem' }}>—</span>
+                                      ) : (
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock}
+                                          onChange={(e) => setInlineStocks(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                          onClick={e => e.stopPropagation()}
+                                          style={{ width: '70px', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700, textAlign: 'center' }}
+                                        />
+                                      )}
+                                    </td>
+                                    <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right' }}>
+                                      <button onClick={(e) => { e.stopPropagation(); handleEditProduct(p); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: '0.5rem', borderRadius: '8px', transition: 'background 0.2s' }} title="Edit specimen">
+                                        <Pencil size={18} />
+                                      </button>
+                                    </td>
+                                  </>
+                                )}
+                                {isMobile && (
+                                  <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right', color: '#94a3b8' }}>
+                                    {expandedProductId === p.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                  </td>
+                                )}
+                              </tr>
+                              {isMobile && expandedProductId === p.id && (
+                                <tr style={{ backgroundColor: '#f8faf9', borderBottom: '1px solid #edf2ed' }}>
+                                  <td colSpan="3" style={{ padding: '1.5rem 2rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                      <div>
+                                        <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Seller Payout</p>
+                                        <p style={{ fontWeight: 700, color: '#10b981' }}>₹{p.base_price || '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Buyer Price</p>
+                                        <p style={{ fontWeight: 700 }}>₹{p.price || '—'}</p>
+                                      </div>
+                                      {!p.is_draft && (
+                                        <div>
+                                          <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Stock</p>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock}
+                                            onChange={(e) => setInlineStocks(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                            style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <button onClick={() => handleEditProduct(p)} style={{ width: '100%', backgroundColor: '#1b2d2a', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                      <Pencil size={16} /> {p.is_draft ? 'Continue Editing' : 'Edit Specimen'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                      {productTotal > 0 && (
+                        <div style={{ padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #edf2ed', gap: '1rem' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            Showing {((productPage - 1) * productPageSize) + 1}–{Math.min(productPage * productPageSize, productTotal)} of {productTotal} specimens
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <select
+                              value={productPageSize}
+                              onChange={(e) => { setProductPageSize(Number(e.target.value)); setProductPage(1); }}
+                              style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.8rem', color: '#1e293b', cursor: 'pointer', outline: 'none' }}
+                            >
+                              <option value={10}>10 per page</option>
+                              <option value={20}>20 per page</option>
+                              <option value={50}>50 per page</option>
+                            </select>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button disabled={productPage === 1} onClick={() => setProductPage(p => p - 1)} style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage === 1 ? '#f8fafc' : 'white', cursor: productPage === 1 ? 'not-allowed' : 'pointer', color: '#1e293b' }}>Prev</button>
+                              <button disabled={productPage * productPageSize >= productTotal} onClick={() => setProductPage(p => p + 1)} style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage * productPageSize >= productTotal ? '#f8fafc' : 'white', cursor: productPage * productPageSize >= productTotal ? 'not-allowed' : 'pointer', color: '#1e293b' }}>Next</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
 
               {activeTab === 'orders' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -2107,21 +2230,11 @@ export default function SellerDashboard() {
                                 <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_id ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Category <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.category_id && `— ${fieldErrors.category_id}`}</label>
                                 <select value={newProduct.category_id} onChange={e => {
                                   const catId = e.target.value;
-                                  const selectedCat = categories.find(c => String(c.id) === String(catId));
-                                  const commRate = selectedCat ? selectedCat.commission_rate : '20.0';
-                                  const gstRate = selectedCat ? selectedCat.gst_percentage : '0';
-
-                                  const updatedVariants = newProduct.variants.map(v => ({
-                                    ...v,
-                                    commission_rate: commRate,
-                                    gst_rate: gstRate || v.gst_rate
-                                  }));
-
+                                  // Commission is fixed at 10% — category no longer drives pricing
                                   setNewProduct({
                                     ...newProduct,
                                     category_id: catId,
-                                    sub_category_id: '', // Reset subcategory when category changes
-                                    variants: updatedVariants
+                                    sub_category_id: '',
                                   });
                                   setFieldErrors({ ...fieldErrors, category_id: null });
                                 }} className={fieldErrors.category_id ? 'form-error-input' : ''} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}>
@@ -2155,35 +2268,55 @@ export default function SellerDashboard() {
                             </div>
                           </div>
 
-                          {/* Botanical Mandate Sidebar */}
+                          {/* Botanical Mandate Sidebar — range selectors */}
                           <div style={{ padding: '2.5rem', backgroundColor: '#fcfdfc', borderRadius: '24px', border: '1px solid #edf2ed', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '1rem', color: '#1b2d2a', letterSpacing: '0.05em' }}>Botanical Mandate</label>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.4rem', color: '#1b2d2a', letterSpacing: '0.05em' }}>Botanical Mandate</label>
+                              <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginBottom: '1.25rem', marginTop: 0 }}>Set a range if the plant suits multiple levels (e.g. Easy → Medium)</p>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+
+                                {/* Care Level */}
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Care Level</label>
-                                  <select value={newProduct.care_level} onChange={e => setNewProduct({ ...newProduct, care_level: e.target.value })} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', backgroundColor: 'white' }}>
-                                    <option>Easy</option>
-                                    <option>Medium</option>
-                                    <option>Advanced</option>
-                                  </select>
+                                  <label style={{ display: 'block', fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.6rem', textTransform: 'uppercase' }}>Care Level</label>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.5rem', alignItems: 'center' }}>
+                                    <select value={newProduct.care_level} onChange={e => setNewProduct({ ...newProduct, care_level: e.target.value })} style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', backgroundColor: 'white' }}>
+                                      <option>Easy</option><option>Medium</option><option>Advanced</option>
+                                    </select>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center' }}>→</span>
+                                    <select value={newProduct.care_level_max} onChange={e => setNewProduct({ ...newProduct, care_level_max: e.target.value })} style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', backgroundColor: 'white' }}>
+                                      <option>Easy</option><option>Medium</option><option>Advanced</option>
+                                    </select>
+                                  </div>
                                 </div>
+
+                                {/* Light Intensity */}
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Light Intensity</label>
-                                  <select value={newProduct.light_requirements} onChange={e => setNewProduct({ ...newProduct, light_requirements: e.target.value })} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', backgroundColor: 'white' }}>
-                                    <option>Low</option>
-                                    <option>Medium</option>
-                                    <option>High</option>
-                                  </select>
+                                  <label style={{ display: 'block', fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.6rem', textTransform: 'uppercase' }}>Light Intensity</label>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.5rem', alignItems: 'center' }}>
+                                    <select value={newProduct.light_requirements} onChange={e => setNewProduct({ ...newProduct, light_requirements: e.target.value })} style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', backgroundColor: 'white' }}>
+                                      <option>Low</option><option>Medium</option><option>High</option>
+                                    </select>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center' }}>→</span>
+                                    <select value={newProduct.light_requirements_max} onChange={e => setNewProduct({ ...newProduct, light_requirements_max: e.target.value })} style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', backgroundColor: 'white' }}>
+                                      <option>Low</option><option>Medium</option><option>High</option>
+                                    </select>
+                                  </div>
                                 </div>
+
+                                {/* Growth Rate */}
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Growth Rate</label>
-                                  <select value={newProduct.growth_rate} onChange={e => setNewProduct({ ...newProduct, growth_rate: e.target.value })} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', backgroundColor: 'white' }}>
-                                    <option>Slow</option>
-                                    <option>Moderate</option>
-                                    <option>Fast</option>
-                                  </select>
+                                  <label style={{ display: 'block', fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.6rem', textTransform: 'uppercase' }}>Growth Rate</label>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.5rem', alignItems: 'center' }}>
+                                    <select value={newProduct.growth_rate} onChange={e => setNewProduct({ ...newProduct, growth_rate: e.target.value })} style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', backgroundColor: 'white' }}>
+                                      <option>Slow</option><option>Moderate</option><option>Fast</option>
+                                    </select>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center' }}>→</span>
+                                    <select value={newProduct.growth_rate_max} onChange={e => setNewProduct({ ...newProduct, growth_rate_max: e.target.value })} style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', backgroundColor: 'white' }}>
+                                      <option>Slow</option><option>Moderate</option><option>Fast</option>
+                                    </select>
+                                  </div>
                                 </div>
+
                               </div>
                             </div>
                           </div>
@@ -2198,7 +2331,7 @@ export default function SellerDashboard() {
                           </h4>
                           <button
                             type="button"
-                            onClick={() => setNewProduct(prev => ({ ...prev, variants: [...prev.variants, { name: '', base_price: '', gst_rate: '0', commission_rate: '10.0', price: '', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }] }))}
+                            onClick={() => setNewProduct(prev => ({ ...prev, variants: [...prev.variants, { name: '', variant_type: 'Plant', base_price: '', gst_rate: '0', commission_rate: '10.0', price: '', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }] }))}
                             style={{ padding: '0.75rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, backgroundColor: '#fcfdfc', border: '1px solid #edf2ed', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1b2d2a' }}
                           >
                             <Plus size={16} /> ADD VARIATION
@@ -2218,24 +2351,44 @@ export default function SellerDashboard() {
                                 </button>
                               )}
 
-                              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2.5rem', marginBottom: '2.5rem' }}>
+                              {/* Variant type + name + stock */}
+                              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                                {/* Variant Type */}
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_name`] ? '#ef4444' : '#64748b' }}>Variant Name <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_name`] && `— ${fieldErrors[`variant_${idx}_name`]}`}</label>
+                                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>Variant Type <span style={{ color: '#ef4444' }}>*</span></label>
+                                  <select
+                                    value={v.variant_type}
+                                    onChange={e => {
+                                      const updated = [...newProduct.variants];
+                                      updated[idx].variant_type = e.target.value;
+                                      setNewProduct({ ...newProduct, variants: updated });
+                                    }}
+                                    style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', backgroundColor: 'white' }}
+                                  >
+                                    {['Plant','Rhizome','Pot','Clump','Tissue Culture','Cutting','Bunch','Mat','Cup','Emersed','Submerged','Seedling','Bulb','Corm','Dry Start','Colony','Pair','Trio','Other'].map(t => (
+                                      <option key={t} value={t}>{t}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                {/* Variant Label (optional size/descriptor) */}
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_name`] ? '#ef4444' : '#64748b' }}>
+                                    Size / Label <span style={{ color: '#94a3b8', fontWeight: 600, textTransform: 'none' }}>(optional)</span>
+                                  </label>
                                   <input
                                     value={v.name}
                                     onChange={e => {
                                       const updated = [...newProduct.variants];
                                       updated[idx].name = e.target.value;
                                       setNewProduct({ ...newProduct, variants: updated });
-                                      setFieldErrors({ ...fieldErrors, [`variant_${idx}_name`]: null });
                                     }}
-                                    placeholder="e.g. Small / 5cm / Submerged"
-                                    className={fieldErrors[`variant_${idx}_name`] ? 'form-error-input' : ''}
+                                    placeholder="e.g. Small / 5cm / XL"
                                     style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
                                   />
                                 </div>
+                                {/* Stock */}
                                 <div>
-                                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_stock`] ? '#ef4444' : '#64748b' }}>Current Stock <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_stock`] && `— ${fieldErrors[`variant_${idx}_stock`]}`}</label>
+                                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_stock`] ? '#ef4444' : '#64748b' }}>Stock <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_stock`] && `— ${fieldErrors[`variant_${idx}_stock`]}`}</label>
                                   <input
                                     type="number"
                                     value={v.stock}
@@ -2252,11 +2405,15 @@ export default function SellerDashboard() {
                                 </div>
                               </div>
 
-
+                              {/* Pricing — seller enters GST-inclusive price, Junglyst adds 10% */}
                               <div style={{ padding: isMobile ? '1.25rem' : '2rem', backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', marginBottom: '2.5rem' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '2rem', marginBottom: '2rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
                                   <div>
-                                    <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>Base Payout (₹) <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_base_price`] && `— ${fieldErrors[`variant_${idx}_base_price`]}`}</label>
+                                    <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.4rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>
+                                      Your Selling Price (₹, incl. GST) <span style={{ color: '#ef4444' }}>*</span>
+                                      {fieldErrors[`variant_${idx}_base_price`] && ` — ${fieldErrors[`variant_${idx}_base_price`]}`}
+                                    </label>
+                                    <p style={{ fontSize: '0.6rem', color: '#94a3b8', margin: '0 0 0.6rem', fontWeight: 500 }}>Enter the price you want to receive. Must include GST.</p>
                                     <input
                                       type="number"
                                       value={v.base_price}
@@ -2266,43 +2423,28 @@ export default function SellerDashboard() {
                                         setNewProduct({ ...newProduct, variants: updated });
                                         setFieldErrors({ ...fieldErrors, [`variant_${idx}_base_price`]: null });
                                       }}
-                                      placeholder="0"
+                                      placeholder="e.g. 450"
                                       className={fieldErrors[`variant_${idx}_base_price`] ? 'form-error-input' : ''}
                                       style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
                                     />
                                   </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>GST (%)</label>
-                                    <select
-                                      value={v.gst_rate}
-                                      onChange={e => {
-                                        const updated = [...newProduct.variants];
-                                        updated[idx].gst_rate = e.target.value;
-                                        setNewProduct({ ...newProduct, variants: updated });
-                                      }}
-                                      style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}
-                                    >
-                                      <option value="0">0%</option>
-                                      <option value="5">5%</option>
-                                      <option value="12">12%</option>
-                                      <option value="18">18%</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#94a3b8' }}>Commission (%)</label>
-                                    <input
-                                      readOnly
-                                      value={v.commission_rate}
-                                      style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #edf2ed', backgroundColor: '#f8faf9', color: '#64748b', cursor: 'not-allowed', fontSize: '0.9rem' }}
-                                    />
-                                    <p style={{ fontSize: '0.5rem', color: '#94a3b8', marginTop: '0.4rem', fontWeight: 600 }}>Precalculated by category</p>
+                                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                                    <p style={{ fontSize: '0.6rem', fontWeight: 700, color: '#64748b', margin: '0 0 0.4rem', textTransform: 'uppercase' }}>Junglyst Commission</p>
+                                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0 0 0.6rem' }}>10% added on top of your price</p>
+                                    <div style={{ padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                                      <p style={{ fontSize: '0.65rem', color: '#15803d', fontWeight: 600, margin: 0 }}>
+                                        Commission: ₹{(parseFloat(v.base_price || 0) * 0.10).toFixed(2)}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.5rem', borderTop: '1px dashed #edf2ed' }}>
-                                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1b2d2a', margin: 0 }}>Estimated Buyer Price</p>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.25rem', borderTop: '1px dashed #edf2ed' }}>
+                                  <div>
+                                    <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1b2d2a', margin: 0 }}>Buyer sees</p>
+                                    <p style={{ fontSize: '0.6rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>Your price + 10% Junglyst fee</p>
+                                  </div>
                                   <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1b2d2a' }}>
-                                    ₹{(parseFloat(v.base_price || 0) * (1 + parseFloat(v.gst_rate || 0) / 100 + parseFloat(v.commission_rate || 0) / 100)).toFixed(2)}
+                                    ₹{(parseFloat(v.base_price || 0) * 1.10).toFixed(2)}
                                   </span>
                                 </div>
                               </div>
@@ -2521,14 +2663,24 @@ export default function SellerDashboard() {
                     </button>
 
                     {!editingProduct && (
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => handleAddProduct(null, true)}
-                        style={{ padding: '0.85rem 1.5rem', background: '#fcfdfc', border: '1px solid #1b2d2a', color: '#1b2d2a', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, width: isMobile ? '100%' : 'auto', fontSize: '0.8rem' }}
-                      >
-                        SAVE & ADD ANOTHER
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => handleAddProduct(null, false, true)}
+                          style={{ padding: '0.85rem 1.5rem', background: '#fffbeb', border: '1.5px solid #f59e0b', color: '#92400e', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, width: isMobile ? '100%' : 'auto', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                          <FileText size={15} /> SAVE AS DRAFT
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => handleAddProduct(null, true)}
+                          style={{ padding: '0.85rem 1.5rem', background: '#fcfdfc', border: '1px solid #1b2d2a', color: '#1b2d2a', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, width: isMobile ? '100%' : 'auto', fontSize: '0.8rem' }}
+                        >
+                          SAVE & ADD ANOTHER
+                        </button>
+                      </>
                     )}
 
                     <button

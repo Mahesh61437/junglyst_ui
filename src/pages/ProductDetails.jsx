@@ -22,7 +22,7 @@ import { ProductService } from '../services/ProductService';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
-import { trackProductViewed, trackAddToCart, trackAddToWishlist } from '../utils/posthog';
+import { trackProductViewed, trackAddToCart, trackAddToWishlist } from '../utils/analytics';
 import ReviewSection from '../components/ReviewSection';
 import Recommendations from '../components/Recommendations';
 import TrustBadges from '../components/TrustBadges';
