@@ -802,10 +802,15 @@ export default function SellerDashboard() {
         images: cleanImages,
       });
       setIsModalOpen(true);
-    };
+    } catch (err) {
+      setFormError('Failed to load product details. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
-    const sidebarItems = [
+  const sidebarItems = [
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard size={20} /> },
       { id: 'products', label: 'Collection', icon: <Package size={20} /> },
       { id: 'orders', label: 'Fulfillment', icon: <ShoppingBag size={20} /> },
