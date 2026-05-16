@@ -424,17 +424,42 @@ export default function SellerDashboard() {
 
     // Client-side Validation — skip strict validation for drafts
     const errors = {};
-    if (!newProduct.name) errors.name = "Specimen name is required";
+    if (!newProduct.name?.trim()) errors.name = "Specimen name is required";
+    else if (newProduct.name.trim().length < 2) errors.name = "Must be at least 2 characters";
+    else if (newProduct.name.trim().length > 200) errors.name = "Must be under 200 characters";
+
+    if (newProduct.tagline && newProduct.tagline.length > 200) errors.tagline = "Max 200 characters";
+
     if (!isDraft) {
       if (!newProduct.category_id) errors.category_id = "Please select a category";
-      if (!newProduct.description) errors.description = "Botanical description is required";
+      if (!newProduct.description?.trim()) errors.description = "Botanical description is required";
+      else if (newProduct.description.trim().length < 20) errors.description = "Must be at least 20 characters";
 
       newProduct.variants.forEach((v, idx) => {
-        if (!v.base_price) errors[`variant_${idx}_base_price`] = "Price required";
-        if (!v.stock && v.stock !== 0) errors[`variant_${idx}_stock`] = "Stock required";
+        const price = parseFloat(v.base_price);
+        if (!v.base_price && v.base_price !== 0) errors[`variant_${idx}_base_price`] = "Price required";
+        else if (isNaN(price) || price <= 0) errors[`variant_${idx}_base_price`] = "Must be a positive number";
+        else if (price > 1000000) errors[`variant_${idx}_base_price`] = "Price seems too high";
+
+        const stock = parseInt(v.stock);
+        if (v.stock === '' || v.stock === undefined || v.stock === null) errors[`variant_${idx}_stock`] = "Stock required";
+        else if (isNaN(stock) || stock < 0) errors[`variant_${idx}_stock`] = "Must be 0 or more";
+        else if (!Number.isInteger(Number(v.stock))) errors[`variant_${idx}_stock`] = "Must be a whole number";
+
         if (!v.packed_weight_grams) errors[`variant_${idx}_packed_weight_grams`] = "Packed weight required";
         else if (parseInt(v.packed_weight_grams) < 1 || parseInt(v.packed_weight_grams) > 30000) errors[`variant_${idx}_packed_weight_grams`] = "Must be 1–30,000g";
+
+        const dims = ['length', 'width', 'height'];
+        dims.forEach(dim => {
+          const val = parseFloat(v[dim]);
+          if (!v[dim]) errors[`variant_${idx}_${dim}`] = "Required";
+          else if (isNaN(val) || val <= 0) errors[`variant_${idx}_${dim}`] = "Must be > 0";
+        });
       });
+
+      if (newProduct.images.every(img => !img.image_url?.trim())) {
+        errors.images = "At least one product image is required";
+      }
     }
 
     if (Object.keys(errors).length > 0) {
@@ -2137,61 +2162,45 @@ export default function SellerDashboard() {
                     zIndex: 2001
                   }}
                 >
-                  {/* Full-Screen Header */}
-                  <div style={{ padding: isMobile ? '1rem 1.5rem' : '2rem 5rem', borderBottom: '1px solid #edf2ed', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '1rem' : 0, backgroundColor: '#fcfdfc', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '0.5rem' : '2rem' }}>
-                      <button
-                        onClick={() => setIsModalOpen(false)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9rem', padding: 0 }}
-                      >
-                        <ArrowLeft size={20} /> EXIT TO DASHBOARD
-                      </button>
-                      {!isMobile && <div style={{ width: '1px', height: '24px', backgroundColor: '#edf2ed' }} />}
-                      <div>
-                        <h2 style={{ fontSize: isMobile ? '1.5rem' : '1.5rem', fontFamily: 'serif', margin: 0 }}>{editingProduct ? 'Refine Specimen' : 'Onboard New Specimen'}</h2>
-                      </div>
-                    </div>
+                  {/* Close button — top right corner */}
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    style={{ position: 'absolute', top: isMobile ? '0.6rem' : '1rem', right: isMobile ? '0.6rem' : '1rem', zIndex: 10, width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #e2e8f0', backgroundColor: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                  >
+                    <X size={18} />
+                  </button>
 
-                    <div style={{ display: 'flex', gap: '0.75rem', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
-                      {editingProduct && (
-                        editingProduct.is_active ? (
-                          <button
-                            onClick={handleArchiveProduct}
-                            disabled={saving}
-                            style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', border: '1px solid #fee2e2', backgroundColor: 'white', color: '#ef4444', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}
-                          >
-                            <Trash2 size={16} /> ARCHIVE
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleUnarchiveProduct}
-                            disabled={saving}
-                            style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', border: '1px solid #d1fae5', backgroundColor: '#ecfdf5', color: '#065f46', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}
-                          >
-                            <CheckCircle2 size={16} /> UNARCHIVE
-                          </button>
-                        )
-                      )}
-                      <button
-                        onClick={() => setIsModalOpen(false)}
-                        style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        CLOSE
-                      </button>
-                      {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-                        <button
-                          onClick={fillDummyData}
-                          style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', border: '1px solid #1b2d2a', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 800, cursor: 'pointer', fontSize: '0.75rem' }}
-                        >
-                          AUTO-FILL (DEV)
+                  {/* Full-Screen Header */}
+                  <div style={{ padding: isMobile ? '0.75rem 3rem 0.75rem 1rem' : '2rem 5rem', borderBottom: '1px solid #edf2ed', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '0.75rem' : '2rem', backgroundColor: '#fcfdfc', flexShrink: 0 }}>
+                    <button
+                      onClick={() => setIsModalOpen(false)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: isMobile ? '0.75rem' : '0.9rem', padding: 0, flexShrink: 0 }}
+                    >
+                      <ArrowLeft size={isMobile ? 16 : 20} /> {isMobile ? 'BACK' : 'EXIT TO DASHBOARD'}
+                    </button>
+                    {!isMobile && <div style={{ width: '1px', height: '24px', backgroundColor: '#edf2ed', flexShrink: 0 }} />}
+                    <h2 style={{ fontSize: isMobile ? '1rem' : '1.5rem', fontFamily: 'serif', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{editingProduct ? 'Refine Specimen' : 'Onboard New Specimen'}</h2>
+                    {editingProduct && (
+                      editingProduct.is_active ? (
+                        <button onClick={handleArchiveProduct} disabled={saving} style={{ padding: '0.5rem 0.85rem', borderRadius: '10px', border: '1px solid #fee2e2', backgroundColor: 'white', color: '#ef4444', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', flexShrink: 0 }}>
+                          <Trash2 size={13} /> {!isMobile && 'ARCHIVE'}
                         </button>
-                      )}
-                    </div>
+                      ) : (
+                        <button onClick={handleUnarchiveProduct} disabled={saving} style={{ padding: '0.5rem 0.85rem', borderRadius: '10px', border: '1px solid #d1fae5', backgroundColor: '#ecfdf5', color: '#065f46', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', flexShrink: 0 }}>
+                          <CheckCircle2 size={13} /> {!isMobile && 'UNARCHIVE'}
+                        </button>
+                      )
+                    )}
+                    {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+                      <button onClick={fillDummyData} style={{ padding: '0.5rem 0.85rem', borderRadius: '10px', border: '1px solid #1b2d2a', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 800, cursor: 'pointer', fontSize: '0.7rem', flexShrink: 0 }}>
+                        {isMobile ? 'FILL' : 'AUTO-FILL (DEV)'}
+                      </button>
+                    )}
                   </div>
 
                   {/* Full-Screen Content (Centered) */}
                   <div id="specimen-modal-content" style={{ flexGrow: 1, overflowY: 'auto', backgroundColor: '#f8faf9' }}>
-                    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: isMobile ? '2rem 1rem' : '5rem 2rem' }}>
+                    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: isMobile ? '1.25rem 0.75rem' : '5rem 2rem' }}>
                       {formError && (
                         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#b91c1c', padding: '1.5rem', borderRadius: '16px', marginBottom: '3rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <AlertCircle size={20} /> {formError}
@@ -2240,12 +2249,7 @@ export default function SellerDashboard() {
                                   <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_id ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Category <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.category_id && `— ${fieldErrors.category_id}`}</label>
                                   <select value={newProduct.category_id} onChange={e => {
                                     const catId = e.target.value;
-                                    // Commission is fixed at 10% — category no longer drives pricing
-                                    setNewProduct({
-                                      ...newProduct,
-                                      category_id: catId,
-                                      sub_category_id: '',
-                                    });
+                                    setNewProduct({ ...newProduct, category_id: catId, sub_category_id: '' });
                                     setFieldErrors({ ...fieldErrors, category_id: null });
                                   }} className={fieldErrors.category_id ? 'form-error-input' : ''} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}>
                                     <option value="">Select Category</option>
@@ -2255,21 +2259,20 @@ export default function SellerDashboard() {
                                   </select>
                                 </div>
 
-                                {newProduct.category_id && (
-                                  <div className="fade-in">
-                                    <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Sub Category</label>
-                                    <select
-                                      value={newProduct.sub_category_id}
-                                      onChange={e => setNewProduct({ ...newProduct, sub_category_id: e.target.value })}
-                                      style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}
-                                    >
-                                      <option value="">Select Sub Category (Optional)</option>
-                                      {categories.find(c => String(c.id) === String(newProduct.category_id))?.subcategories?.map(sub => (
-                                        <option key={sub.id} value={sub.id}>{sub.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Sub Category <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span></label>
+                                  <select
+                                    value={newProduct.sub_category_id}
+                                    onChange={e => setNewProduct({ ...newProduct, sub_category_id: e.target.value })}
+                                    disabled={!newProduct.category_id}
+                                    style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: newProduct.category_id ? 'white' : '#f8fafc', fontSize: '0.9rem', color: newProduct.category_id ? '#1b2d2a' : '#94a3b8', cursor: newProduct.category_id ? 'pointer' : 'not-allowed' }}
+                                  >
+                                    <option value="">{newProduct.category_id ? 'Select Sub Category' : 'Select a category first'}</option>
+                                    {categories.find(c => String(c.id) === String(newProduct.category_id))?.subcategories?.map(sub => (
+                                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
 
                                 <div>
                                   <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Region of Origin</label>
@@ -2509,7 +2512,7 @@ export default function SellerDashboard() {
                                       { label: 'BOX HEIGHT (CM)', key: 'height' },
                                     ].map(field => (
                                       <div key={field.key}>
-                                        <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: '#94a3b8' }}>{field.label}</label>
+                                        <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: fieldErrors[`variant_${idx}_${field.key}`] ? '#ef4444' : '#94a3b8' }}>{field.label} <span style={{ color: '#ef4444' }}>*</span></label>
                                         <input
                                           type="number"
                                           min="1"
@@ -2519,8 +2522,10 @@ export default function SellerDashboard() {
                                             const updated = [...newProduct.variants];
                                             updated[idx][field.key] = e.target.value;
                                             setNewProduct({ ...newProduct, variants: updated });
+                                            setFieldErrors({ ...fieldErrors, [`variant_${idx}_${field.key}`]: null });
                                           }}
-                                          style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
+                                          className={fieldErrors[`variant_${idx}_${field.key}`] ? 'form-error-input' : ''}
+                                          style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: `1px solid ${fieldErrors[`variant_${idx}_${field.key}`] ? '#ef4444' : '#e2e8f0'}`, fontSize: '0.9rem' }}
                                         />
                                       </div>
                                     ))}
@@ -2548,9 +2553,14 @@ export default function SellerDashboard() {
 
                         {/* Section 4: Imagery & Content */}
                         <div style={{ backgroundColor: 'white', padding: isMobile ? '2rem 1.5rem' : '3rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 30px rgba(0,0,0,0.03)' }}>
-                          <h4 style={{ fontSize: '0.85rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '2.5rem', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <h4 style={{ fontSize: '0.85rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: fieldErrors.images ? '1rem' : '2.5rem', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <Camera size={18} color="#10b981" /> Imagery & Content <span style={{ color: '#ef4444' }}>*</span>
                           </h4>
+                          {fieldErrors.images && (
+                            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <AlertCircle size={14} /> {fieldErrors.images}
+                            </div>
+                          )}
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
                             <div>
@@ -2653,55 +2663,61 @@ export default function SellerDashboard() {
                   </div>
 
                   {/* Full-Screen Footer (Sticky) */}
-                  <div style={{ padding: isMobile ? '1rem' : '1.5rem 3rem', borderTop: '1px solid #edf2ed', backgroundColor: 'white', display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: 'center', gap: isMobile ? '0.75rem' : '0', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                  <div style={{ padding: isMobile ? '0.6rem 0.75rem' : '1rem 3rem', borderTop: '1px solid #edf2ed', backgroundColor: 'white', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                    {!isMobile && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: editingProduct ? '#10b981' : '#3b82f6' }} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>
-                          {editingProduct ? 'SYNCING TO LIVE SANCTUARY' : 'DRAFTING NEW SPECIMEN'}
+                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: editingProduct ? '#10b981' : '#3b82f6' }} />
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.05em' }}>
+                          {editingProduct ? 'EDITING' : 'NEW SPECIMEN'}
                         </span>
                       </div>
-                    </div>
+                    )}
 
-                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '0.75rem', width: isMobile ? '100%' : 'auto' }}>
+                    {/* All action buttons in one compact row */}
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '0.5rem', flex: isMobile ? 1 : 'none' }}>
+                      {/* Discard */}
                       <button
                         type="button"
                         onClick={() => setIsModalOpen(false)}
-                        style={{ padding: '0.85rem 1.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', color: '#64748b', transition: 'all 0.2s', width: isMobile ? '100%' : 'auto', fontSize: '0.8rem' }}
+                        style={{ padding: isMobile ? '0.6rem 0.75rem' : '0.7rem 1.1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', fontWeight: 600, cursor: 'pointer', color: '#94a3b8', fontSize: isMobile ? '0.7rem' : '0.75rem', whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
-                        DISCARD CHANGES
+                        Discard
                       </button>
 
+                      {/* Draft — only for new products */}
                       {!editingProduct && (
-                        <>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => handleAddProduct(null, false, true)}
-                            style={{ padding: '0.85rem 1.5rem', background: '#fffbeb', border: '1.5px solid #f59e0b', color: '#92400e', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, width: isMobile ? '100%' : 'auto', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                          >
-                            <FileText size={15} /> SAVE AS DRAFT
-                          </button>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => handleAddProduct(null, true)}
-                            style={{ padding: '0.85rem 1.5rem', background: '#fcfdfc', border: '1px solid #1b2d2a', color: '#1b2d2a', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, width: isMobile ? '100%' : 'auto', fontSize: '0.8rem' }}
-                          >
-                            SAVE & ADD ANOTHER
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => handleAddProduct(null, false, true)}
+                          style={{ padding: isMobile ? '0.6rem 0.75rem' : '0.7rem 1.1rem', background: '#fffbeb', border: '1.5px solid #f59e0b', color: '#92400e', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, fontSize: isMobile ? '0.7rem' : '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          <FileText size={13} /> Draft
+                        </button>
                       )}
 
+                      {/* Save & Add Another — desktop only */}
+                      {!editingProduct && !isMobile && (
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => handleAddProduct(null, true)}
+                          style={{ padding: '0.7rem 1.1rem', background: '#f8faf9', border: '1px solid #1b2d2a', color: '#1b2d2a', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1, fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                        >
+                          + Add Another
+                        </button>
+                      )}
+
+                      {/* Primary action */}
                       <button
                         type="submit"
                         form="product-form"
                         disabled={saving}
-                        style={{ padding: '0.85rem 2rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(27,45,42,0.15)', minWidth: isMobile ? '100%' : '200px', fontSize: '0.8rem' }}
-                        onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                        style={{ flex: isMobile ? 1 : 'none', padding: isMobile ? '0.6rem 0.75rem' : '0.7rem 1.75rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(27,45,42,0.2)', fontSize: isMobile ? '0.75rem' : '0.8rem', whiteSpace: 'nowrap' }}
+                        onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
                         onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                       >
-                        {saving ? 'PROCESSING...' : editingProduct ? 'SYNC UPDATES' : 'LAUNCH SPECIMEN'}
+                        {saving ? 'Saving...' : editingProduct ? 'Save Changes' : 'Launch'}
                       </button>
                     </div>
                   </div>

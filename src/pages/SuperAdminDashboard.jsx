@@ -256,6 +256,13 @@ export default function SuperAdminDashboard() {
   const [catSaving, setCatSaving] = useState(false);
   const [catError, setCatError] = useState('');
 
+  // Grower access management state
+  const [growerSearchQuery, setGrowerSearchQuery] = useState('');
+  const [growerSearchResults, setGrowerSearchResults] = useState([]);
+  const [growerSearchLoading, setGrowerSearchLoading] = useState(false);
+  const [growerActionLoading, setGrowerActionLoading] = useState({});
+  const [growerActionMsg, setGrowerActionMsg] = useState('');
+
   // Payment gateway toggle
   const [paymentGateway, setPaymentGateway] = useState('cashfree');
   const [paymentGatewaySaving, setPaymentGatewaySaving] = useState(false);
@@ -668,6 +675,33 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const searchGrowerUsers = async (q) => {
+    setGrowerSearchQuery(q);
+    if (q.length < 2) { setGrowerSearchResults([]); return; }
+    setGrowerSearchLoading(true);
+    try {
+      const res = await api.get(`/analytics/super-admin/user-search/?q=${encodeURIComponent(q)}`);
+      setGrowerSearchResults(res.data || []);
+    } catch { setGrowerSearchResults([]); }
+    finally { setGrowerSearchLoading(false); }
+  };
+
+  const setGrowerAccess = async (userId, action) => {
+    setGrowerActionLoading(prev => ({ ...prev, [userId]: true }));
+    setGrowerActionMsg('');
+    try {
+      const res = await api.post(`/analytics/super-admin/set-grower/${userId}/`, { action });
+      setGrowerActionMsg(res.data.message);
+      setGrowerSearchResults(prev => prev.map(u =>
+        u.id === userId ? { ...u, role: res.data.role, is_allowed: action === 'grant' } : u
+      ));
+    } catch (e) {
+      setGrowerActionMsg(e.response?.data?.error || 'Action failed');
+    } finally {
+      setGrowerActionLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc' }}>
@@ -741,6 +775,76 @@ export default function SuperAdminDashboard() {
       </header>
 
       <main style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+
+        {/* Grower Access Management */}
+        <section>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Grower Access Management
+          </h2>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.65rem 1rem' }}>
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search user by email, name, or username..."
+                value={growerSearchQuery}
+                onChange={e => searchGrowerUsers(e.target.value)}
+                style={{ border: 'none', outline: 'none', flex: 1, fontSize: '0.9rem', backgroundColor: 'transparent' }}
+              />
+              {growerSearchLoading && <div style={{ width: '16px', height: '16px', border: '2px solid #e2e8f0', borderTopColor: '#1b2d2a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+            </div>
+
+            {growerActionMsg && (
+              <div style={{ padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: growerActionMsg.includes('failed') || growerActionMsg.includes('error') ? '#fee2e2' : '#f0fdf4', color: growerActionMsg.includes('failed') || growerActionMsg.includes('error') ? '#b91c1c' : '#166534', fontSize: '0.82rem', fontWeight: 600 }}>
+                {growerActionMsg}
+              </div>
+            )}
+
+            {growerSearchResults.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {growerSearchResults.map(u => (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--bg-deep)' }}>{u.full_name || u.username}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>{u.email}</div>
+                      {u.store_name && <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.1rem' }}>Store: {u.store_name}</div>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      <span style={{
+                        padding: '0.2rem 0.6rem', borderRadius: '50px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase',
+                        backgroundColor: u.role === 'grower' ? '#dcfce7' : u.role === 'admin' ? '#dbeafe' : '#f1f5f9',
+                        color: u.role === 'grower' ? '#166534' : u.role === 'admin' ? '#1e40af' : '#64748b',
+                      }}>{u.role}</span>
+                      {u.role !== 'admin' && (
+                        u.role === 'grower' || u.is_allowed ? (
+                          <button
+                            onClick={() => setGrowerAccess(u.id, 'revoke')}
+                            disabled={growerActionLoading[u.id]}
+                            style={{ padding: '0.4rem 0.9rem', borderRadius: '8px', border: '1px solid #fecaca', backgroundColor: 'white', color: '#dc2626', fontSize: '0.75rem', fontWeight: 700, cursor: growerActionLoading[u.id] ? 'not-allowed' : 'pointer', opacity: growerActionLoading[u.id] ? 0.6 : 1 }}
+                          >
+                            {growerActionLoading[u.id] ? '...' : 'Revoke Grower'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setGrowerAccess(u.id, 'grant')}
+                            disabled={growerActionLoading[u.id]}
+                            style={{ padding: '0.4rem 0.9rem', borderRadius: '8px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', fontSize: '0.75rem', fontWeight: 700, cursor: growerActionLoading[u.id] ? 'not-allowed' : 'pointer', opacity: growerActionLoading[u.id] ? 0.6 : 1 }}
+                          >
+                            {growerActionLoading[u.id] ? '...' : 'Make Grower'}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {growerSearchQuery.length >= 2 && !growerSearchLoading && growerSearchResults.length === 0 && (
+              <p style={{ fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center', padding: '1rem 0' }}>No users found matching "{growerSearchQuery}"</p>
+            )}
+          </div>
+        </section>
 
         {/* Payment Gateway Control */}
         <section>

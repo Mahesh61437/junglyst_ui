@@ -27,6 +27,16 @@ export function initPostHog() {
       minimum_duration_milliseconds: 3000, // skip sub-3s bounces and bots
       maskAllInputs: true,                 // mask form fields for privacy
     },
+
+    // Silence retry spam — ad blockers (e.g. Brave shields) block the PostHog
+    // domain. Without this, PostHog retries indefinitely and floods the network
+    // tab with failed XHRs. 1 retry is enough to confirm the block; after that
+    // we give up silently rather than hammering a blocked endpoint.
+    on_request_error: (err) => {
+      // suppress console noise from blocked requests
+      void err;
+    },
+    request_timeout_ms: 3000,
   });
 }
 
