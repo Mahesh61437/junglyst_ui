@@ -694,52 +694,63 @@ export default function SellerDashboard() {
     );
   }
 
-  const handleEditProduct = (p) => {
-    setEditingProduct(p);
+  const handleEditProduct = async (liteProduct) => {
+    setLoading(true);
+    try {
+      const p = await ProductService.getProduct(liteProduct.id);
+      
+      setEditingProduct(p);
 
-    // Sanitize variants — strip backend-only fields that cause PUT validation errors
-    const cleanVariants = p.variants?.length > 0
-      ? p.variants.map(v => ({
-        id: v.id,
-        name: v.name || 'Standard',
-        base_price: v.base_price ?? '',
-        gst_rate: v.gst_rate ?? '0',
-        commission_rate: v.commission_rate ?? '10.0',
-        stock: v.stock ?? '',
-        item_category: v.item_category ?? 'light',
-        packed_weight_grams: v.packed_weight_grams ?? '',
-        length: v.length ?? '10',
-        width: v.width ?? '10',
-        height: v.height ?? '10',
-      }))
-      : [{ name: 'Standard', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
+      // Sanitize variants — strip backend-only fields that cause PUT validation errors
+      const cleanVariants = p.variants?.length > 0
+        ? p.variants.map(v => ({
+          id: v.id,
+          name: v.name || 'Standard',
+          base_price: v.base_price ?? '',
+          gst_rate: v.gst_rate ?? '0',
+          commission_rate: v.commission_rate ?? '10.0',
+          stock: v.stock ?? '',
+          item_category: v.item_category ?? 'light',
+          packed_weight_grams: v.packed_weight_grams ?? '',
+          length: v.length ?? '10',
+          width: v.width ?? '10',
+          height: v.height ?? '10',
+        }))
+        : [{ name: 'Standard', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
 
-    // Sanitize images — strip backend-only fields
-    const cleanImages = p.images?.length > 0
-      ? p.images.map(img => ({
-        id: img.id,
-        image_url: img.image_url || '',
-        is_primary: img.is_primary ?? false,
-        alt_text: img.alt_text || '',
-      }))
-      : [{ image_url: '', is_primary: true }];
+      // Sanitize images — strip backend-only fields
+      const cleanImages = p.images?.length > 0
+        ? p.images.map(img => ({
+          id: img.id,
+          image_url: img.image_url || '',
+          is_primary: img.is_primary ?? false,
+          alt_text: img.alt_text || '',
+          variant_id: img.variant || '',
+        }))
+        : [{ image_url: '', is_primary: true }];
 
-    setNewProduct({
-      name: p.name || '',
-      scientific_name: p.scientific_name || '',
-      category_id: p.categories?.[0]?.id || '',
-      sub_category_id: p.sub_category?.id || '',
-      tagline: p.tagline || '',
-      origin: p.origin || '',
-      description: p.description || '',
-      care_level: p.care_level || 'Easy',
-      light_requirements: p.light_requirements || 'Medium',
-      growth_rate: p.growth_rate || 'Moderate',
-      is_rare: p.is_rare || false,
-      variants: cleanVariants,
-      images: cleanImages,
-    });
-    setIsModalOpen(true);
+      setNewProduct({
+        name: p.name || '',
+        scientific_name: p.scientific_name || '',
+        category_id: p.categories?.[0]?.id || '',
+        sub_category_id: p.sub_category?.id || '',
+        tagline: p.tagline || '',
+        origin: p.origin || '',
+        description: p.description || '',
+        care_level: p.care_level || 'Easy',
+        light_requirements: p.light_requirements || 'Medium',
+        growth_rate: p.growth_rate || 'Moderate',
+        is_rare: p.is_rare || false,
+        variants: cleanVariants,
+        images: cleanImages,
+      });
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching product details for edit:", err);
+      setFormError("Failed to fetch full specimen details.");
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -904,7 +915,7 @@ export default function SellerDashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', flexShrink: 0, padding: '0.5rem', borderRadius: '10px', position: 'relative', zIndex: 9999, pointerEvents: 'auto' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1b2d2a', flexShrink: 0, padding: '0.5rem', borderRadius: '10px', position: 'relative', zIndex: 900, pointerEvents: 'auto' }}
                   >
                     <Menu size={24} />
                   </button>
@@ -1108,7 +1119,7 @@ export default function SellerDashboard() {
                     boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
                   }}>
                     {spotlight.banner_url ? (
-                      <img src={spotlight.banner_url} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={getImageUrl(spotlight.banner_url)} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Leaf size={60} color="rgba(255,255,255,0.2)" />
@@ -1126,7 +1137,7 @@ export default function SellerDashboard() {
                           boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
                         }}>
                           {spotlight.logo_url ? (
-                            <img src={spotlight.logo_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '15px' }} />
+                            <img src={getImageUrl(spotlight.logo_url)} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '15px' }} />
                           ) : (
                             <Leaf size={40} color={spotlight.brand_color || '#1b2d2a'} />
                           )}
@@ -1476,7 +1487,7 @@ export default function SellerDashboard() {
                                 style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}
                               >
                                 <img
-                                  src={p.image_url || p.image || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%23edf2ed" rx="8"/%3E%3C/svg%3E'}
+                                  src={getImageUrl(p.image_url || p.image) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%23edf2ed" rx="8"/%3E%3C/svg%3E'}
                                   style={{ width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #edf2ed', flexShrink: 0 }}
                                   alt={p.name}
                                 />
@@ -2423,7 +2434,7 @@ export default function SellerDashboard() {
                                 <div key={idx} style={{ padding: isMobile ? '1.5rem' : '2rem', borderRadius: '28px', border: '1px solid #edf2ed', backgroundColor: '#fcfdfc', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '1.5rem' : '2rem', position: 'relative', transition: 'all 0.2s' }}>
                                   <div style={{ width: '140px', height: '140px', borderRadius: '20px', border: '2px dashed #e2e8f0', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
                                     {img.image_url ? (
-                                      <img src={img.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      <img src={getImageUrl(img.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                                         <Camera size={28} color="#cbd5e1" />

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
@@ -42,7 +43,8 @@ import { NotificationProvider } from './context/NotificationContext';
 
 function App() {
   return (
-    <AuthProvider>
+    <HelmetProvider>
+      <AuthProvider>
       <NotificationProvider>
       <WishlistProvider>
         <ToastProvider>
@@ -95,6 +97,7 @@ function App() {
       </WishlistProvider>
       </NotificationProvider>
     </AuthProvider>
+    </HelmetProvider>
   );
 }
 
