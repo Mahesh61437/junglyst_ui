@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import { Mail, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -37,6 +37,7 @@ export default function Login() {
   const { login } = useAuth();
   const { syncAfterLogin } = useWishlist();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -48,7 +49,9 @@ export default function Login() {
       syncAfterLogin().catch(() => null);
       const { trackLogin } = await import('../utils/analytics');
       trackLogin({ method: 'email' });
-      navigate('/');
+      const params = new URLSearchParams(location.search);
+      const redirectTo = params.get('redirect') || '/';
+      navigate(redirectTo);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.detail || "Invalid email or password. Please try again.");

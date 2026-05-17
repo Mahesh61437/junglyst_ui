@@ -68,15 +68,8 @@ export default function Shop() {
         cats.forEach(c => { merged[c.name] = prev[c.name] ?? false; });
         return merged;
       });
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
-
-  // Subcategories for currently-selected single category
-  const availableSubCats = useMemo(() => {
-    if (activeCats.length !== 1) return [];
-    const cat = categoryData.find(c => c.name === activeCats[0]);
-    return cat?.subcategories || [];
-  }, [activeCats, categoryData]);
 
   // Persist filter state to sessionStorage so back navigation can restore it
   useEffect(() => {
@@ -95,6 +88,12 @@ export default function Shop() {
     () => Object.keys(difficulties).filter(k => difficulties[k]),
     [difficulties],
   );
+  // Subcategories for currently-selected single category
+  const availableSubCats = useMemo(() => {
+    if (activeCats.length !== 1) return [];
+    const cat = categoryData.find(c => c.name === activeCats[0]);
+    return cat?.subcategories || [];
+  }, [activeCats, categoryData]);
 
   const sortParam = useMemo(() => {
     if (sortBy === 'Price: Low to High') return 'price';
@@ -342,8 +341,8 @@ export default function Shop() {
         {Object.keys(difficulties).map(diff => {
           const active = difficulties[diff];
           const palette = {
-            Easy:     { bg: '#f0fdf4', border: '#86efac', text: '#166534', activeBg: '#22c55e' },
-            Medium:   { bg: '#fffbeb', border: '#fcd34d', text: '#92400e', activeBg: '#f59e0b' },
+            Easy: { bg: '#f0fdf4', border: '#86efac', text: '#166534', activeBg: '#22c55e' },
+            Medium: { bg: '#fffbeb', border: '#fcd34d', text: '#92400e', activeBg: '#f59e0b' },
             Advanced: { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', activeBg: '#ef4444' },
           };
           const p = palette[diff];

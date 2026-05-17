@@ -153,6 +153,20 @@ export default function SellerDashboard() {
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Account configuration state
+  const [accountForm, setAccountForm] = useState({ email: '', phone: '' });
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountSuccess, setAccountSuccess] = useState(null);
+  const [accountError, setAccountError] = useState(null);
+
+  // Payout / bank details state
+  const [bankForm, setBankForm] = useState({ payout_type: 'upi', payout_account: '', ifsc_code: '', account_holder_name: '' });
+  const [bankMasked, setBankMasked] = useState({ payout_account_masked: '', ifsc_code_masked: '', has_bank_details: false });
+  const [bankEditing, setBankEditing] = useState(false);
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankSuccess, setBankSuccess] = useState(null);
+  const [bankError, setBankError] = useState(null);
   const [metrics, setMetrics] = useState({
     total_revenue: 0,
     total_orders: 0,
@@ -215,6 +229,7 @@ export default function SellerDashboard() {
   useEffect(() => {
     if (user) {
       fetchData();
+      setAccountForm({ email: user.email || '', phone: user.phone || '' });
     }
     const handleResize = () => {
       setIsMobileView(prevMobile => {
@@ -290,7 +305,7 @@ export default function SellerDashboard() {
       }
 
       // ── Background path: orders, profile metrics, categories (lazy) ──
-      const [ordsData, profileData, catsData] = await Promise.all([
+      const [ordsData, profileData, catsData, bankData] = await Promise.all([
         api.get('/orders/seller/sub-orders/?no_pagination=true').catch(err => {
           console.error("Failed to fetch seller sub-orders:", err);
           return { data: [] };
@@ -299,6 +314,7 @@ export default function SellerDashboard() {
         categories.length === 0
           ? api.get('/core/categories/').catch(() => ({ data: { results: [] } }))
           : Promise.resolve({ data: { results: categories } }),  // use cached
+        api.get('/sellers/bank-details/').catch(() => ({ data: null })),
       ]);
 
       const ordsArray = Array.isArray(ordsData.data?.results) ? ordsData.data.results : (Array.isArray(ordsData.data) ? ordsData.data : []);
@@ -322,6 +338,12 @@ export default function SellerDashboard() {
           setMetrics(profileData.data.metrics);
         }
       }
+
+      if (bankData?.data) {
+        const bd = bankData.data;
+        setBankForm(prev => ({ ...prev, payout_type: bd.payout_type || 'upi', account_holder_name: bd.account_holder_name || '' }));
+        setBankMasked({ payout_account_masked: bd.payout_account_masked || '', ifsc_code_masked: bd.ifsc_code_masked || '', has_bank_details: bd.has_bank_details || false });
+      }
     } catch (error) {
       console.error("Dashboard fetch failed:", error);
       setError("The botanical archives are currently inaccessible. Please refresh or check your sanctuary credentials.");
@@ -330,6 +352,43 @@ export default function SellerDashboard() {
     }
   };
 
+
+  const handleAccountSave = async (e) => {
+    e.preventDefault();
+    setAccountSaving(true);
+    setAccountError(null);
+    setAccountSuccess(null);
+    try {
+      await api.patch('/core/me/', { email: accountForm.email.trim(), phone: accountForm.phone.trim() || null });
+      setAccountSuccess('Account details updated successfully.');
+      setTimeout(() => setAccountSuccess(null), 4000);
+    } catch (err) {
+      const data = err.response?.data;
+      const msg = data?.email?.[0] || data?.phone?.[0] || data?.detail || 'Failed to update account details.';
+      setAccountError(msg);
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  const handleBankSave = async (e) => {
+    e.preventDefault();
+    setBankSaving(true);
+    setBankError(null);
+    setBankSuccess(null);
+    try {
+      const res = await api.post('/sellers/bank-details/', bankForm);
+      setBankMasked({ payout_account_masked: res.data.payout_account_masked, ifsc_code_masked: res.data.ifsc_code_masked, has_bank_details: true });
+      setBankForm(prev => ({ ...prev, payout_account: '', ifsc_code: '' }));
+      setBankEditing(false);
+      setBankSuccess('Payout details saved securely.');
+      setTimeout(() => setBankSuccess(null), 4000);
+    } catch (err) {
+      setBankError(err.response?.data?.error || 'Failed to save payout details. Please try again.');
+    } finally {
+      setBankSaving(false);
+    }
+  };
 
   const handleImageUpload = async (e, type) => {
     const file = e.target.files[0];
@@ -721,23 +780,6 @@ export default function SellerDashboard() {
     }
   };
 
-  const [isApproved, setIsApproved] = useState(null);
-
-  useEffect(() => {
-    const checkApproval = async () => {
-      if (user) {
-        try {
-          // Check if user is in AllowedSeller list
-          const res = await api.get('/sellers/check-approval/');
-          setIsApproved(res.data.is_approved);
-          console.log(res.data);
-        } catch (error) {
-          setIsApproved(false);
-        }
-      }
-    };
-    checkApproval();
-  }, [user]);
 
   if (authLoading) {
     return (
@@ -753,23 +795,7 @@ export default function SellerDashboard() {
   }
 
   if (!user.is_staff || (user.role !== 'grower' && user.role !== 'admin')) {
-    return (
-      <div className="container" style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
-        <div className="slide-up">
-          <div style={{ backgroundColor: '#fff5f5', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: '#ef4444' }}>
-            <ShieldCheck size={32} />
-          </div>
-          <h1 style={{ fontSize: '3rem', marginBottom: '1.5rem', fontFamily: 'serif' }}>Sanctuary Access Denied</h1>
-          <p style={{ color: '#64748b', marginBottom: '3.5rem', fontSize: '1.125rem', maxWidth: '500px', margin: '0 auto 3.5rem' }}>
-            Your credentials are not in our master curator registry. Please contact the administrator for a sanctuary invitation.
-          </p>
-          <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
-            <Link to="/login" className="btn btn-primary" style={{ padding: '1.125rem 3.5rem' }}>Return to Login</Link>
-            <Link to="/" className="btn btn-outline" style={{ padding: '1.125rem 3.5rem' }}>Back to Shop</Link>
-          </div>
-        </div>
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
   const handleEditProduct = async (liteProduct) => {
@@ -1390,7 +1416,7 @@ export default function SellerDashboard() {
                 )}
 
                 {activeTab === 'spotlight' && (
-                  <div style={{ backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed', padding: '4rem', maxWidth: '1000px' }}>
+                  <div style={{ backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed', padding: isMobile ? '1.5rem 1.25rem' : '4rem', maxWidth: '1000px' }}>
                     <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
 
                       {/* Theme Section */}
@@ -1424,7 +1450,7 @@ export default function SellerDashboard() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                           <div>
                             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.25rem' }}>Sanctuary Theme Presets</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                               {presets.map(p => (
                                 <button
                                   key={p.color}
@@ -1462,12 +1488,12 @@ export default function SellerDashboard() {
                               INFUSE SAMPLE IDENTITY
                             </button>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '3rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                             <div>
                               <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Custom Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
-                              <div style={{ display: 'flex', gap: '1rem' }}>
-                                <input type="color" value={spotlight.brand_color} onChange={e => setSpotlight({ ...spotlight, brand_color: e.target.value })} style={{ width: '60px', height: '60px', border: 'none', borderRadius: '12px', cursor: 'pointer' }} />
-                                <input type="text" value={spotlight.brand_color} onChange={e => setSpotlight({ ...spotlight, brand_color: e.target.value })} style={{ flexGrow: 1, padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontFamily: 'monospace' }} />
+                              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                <input type="color" value={spotlight.brand_color} onChange={e => setSpotlight({ ...spotlight, brand_color: e.target.value })} style={{ width: '56px', height: '56px', flexShrink: 0, border: 'none', borderRadius: '12px', cursor: 'pointer' }} />
+                                <input type="text" value={spotlight.brand_color} onChange={e => setSpotlight({ ...spotlight, brand_color: e.target.value })} style={{ minWidth: 0, flexGrow: 1, padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontFamily: 'monospace' }} />
                               </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.5rem' }}>
@@ -2106,29 +2132,224 @@ export default function SellerDashboard() {
                 )}
 
                 {activeTab === 'settings' && (
-                  <div style={{ backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed', padding: '4rem', maxWidth: '800px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                      <div>
-                        <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', marginBottom: '2rem' }}>Account Configuration</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Email Address</label>
-                            <input disabled value={user.email} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc', color: '#94a3b8' }} />
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Phone Number</label>
-                            <input value={user.phone || ''} disabled style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc', color: '#94a3b8' }} />
-                          </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px' }}>
+                    {/* Account Configuration */}
+                    <div style={{ backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed', padding: isMobile ? '2rem 1.5rem' : '4rem' }}>
+                      <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', marginBottom: '0.5rem' }}>Account Configuration</h3>
+                      <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 0, marginBottom: '2rem' }}>Changes apply immediately to your login credentials.</p>
+                      {accountSuccess && (
+                        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7', color: '#166534', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <CheckCircle2 size={16} /> {accountSuccess}
                         </div>
+                      )}
+                      {accountError && (
+                        <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#b91c1c', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <AlertCircle size={16} /> {accountError}
+                        </div>
+                      )}
+                      <form onSubmit={handleAccountSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Email Address</label>
+                          <input
+                            type="email"
+                            value={accountForm.email}
+                            disabled
+                            style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem', backgroundColor: '#f8fafc', color: '#94a3b8', cursor: 'not-allowed' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Phone Number <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span></label>
+                          <input
+                            type="tel"
+                            value={accountForm.phone}
+                            onChange={e => setAccountForm(f => ({ ...f, phone: e.target.value }))}
+                            placeholder="+91 98765 43210"
+                            style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            type="submit"
+                            disabled={accountSaving}
+                            style={{ padding: '0.9rem 1.75rem', borderRadius: '12px', border: 'none', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: accountSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: accountSaving ? 0.7 : 1 }}
+                          >
+                            {accountSaving ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : <><Save size={15} /> Save Changes</>}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Payout Details */}
+                    <div style={{ backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed', padding: isMobile ? '2rem 1.5rem' : '4rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', margin: 0 }}>Payout Details</h3>
+                          <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.4rem', marginBottom: 0 }}>Stored end-to-end encrypted. Only the last 4 digits are visible.</p>
+                        </div>
+                        {!bankEditing && (
+                          <button
+                            onClick={() => { setBankEditing(true); setBankError(null); setBankSuccess(null); }}
+                            style={{ padding: '0.6rem 1.25rem', borderRadius: '12px', border: '1.5px solid #1b2d2a', backgroundColor: 'white', color: '#1b2d2a', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Pencil size={14} /> {bankMasked.has_bank_details ? 'Update' : 'Add'}
+                          </button>
+                        )}
                       </div>
 
-                      <div style={{ borderTop: '1px solid #edf2ed', paddingTop: '3rem' }}>
-                        <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', marginBottom: '1rem', color: '#ef4444' }}>Danger Zone</h3>
-                        <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '2rem' }}>Permanently deactivate your grower status and archive all listings.</p>
-                        <button style={{ backgroundColor: 'white', color: '#ef4444', border: '1px solid #fee2e2', padding: '1rem 2rem', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                          Deactivate Sanctuary
-                        </button>
-                      </div>
+                      {bankSuccess && (
+                        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7', color: '#166534', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <CheckCircle2 size={16} /> {bankSuccess}
+                        </div>
+                      )}
+                      {bankError && (
+                        <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#b91c1c', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <AlertCircle size={16} /> {bankError}
+                        </div>
+                      )}
+
+                      {!bankEditing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                          {bankMasked.has_bank_details ? (
+                            <>
+                              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem' }}>
+                                <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>Payout Method</p>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{bankForm.payout_type === 'bank' ? 'Bank Account' : 'UPI'}</p>
+                                </div>
+                                <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>{bankForm.payout_type === 'bank' ? 'Account Number' : 'UPI ID'}</p>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a', fontFamily: 'monospace' }}>{bankMasked.payout_account_masked}</p>
+                                </div>
+                                {bankForm.payout_type === 'bank' && (
+                                  <>
+                                    <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                      <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>IFSC Code</p>
+                                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a', fontFamily: 'monospace' }}>{bankMasked.ifsc_code_masked}</p>
+                                    </div>
+                                    <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                      <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>Account Holder</p>
+                                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{bankForm.account_holder_name || '—'}</p>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', borderRadius: '10px', border: '1px solid #dcfce7' }}>
+                                <ShieldCheck size={15} color="#16a34a" />
+                                <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>Details encrypted at rest with AES-256</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ padding: '2.5rem', textAlign: 'center', borderRadius: '16px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
+                              <IndianRupee size={32} style={{ marginBottom: '0.75rem', opacity: 0.4 }} />
+                              <p style={{ margin: 0, fontSize: '0.9rem' }}>No payout details saved yet.</p>
+                              <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem' }}>Add your UPI ID or bank account to receive payouts.</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <form onSubmit={handleBankSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                          {/* Payout type toggle */}
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>Payout Method</label>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                              {[{ value: 'upi', label: 'UPI' }, { value: 'bank', label: 'Bank Account' }].map(opt => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() => setBankForm(f => ({ ...f, payout_type: opt.value, payout_account: '', ifsc_code: '', account_holder_name: '' }))}
+                                  style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', border: bankForm.payout_type === opt.value ? '2px solid #1b2d2a' : '1.5px solid #e2e8f0', backgroundColor: bankForm.payout_type === opt.value ? '#1b2d2a' : 'white', color: bankForm.payout_type === opt.value ? 'white' : '#64748b', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s' }}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {bankForm.payout_type === 'upi' ? (
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>UPI ID <span style={{ color: '#ef4444' }}>*</span></label>
+                              <input
+                                type="text"
+                                value={bankForm.payout_account}
+                                onChange={e => setBankForm(f => ({ ...f, payout_account: e.target.value }))}
+                                placeholder="yourname@upi"
+                                required
+                                style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>Account Holder Name <span style={{ color: '#ef4444' }}>*</span></label>
+                                <input
+                                  type="text"
+                                  value={bankForm.account_holder_name}
+                                  onChange={e => setBankForm(f => ({ ...f, account_holder_name: e.target.value }))}
+                                  placeholder="As printed on bank passbook"
+                                  required
+                                  style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
+                                />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: '1rem' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>Account Number <span style={{ color: '#ef4444' }}>*</span></label>
+                                  <input
+                                    type="text"
+                                    value={bankForm.payout_account}
+                                    onChange={e => setBankForm(f => ({ ...f, payout_account: e.target.value.replace(/\D/g, '') }))}
+                                    placeholder="Enter account number"
+                                    required
+                                    style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem', fontFamily: 'monospace' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>IFSC Code <span style={{ color: '#ef4444' }}>*</span></label>
+                                  <input
+                                    type="text"
+                                    value={bankForm.ifsc_code}
+                                    onChange={e => setBankForm(f => ({ ...f, ifsc_code: e.target.value.toUpperCase() }))}
+                                    placeholder="e.g. SBIN0001234"
+                                    maxLength={11}
+                                    required
+                                    style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem', fontFamily: 'monospace' }}
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', backgroundColor: '#fffbeb', borderRadius: '10px', border: '1px solid #fef3c7' }}>
+                            <ShieldCheck size={15} color="#d97706" />
+                            <span style={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 600 }}>Your details are encrypted with AES-256 before being stored. Junglyst staff cannot view raw account numbers.</span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              onClick={() => { setBankEditing(false); setBankError(null); setBankForm(f => ({ ...f, payout_account: '', ifsc_code: '' })); }}
+                              style={{ padding: '0.9rem 1.75rem', borderRadius: '12px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={bankSaving}
+                              style={{ padding: '0.9rem 1.75rem', borderRadius: '12px', border: 'none', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: bankSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: bankSaving ? 0.7 : 1 }}
+                            >
+                              {bankSaving ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : <><Save size={15} /> Save Securely</>}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+
+                    {/* Danger Zone */}
+                    <div style={{ backgroundColor: 'white', borderRadius: '32px', border: '1px solid #fee2e2', padding: isMobile ? '2rem 1.5rem' : '4rem' }}>
+                      <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', marginBottom: '1rem', color: '#ef4444' }}>Danger Zone</h3>
+                      <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '2rem', marginTop: 0 }}>Permanently deactivate your grower status and archive all listings.</p>
+                      <button style={{ backgroundColor: 'white', color: '#ef4444', border: '1px solid #fee2e2', padding: '1rem 2rem', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                        Deactivate Sanctuary
+                      </button>
                     </div>
                   </div>
                 )}
