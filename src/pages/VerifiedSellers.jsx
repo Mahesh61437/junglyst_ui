@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useScrollRestoration } from '../utils/useScrollRestoration';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, Star, MapPin, ArrowRight,
@@ -331,6 +332,8 @@ export default function VerifiedSellers() {
   const [featuredSellers, setFeaturedSellers] = useState([]);
   const [stats, setStats] = useState({ total_sellers: '—', total_products: '—', survival_rate: 98 });
   const [loading, setLoading] = useState(true);
+
+  useScrollRestoration(!loading);
 
   useEffect(() => {
     const fetchAll = async () => {

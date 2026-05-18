@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useNavigationType } from 'react-router-dom';
 import api from '../services/api';
 import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
+import { useScrollRestoration } from '../utils/useScrollRestoration';
 
 const STATUS_META = {
   pending:           { label: 'Pending Payment',    color: '#6b7280', bg: '#f3f4f6' },
@@ -76,12 +77,24 @@ function SubOrderCard({ so }) {
 }
 
 export default function MyOrders() {
+  const navType = useNavigationType();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
-  const [page, setPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const navigate = useNavigate();
+
+  // Restore page number when coming back via browser back button
+  const savedPage = navType === 'POP'
+    ? parseInt(sessionStorage.getItem('ordersPage') || '1', 10)
+    : 1;
+  const [page, setPage] = useState(Number.isFinite(savedPage) ? savedPage : 1);
+
+  useScrollRestoration(!loading);
+
+  useEffect(() => {
+    sessionStorage.setItem('ordersPage', String(page));
+  }, [page]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -231,7 +244,7 @@ export default function MyOrders() {
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button
                   disabled={page === 1}
-                  onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); /* scroll on page change */ }}
                   style={{ padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', backgroundColor: page === 1 ? '#f8fafc' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', color: '#1e293b', fontWeight: 700, fontSize: '0.8rem' }}
                 >
                   Previous

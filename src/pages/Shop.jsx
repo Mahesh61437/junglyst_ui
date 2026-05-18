@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { trackSearch } from '../utils/analytics';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams, useNavigationType } from 'react-router-dom';
+import { useScrollRestoration } from '../utils/useScrollRestoration';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { ProductService } from '../services/ProductService';
@@ -13,7 +14,7 @@ export default function Shop() {
   const navigationType = useNavigationType(); // 'POP' = back button, 'PUSH' = forward nav
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [sortBy, setSortBy] = useState('Featured');
+  const [sortBy, setSortBy] = useState(_saved?.sortBy || 'Featured');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   useEffect(() => {
@@ -51,11 +52,6 @@ export default function Shop() {
   const [selectedSubCat, setSelectedSubCat] = useState(_saved?.selectedSubCat || '');
   const [page, setPage] = useState(_saved?.page || 1);
 
-  // Restore sortBy from saved state on back navigation
-  useEffect(() => {
-    if (_saved?.sortBy) setSortBy(_saved.sortBy);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const [categoryData, setCategoryData] = useState([]);
 
   // Load categories from API, preserving any already-active selections
@@ -78,6 +74,7 @@ export default function Shop() {
 
   const gridRef = useRef(null);
   const isFirstRender = useRef(true);
+  const isFirstSearchSync = useRef(true);
 
   // ── Derive API query params from filter state ──────────────────────────────
   const activeCats = useMemo(
@@ -120,6 +117,8 @@ export default function Shop() {
     keepPreviousData: true,   // smooth transition between pages
     staleTime: 30_000,
   });
+
+  useScrollRestoration(!isLoading);
 
   // ── Derived product list & pagination ─────────────────────────────────────
   const products = data?.results || [];
@@ -184,14 +183,17 @@ export default function Shop() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  // Sync search from URL
+  // Sync search from URL — skip the very first render so that page restored
+  // from sessionStorage (on back navigation) isn't immediately reset to 1.
   useEffect(() => {
-    const query = searchParams.get('search') || '';
-    if (query !== searchTerm) {
-      setSearchTerm(query);
+    if (isFirstSearchSync.current) {
+      isFirstSearchSync.current = false;
+      return;
     }
+    const query = searchParams.get('search') || '';
+    if (query !== searchTerm) setSearchTerm(query);
     setPage(1);
-  }, [searchParams, sortBy]);
+  }, [searchParams, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearAllFilters = () => {
     setCategories(Object.keys(categories).reduce((acc, k) => ({ ...acc, [k]: false }), {}));

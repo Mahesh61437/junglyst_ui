@@ -263,6 +263,25 @@ export default function SuperAdminDashboard() {
   const [growerActionLoading, setGrowerActionLoading] = useState({});
   const [growerActionMsg, setGrowerActionMsg] = useState('');
 
+  // Cache management
+  const [cacheClearing, setCacheClearing] = useState(false);
+  const [cacheClearMsg, setCacheClearMsg] = useState('');
+
+  const handleClearCache = async () => {
+    if (!window.confirm('Clear all server cache? This will briefly slow down the next few requests while caches rebuild.')) return;
+    setCacheClearing(true);
+    setCacheClearMsg('');
+    try {
+      await api.post('/analytics/super-admin/clear-cache/');
+      setCacheClearMsg('Cache cleared.');
+    } catch {
+      setCacheClearMsg('Failed to clear cache.');
+    } finally {
+      setCacheClearing(false);
+      setTimeout(() => setCacheClearMsg(''), 4000);
+    }
+  };
+
   // Payment gateway toggle
   const [paymentGateway, setPaymentGateway] = useState('cashfree');
   const [paymentGatewaySaving, setPaymentGatewaySaving] = useState(false);
@@ -766,6 +785,16 @@ export default function SuperAdminDashboard() {
             <button onClick={() => navigate('/super-admin/gst')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               GST INVOICES
             </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={handleClearCache}
+                disabled={cacheClearing}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: cacheClearing ? 'rgba(255,255,255,0.05)' : 'rgba(239,68,68,0.15)', color: cacheClearing ? 'rgba(255,255,255,0.4)' : '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', cursor: cacheClearing ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+              >
+                {cacheClearing ? 'CLEARING…' : 'CLEAR CACHE'}
+              </button>
+              {cacheClearMsg && <span style={{ fontSize: '0.75rem', color: cacheClearMsg.startsWith('Failed') ? '#fca5a5' : '#86efac', fontWeight: 600 }}>{cacheClearMsg}</span>}
+            </div>
             <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user?.full_name || user?.username}</span>
             <button onClick={() => navigate('/')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               EXIT
