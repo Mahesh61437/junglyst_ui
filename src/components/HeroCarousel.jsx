@@ -123,7 +123,7 @@ export default function HeroCarousel({ sellers = [] }) {
 
         {/* Logo badge — bottom-right of content area */}
         {(slide.logo_url || slide.icon_url) && (
-          <div style={{ position: 'absolute', bottom: '2.5rem', right: 0, width: '72px', height: '72px', borderRadius: '18px', backgroundColor: 'white', padding: '6px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', opacity: transitioning ? 0 : 1, transition: 'opacity 0.5s' }}>
+          <div style={{ position: 'absolute', bottom: '2.5rem', right: '1rem', width: '72px', height: '72px', borderRadius: '18px', backgroundColor: 'white', padding: '6px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', opacity: transitioning ? 0 : 1, transition: 'opacity 0.5s' }}>
             <img src={getImageUrl(slide.icon_url || slide.logo_url)} alt={slide.store_name}
               onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollRestoration } from '../utils/useScrollRestoration';
+import SEO from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck, Star, MapPin, ArrowRight,
@@ -360,6 +361,11 @@ export default function VerifiedSellers() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9f8f4', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)' }}>
+      <SEO
+        title="Verified Sellers & Growers | Junglyst"
+        description="Discover India's top verified aquatic plant growers and botanical sellers on Junglyst. Every seller is vetted for quality, plant health, and reliable shipping."
+        path="/sellers"
+      />
 
       {/* Hero Spotlight */}
       {!loading && <SpotlightHero sellers={featuredSellers} />}

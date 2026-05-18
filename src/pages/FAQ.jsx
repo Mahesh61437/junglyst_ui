@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import PolicyLayout from '../components/PolicyLayout';
+import SEO from '../components/SEO';
 
 const RELATED = [
   { to: '/contact', label: 'Contact Support' },
@@ -10,7 +11,8 @@ const RELATED = [
 ];
 
 export default function FAQ() {
-  const [expandedFaq, setExpandedFaq] = useState(null);
+  const [expandedPayment, setExpandedPayment] = useState(null);
+  const [expandedOrders, setExpandedOrders] = useState(null);
 
   const faqs = {
     payment: [
@@ -64,11 +66,7 @@ export default function FAQ() {
     ]
   };
 
-  const toggleFaq = (id) => {
-    setExpandedFaq(expandedFaq === id ? null : id);
-  };
-
-  const FAQSection = ({ title, items }) => (
+  const FAQSection = ({ title, items, expanded, setExpanded }) => (
     <div style={{ marginBottom: '3rem' }}>
       <h3 style={{
         fontSize: '1.25rem',
@@ -88,11 +86,11 @@ export default function FAQ() {
             backgroundColor: 'white'
           }}>
             <button
-              onClick={() => toggleFaq(faq.id)}
+              onClick={() => setExpanded(expanded === faq.id ? null : faq.id)}
               style={{
                 width: '100%',
                 padding: '1.25rem 1.5rem',
-                backgroundColor: expandedFaq === faq.id ? 'var(--bg-secondary)' : 'transparent',
+                backgroundColor: expanded === faq.id ? 'var(--bg-secondary)' : 'transparent',
                 border: 'none',
                 display: 'flex',
                 alignItems: 'center',
@@ -110,14 +108,14 @@ export default function FAQ() {
                 size={20}
                 style={{
                   transition: 'transform var(--transition-fast)',
-                  transform: expandedFaq === faq.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transform: expanded === faq.id ? 'rotate(180deg)' : 'rotate(0deg)',
                   flexShrink: 0,
                   marginLeft: '1rem',
                   color: 'var(--brand-gold)'
                 }}
               />
             </button>
-            {expandedFaq === faq.id && (
+            {expanded === faq.id && (
               <div style={{
                 padding: '0 1.5rem 1.5rem',
                 borderTop: '1px solid var(--border-subtle)',
@@ -136,6 +134,12 @@ export default function FAQ() {
   );
 
   return (
+    <>
+    <SEO
+      title="FAQ — Frequently Asked Questions | Junglyst"
+      description="Answers to common questions about ordering, payments, shipping, and returns on Junglyst — India's rare aquatic plant marketplace."
+      path="/faq"
+    />
     <PolicyLayout
       badge="Support"
       title="Frequently Asked Questions"
@@ -149,8 +153,8 @@ export default function FAQ() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
           gap: '4rem'
         }}>
-          <FAQSection title="💳 Payment & Refunds" items={faqs.payment} />
-          <FAQSection title="📦 Orders & Shipping" items={faqs.orders} />
+          <FAQSection title="💳 Payment & Refunds" items={faqs.payment} expanded={expandedPayment} setExpanded={setExpandedPayment} />
+          <FAQSection title="📦 Orders & Shipping" items={faqs.orders} expanded={expandedOrders} setExpanded={setExpandedOrders} />
         </div>
 
         <div style={{
@@ -197,5 +201,6 @@ export default function FAQ() {
         </div>
       </div>
     </PolicyLayout>
+    </>
   );
 }

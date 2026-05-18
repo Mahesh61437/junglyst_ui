@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { trackSearch } from '../utils/analytics';
+import SEO from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams, useNavigationType } from 'react-router-dom';
 import { useScrollRestoration } from '../utils/useScrollRestoration';
@@ -55,20 +56,21 @@ export default function Shop() {
   const [selectedSubCat, setSelectedSubCat] = useState(_saved?.selectedSubCat || '');
   const [page, setPage] = useState(_saved?.page || 1);
 
-  const [categoryData, setCategoryData] = useState([]);
+  const { data: categoryData = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: ProductService.getCategories,
+    staleTime: 10 * 60 * 1000, // cache for 10 min — avoids re-fetch on every shop visit
+  });
 
-  // Load categories from API, preserving any already-active selections
+  // Sync API categories into filter checkbox state, preserving active selections
   useEffect(() => {
-    ProductService.getCategories().then(data => {
-      const cats = data.results || data || [];
-      setCategoryData(cats);
-      setCategories(prev => {
-        const merged = {};
-        cats.forEach(c => { merged[c.name] = prev[c.name] ?? false; });
-        return merged;
-      });
-    }).catch(() => { });
-  }, []);
+    if (!categoryData.length) return;
+    setCategories(prev => {
+      const merged = {};
+      categoryData.forEach(c => { merged[c.name] = prev[c.name] ?? false; });
+      return merged;
+    });
+  }, [categoryData]);
 
   // Persist filter state to sessionStorage so back navigation can restore it
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function Shop() {
   const apiParams = useMemo(() => {
     const p = { page, ordering: sortParam };
     if (searchTerm.trim()) p.search = searchTerm.trim();
-    if (activeCats.length === 1) p.category = activeCats[0];   // single cat filter
+    if (activeCats.length > 0) p.category = activeCats.join(',');
     if (activeDiffs.length > 0) p.care_level = activeDiffs.join(',');
     if (inStock) p.in_stock = 'true';
     if (minPrice) p.min_price = minPrice;
@@ -129,21 +131,10 @@ export default function Shop() {
   const PAGE_SIZE = 20;  // must match backend page_size
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  // Client-side filter only when multiple categories selected (API doesn't support OR filter natively)
-  const displayedProducts = useMemo(() => {
-    let list = products.filter(p => p?.is_active !== false);
-
-    // Multi-category OR filter client side (single cat is already handled server-side)
-    if (activeCats.length > 1) {
-      list = list.filter(product => {
-        const matchesCat = activeCats.includes(product.category);
-        const matchesSub = product.sub_category && activeCats.includes(product.sub_category.name);
-        return matchesCat || matchesSub;
-      });
-    }
-
-    return list;
-  }, [products, activeCats]);
+  const displayedProducts = useMemo(
+    () => products.filter(p => p?.is_active !== false),
+    [products],
+  );
 
   // ── Sync URL category param into filter state ──────────────────────────────
   // Fires on every navbar category click; also clears all filters on plain /shop
@@ -445,6 +436,11 @@ export default function Shop() {
 
   return (
     <div className="container" style={{ padding: '4rem 1.5rem', minHeight: '80vh', fontFamily: 'var(--font-sans)' }}>
+      <SEO
+        title={category ? `${category} — Shop | Junglyst` : 'Shop Aquatic Plants & Botanicals | Junglyst'}
+        description="Browse hundreds of rare aquatic plants, aquarium moss, and tropical botanicals from verified Indian growers. Filter by category, price, and availability."
+        path={category ? `/shop/${category}` : '/shop'}
+      />
 
       {/* ── Page Header ── */}
       <div style={{ marginBottom: '3rem' }}>

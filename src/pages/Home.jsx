@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
@@ -114,7 +115,7 @@ function FeaturedSellers({ sellers }) {
                         src={getImageUrl(s.icon_url || s.logo_url) || '/assets/default-logo.jpg'}
                         alt={s.store_name}
                         onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '9px' }}
                       />
                     </div>
 
@@ -173,6 +174,11 @@ export default function Home() {
 
   return (
     <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', overflowX: 'hidden' }}>
+      <SEO
+        title="Junglyst — Rare Aquatic Botanicals"
+        description="Discover and buy rare aquatic plants, aquarium moss, and tropical botanicals from verified growers across India. Curated for hobbyists and collectors."
+        path="/"
+      />
 
       {/* Promoted seller slides — sort_order + is_featured controls which sellers appear */}
       <HeroCarousel sellers={featuredSellers} />
@@ -213,6 +219,18 @@ export default function Home() {
                 trending={p.is_trending} reviews={p.rating} stock={p.stock}
                 variants={p.variants} seller={p.seller} />
             ))}
+          </div>
+        )}
+
+        {!loading && products.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'clamp(2rem,4vw,3rem)' }}>
+            <Link
+              to="/shop"
+              className="btn btn-primary"
+              style={{ padding: '0.85rem 2.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}
+            >
+              View All Products <ArrowRight size={15} />
+            </Link>
           </div>
         )}
       </section>

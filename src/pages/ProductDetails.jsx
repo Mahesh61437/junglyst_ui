@@ -297,7 +297,8 @@ export default function ProductDetails() {
         title={`${name} - Buy Online | Junglyst`} 
         description={product?.description?.replace(/<[^>]+>/g, '').substring(0, 160) || `Buy ${name} online at Junglyst. High-quality specimens perfect for your home.`}
         path={`/product/${product.slug || product.id}`}
-        imagePath={images[0]?.replace(/^https?:\/\/[^\/]+/, '') || ''}
+        image={images[0] || ''}
+        type="product"
         schemaType="Product"
         schemaData={{
           name: name,

@@ -1,4 +1,5 @@
 import PolicyLayout, { Section, Notice, Divider } from '../components/PolicyLayout';
+import SEO from '../components/SEO';
 
 const RELATED = [
   { to: '/shipping-policy', label: 'Shipping Policy' },
@@ -32,6 +33,12 @@ const tdAltStyle = { ...tdStyle, background: '#f8fafc' };
 
 export default function RefundPolicy() {
   return (
+    <>
+    <SEO
+      title="Refund, Returns & DOA Policy | Junglyst"
+      description="Junglyst's refund and return policy for live plants — DOA claims, photo evidence requirements, timelines, and how to raise a return request."
+      path="/refund-policy"
+    />
     <PolicyLayout
       badge="Returns & Refunds"
       title="Refund, Returns & DOA Policy"
@@ -155,5 +162,6 @@ export default function RefundPolicy() {
         <p>If you are unsatisfied with the resolution provided by our team, you may escalate your complaint to our Grievance Officer at <strong>legal@junglyst.com</strong>. We aim to resolve all escalated disputes within 15 business days. You also retain the right to approach the Consumer Disputes Redressal Commission under the Consumer Protection Act, 2019.</p>
       </Section>
     </PolicyLayout>
+    </>
   );
 }

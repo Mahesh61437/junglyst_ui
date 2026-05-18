@@ -75,24 +75,27 @@ export default function ReviewSection({ productId }) {
 
     setSubmitting(true);
     try {
-      const newReview = await ReviewService.submitReview({
-        productId,
-        author: author.trim(),
-        comment: comment.trim(),
-        plants: plantsRating,
-        packaging: packagingRating,
-        responsiveness: responsivenessRating
-      });
+      const formData = new FormData();
+      formData.append('product_id', productId);
+      formData.append('author', author.trim());
+      formData.append('comment', comment.trim());
+      formData.append('plants', plantsRating);
+      formData.append('packaging', packagingRating);
+      formData.append('responsiveness', responsivenessRating);
+      if (selectedImage) {
+        formData.append('image', selectedImage);
+      }
+      const newReview = await ReviewService.submitReview(formData);
       setReviews([newReview, ...reviews]);
       setShowForm(false);
       setErrors({});
-      
-      // Reset form
       setAuthor('');
       setComment('');
       setPlantsRating(0);
       setPackagingRating(0);
       setResponsivenessRating(0);
+      setSelectedImage(null);
+      setImagePreview(null);
     } catch (error) {
       setErrors({ submit: 'Unable to submit review. Please try again.' });
     } finally {
