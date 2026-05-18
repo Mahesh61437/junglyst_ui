@@ -9,14 +9,23 @@ import { getImageUrl } from '../utils/imageUtils';
 export default function Success() {
   const location = useLocation();
   const navigate = useNavigate();
-  const order = location.state?.order;
   const { user } = useAuth();
   const { clearCart } = useCart();
   const [copied, setCopied] = useState(false);
 
+  // Recover order from sessionStorage if React Router state was lost (common on mobile webviews
+  // where the payment gateway redirects away from the SPA and back, wiping location.state).
+  const order = location.state?.order ?? (() => {
+    try {
+      const raw = sessionStorage.getItem('junglyst_last_order');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+
   useEffect(() => {
     clearCart();
     if (order) {
+      try { sessionStorage.removeItem('junglyst_last_order'); } catch {}
       trackOrderPlaced({ orderId: order.order_number, value: order.total_amount ?? order.grand_total, numItems: order.items?.length });
     }
   }, []);
@@ -37,9 +46,38 @@ export default function Success() {
   if (!order) {
     return (
       <div className="container" style={{ padding: '10rem 1rem', textAlign: 'center' }}>
-        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem' }}>Acquisition Confirmed</h2>
-        <p style={{ color: '#64748b', margin: '2rem 0' }}>Your botanical specimens are being prepared.</p>
-        <Link to="/shop" className="btn btn-primary">Return to Gallery</Link>
+        <div style={{ color: '#10b981', marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ padding: '1.25rem', backgroundColor: '#f0fdf4', borderRadius: '50%' }}>
+            <CheckCircle size={48} strokeWidth={1.5} />
+          </div>
+        </div>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', marginBottom: '1rem', color: '#1b2d2a' }}>Order Confirmed</h2>
+        <p style={{ color: '#64748b', margin: '0 0 0.75rem 0', lineHeight: 1.8 }}>
+          Your botanical specimens are being prepared.
+        </p>
+        <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0 0 2.5rem 0' }}>
+          A confirmation email has been sent to you. If you placed the order while signed in, you can view the details below.
+        </p>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {user && (
+            <Link to="/orders" style={{
+              backgroundColor: '#1b2d2a', color: 'white',
+              padding: '0.85rem 2rem', borderRadius: '50px',
+              fontWeight: 800, fontSize: '0.85rem', textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              textTransform: 'uppercase', letterSpacing: '0.05em'
+            }}>
+              View My Orders <ArrowRight size={16} />
+            </Link>
+          )}
+          <Link to="/shop" style={{
+            backgroundColor: 'white', color: '#1b2d2a',
+            padding: '0.85rem 2rem', borderRadius: '50px',
+            fontWeight: 800, fontSize: '0.85rem', textDecoration: 'none',
+            border: '2px solid #1b2d2a',
+            textTransform: 'uppercase', letterSpacing: '0.05em'
+          }}>Return to Gallery</Link>
+        </div>
       </div>
     );
   }
@@ -51,16 +89,16 @@ export default function Success() {
       <div className="slide-up" style={{ maxWidth: '1000px', margin: '0 auto' }}>
 
         {/* Success Header */}
-        <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-          <div style={{ color: '#10b981', marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}>
-            <div style={{ padding: '1.5rem', backgroundColor: '#f0fdf4', borderRadius: '50%' }}>
-              <CheckCircle size={60} strokeWidth={1.5} />
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(2rem, 5vw, 4rem)' }}>
+          <div style={{ color: '#10b981', marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ padding: '1.25rem', backgroundColor: '#f0fdf4', borderRadius: '50%' }}>
+              <CheckCircle size={52} strokeWidth={1.5} />
             </div>
           </div>
-          <h1 style={{ fontSize: '3.5rem', fontFamily: 'var(--font-serif)', marginBottom: '1rem', color: '#1b2d2a' }}>
+          <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '1rem', color: '#1b2d2a' }}>
             Acquisition Secured
           </h1>
-          <p style={{ fontSize: '1.1rem', color: '#64748b', lineHeight: 1.8 }}>
+          <p style={{ fontSize: '1rem', color: '#64748b', lineHeight: 1.8 }}>
             Your specimen collection has been successfully registered.
           </p>
         </div>
@@ -116,7 +154,7 @@ export default function Success() {
 
             {/* Order Details */}
             <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '16px', marginBottom: '2rem', border: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginBottom: '1.5rem', margin: 0 }}>Order Details</h3>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginTop: 0, marginBottom: '1.5rem' }}>Order Details</h3>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Subtotal (Incl. GST)</span>
@@ -143,7 +181,7 @@ export default function Success() {
 
             {/* Delivery Timeline */}
             <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginBottom: '1.5rem', margin: 0 }}>Estimated Delivery</h3>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginTop: 0, marginBottom: '1.5rem' }}>Estimated Delivery</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', backgroundColor: '#fffbeb', borderRadius: '12px', border: '1px solid #fde68a' }}>
                 <Calendar size={20} color="#d97706" />
                 <div>
@@ -162,7 +200,7 @@ export default function Success() {
           <div>
             {/* Delivery Address */}
             <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '16px', marginBottom: '2rem', border: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginBottom: '1.5rem', margin: 0 }}>Delivery Address</h3>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginTop: 0, marginBottom: '1.5rem' }}>Delivery Address</h3>
               
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
                 <MapPin size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
@@ -190,7 +228,7 @@ export default function Success() {
             </div>
 
             {/* Order Items Summary */}
-            <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid #f1f5f9', maxHeight: '350px', overflowY: 'auto' }}>
+            <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <ShoppingBag size={18} color="#1b2d2a" />
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', margin: 0 }}>Items ({order.items?.length || 0})</h3>
@@ -230,7 +268,7 @@ export default function Success() {
 
         {/* Order Status Timeline */}
         <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '16px', border: '1px solid #f1f5f9', marginBottom: '3rem' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginBottom: '2rem', margin: 0 }}>What Happens Next</h3>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', color: '#1b2d2a', marginTop: 0, marginBottom: '2rem' }}>What Happens Next</h3>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
             {[

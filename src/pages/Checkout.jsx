@@ -107,6 +107,7 @@ export default function Checkout() {
         if (pStatus === 'success') {
           clearInterval(interval);
           clearCart();
+          try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch {}
           navigate('/checkout/success', { state: { order } });
         } else if (pStatus === 'failed') {
           clearInterval(interval);
@@ -230,6 +231,7 @@ export default function Checkout() {
 
       if (mock_payment) {
         await clearCart();
+        try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch {}
         navigate('/checkout/success', { state: { order } });
         return;
       }
@@ -301,6 +303,7 @@ export default function Checkout() {
                 razorpay_signature: rzpRes.razorpay_signature,
               });
               clearCart();
+              try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch {}
               navigate('/checkout/success', { state: { order: response.order } });
             } catch (e) {
               console.error('Razorpay verify failed:', e);
@@ -376,6 +379,7 @@ export default function Checkout() {
             cashfree_order_id: cashfree_order_id,
           }).then((response) => {
             clearCart();
+            try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch {}
             navigate('/checkout/success', { state: { order: response.order } });
           }).catch(() => {
             orderPlaced.current = false;
