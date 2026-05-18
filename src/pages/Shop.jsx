@@ -5,6 +5,7 @@ import { useParams, useNavigate, useSearchParams, useNavigationType } from 'reac
 import { useScrollRestoration } from '../utils/useScrollRestoration';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import { ProductService } from '../services/ProductService';
 import { Search, X, Leaf, SlidersHorizontal, Check, IndianRupee } from 'lucide-react';
 
@@ -659,78 +660,13 @@ export default function Shop() {
               </motion.div>
 
               {/* ── Pagination ── */}
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem', marginTop: '5rem' }}>
-                  {/* Previous */}
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage(p => p - 1)}
-                    style={{
-                      padding: '0.6rem 1.1rem', borderRadius: '10px',
-                      border: '1.5px solid #e2e8f0', backgroundColor: 'white',
-                      fontSize: '0.8rem', fontWeight: 700,
-                      cursor: page === 1 ? 'not-allowed' : 'pointer',
-                      opacity: page === 1 ? 0.4 : 1,
-                      transition: 'opacity 0.15s',
-                      fontFamily: 'var(--font-sans)',
-                    }}
-                  >
-                    ← Prev
-                  </button>
-
-                  {/* Page numbers with ellipsis */}
-                  {pageNumbers.map((num, idx) =>
-                    num === '…' ? (
-                      <span
-                        key={`ellipsis-${idx}`}
-                        style={{ padding: '0 0.25rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}
-                      >
-                        …
-                      </span>
-                    ) : (
-                      <button
-                        key={num}
-                        onClick={() => setPage(num)}
-                        style={{
-                          width: '38px', height: '38px', borderRadius: '10px',
-                          border: page === num ? 'none' : '1.5px solid #e2e8f0',
-                          backgroundColor: page === num ? '#0A3029' : 'white',
-                          color: page === num ? 'white' : '#64748b',
-                          fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                          transition: 'all 0.15s',
-                          fontFamily: 'var(--font-sans)',
-                        }}
-                      >
-                        {num}
-                      </button>
-                    )
-                  )}
-
-                  {/* Next */}
-                  <button
-                    disabled={page === totalPages}
-                    onClick={() => setPage(p => p + 1)}
-                    style={{
-                      padding: '0.6rem 1.1rem', borderRadius: '10px',
-                      border: '1.5px solid #e2e8f0', backgroundColor: 'white',
-                      fontSize: '0.8rem', fontWeight: 700,
-                      cursor: page === totalPages ? 'not-allowed' : 'pointer',
-                      opacity: page === totalPages ? 0.4 : 1,
-                      transition: 'opacity 0.15s',
-                      fontFamily: 'var(--font-sans)',
-                    }}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-
-              {/* Page indicator */}
-              {totalPages > 1 && (
-                <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
-                  Page {page} of {totalPages}
-                </p>
-              )}
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+              />
 
               {displayedProducts.length === 0 && !isLoading && (
                 <div style={{
