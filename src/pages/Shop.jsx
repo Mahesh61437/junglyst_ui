@@ -12,6 +12,11 @@ export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
   const navigationType = useNavigationType(); // 'POP' = back button, 'PUSH' = forward nav
+
+  // Restore filter state when user navigates back (POP), otherwise start fresh.
+  // Declared here so all useState calls below can reference it.
+  const _saved = navigationType === 'POP' ? (() => { try { return JSON.parse(sessionStorage.getItem('shopFilters') || 'null'); } catch { return null; } })() : null;
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState(_saved?.sortBy || 'Featured');
@@ -36,9 +41,6 @@ export default function Shop() {
       window.removeEventListener('resize', handleResize);
     };
   }, []);
-
-  // Restore filter state when user navigates back (POP), otherwise start fresh
-  const _saved = navigationType === 'POP' ? (() => { try { return JSON.parse(sessionStorage.getItem('shopFilters') || 'null'); } catch { return null; } })() : null;
 
   const [categories, setCategories] = useState(_saved?.categories || {});
   const [difficulties, setDifficulties] = useState(_saved?.difficulties || {
@@ -161,8 +163,9 @@ export default function Shop() {
   // ── Scroll to top on pagination change (skip first render — ScrollToTop handles entry) ──
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (navigationType === 'POP') return; // back nav: scroll handled by useScrollRestoration
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [page]);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCategoryChange = (cat) => {
     setCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
