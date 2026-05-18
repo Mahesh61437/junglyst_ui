@@ -21,6 +21,7 @@ import { ProductService } from '../services/ProductService';
 import { OrderService } from '../services/OrderService';
 import { getImageUrl } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
+import Pagination from '../components/Pagination';
 
 // Error Boundary for the Dashboard
 class DashboardErrorBoundary extends React.Component {
@@ -67,6 +68,7 @@ export default function SellerDashboard() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [categorySearch, setCategorySearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [formError, setFormError] = useState(null);
@@ -245,6 +247,13 @@ export default function SellerDashboard() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [user]);
+
+  useEffect(() => {
+    api.get('/core/categories/').then(res => {
+      const cats = res.data?.results || res.data || [];
+      setCategories(cats);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (success || formError) {
@@ -1767,26 +1776,16 @@ export default function SellerDashboard() {
                           </tbody>
                         </table>
                         {productTotal > 0 && (
-                          <div style={{ padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #edf2ed', gap: '1rem' }}>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                              Showing {((productPage - 1) * productPageSize) + 1}–{Math.min(productPage * productPageSize, productTotal)} of {productTotal} specimens
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                              <select
-                                value={productPageSize}
-                                onChange={(e) => { setProductPageSize(Number(e.target.value)); setProductPage(1); }}
-                                style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.8rem', color: '#1e293b', cursor: 'pointer', outline: 'none' }}
-                              >
-                                <option value={10}>10 per page</option>
-                                <option value={20}>20 per page</option>
-                                <option value={50}>50 per page</option>
-                              </select>
-                              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <button disabled={productPage === 1} onClick={() => setProductPage(p => p - 1)} style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage === 1 ? '#f8fafc' : 'white', cursor: productPage === 1 ? 'not-allowed' : 'pointer', color: '#1e293b' }}>Prev</button>
-                                <button disabled={productPage * productPageSize >= productTotal} onClick={() => setProductPage(p => p + 1)} style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: productPage * productPageSize >= productTotal ? '#f8fafc' : 'white', cursor: productPage * productPageSize >= productTotal ? 'not-allowed' : 'pointer', color: '#1e293b' }}>Next</button>
-                              </div>
-                            </div>
-                          </div>
+                          <Pagination
+                            page={productPage}
+                            totalPages={Math.max(1, Math.ceil(productTotal / productPageSize))}
+                            totalItems={productTotal}
+                            pageSize={productPageSize}
+                            onPageChange={setProductPage}
+                            onPageSizeChange={(s) => { setProductPageSize(s); setProductPage(1); }}
+                            pageSizeOptions={[10, 20, 50]}
+                            onScrollTop={() => {}}
+                          />
                         )}
                       </div>
                     </div>
@@ -2471,16 +2470,35 @@ export default function SellerDashboard() {
                               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
                                 <div>
                                   <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_id ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Category <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.category_id && `— ${fieldErrors.category_id}`}</label>
-                                  <select value={newProduct.category_id} onChange={e => {
-                                    const catId = e.target.value;
-                                    setNewProduct({ ...newProduct, category_id: catId, sub_category_id: '' });
-                                    setFieldErrors({ ...fieldErrors, category_id: null });
-                                  }} className={fieldErrors.category_id ? 'form-error-input' : ''} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontSize: '0.9rem' }}>
-                                    <option value="">Select Category</option>
-                                    {categories.map(cat => (
-                                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                    ))}
-                                  </select>
+                                  <div style={{ position: 'relative' }}>
+                                    <input
+                                      type="text"
+                                      value={categorySearch}
+                                      onChange={e => setCategorySearch(e.target.value)}
+                                      placeholder="Search categories…"
+                                      style={{ width: '100%', padding: '0.75rem 0.85rem', borderRadius: '10px 10px 0 0', border: '1px solid #e2e8f0', fontSize: '0.85rem', boxSizing: 'border-box', outline: 'none' }}
+                                    />
+                                    <select
+                                      value={newProduct.category_id}
+                                      onChange={e => {
+                                        const catId = e.target.value;
+                                        setNewProduct({ ...newProduct, category_id: catId, sub_category_id: '' });
+                                        setFieldErrors({ ...fieldErrors, category_id: null });
+                                        setCategorySearch('');
+                                      }}
+                                      className={fieldErrors.category_id ? 'form-error-input' : ''}
+                                      size={Math.min(6, categories.filter(c => !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase())).length + 1)}
+                                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0 0 10px 10px', border: '1px solid #e2e8f0', borderTop: 'none', backgroundColor: 'white', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                                    >
+                                      <option value="">Select Category</option>
+                                      {categories
+                                        .filter(c => !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase()))
+                                        .map(cat => (
+                                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                        ))
+                                      }
+                                    </select>
+                                  </div>
                                 </div>
 
                                 <div>

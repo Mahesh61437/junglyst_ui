@@ -3,6 +3,7 @@ import { Link, useNavigate, useNavigationType } from 'react-router-dom';
 import api from '../services/api';
 import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
 import { useScrollRestoration } from '../utils/useScrollRestoration';
+import Pagination from '../components/Pagination';
 
 const STATUS_META = {
   pending:           { label: 'Pending Payment',    color: '#6b7280', bg: '#f3f4f6' },
@@ -236,29 +237,13 @@ export default function MyOrders() {
             );
           })}
 
-          {totalItems > 10 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', backgroundColor: 'white', borderRadius: '24px', border: '1px solid #f1f5f9', marginTop: '1rem' }}>
-              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                Showing {((page - 1) * 10) + 1} to {Math.min(page * 10, totalItems)} of {totalItems} orders
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button
-                  disabled={page === 1}
-                  onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); /* scroll on page change */ }}
-                  style={{ padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', backgroundColor: page === 1 ? '#f8fafc' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', color: '#1e293b', fontWeight: 700, fontSize: '0.8rem' }}
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={page * 10 >= totalItems}
-                  onClick={() => { setPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  style={{ padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #cbd5e1', backgroundColor: page * 10 >= totalItems ? '#f8fafc' : 'white', cursor: page * 10 >= totalItems ? 'not-allowed' : 'pointer', color: '#1e293b', fontWeight: 700, fontSize: '0.8rem' }}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(totalItems / 10))}
+            totalItems={totalItems}
+            pageSize={10}
+            onPageChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          />
         </div>
       )}
     </div>

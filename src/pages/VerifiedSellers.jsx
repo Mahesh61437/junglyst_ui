@@ -245,7 +245,7 @@ function SellerCard({ seller }) {
           border: '2px solid white'
         }}>
           <img
-            src={getImageUrl(seller.logo_url) || '/assets/default-logo.jpg'}
+            src={getImageUrl(seller.icon_url || seller.logo_url) || '/assets/default-logo.jpg'}
             alt={seller.store_name}
             onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
             style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
