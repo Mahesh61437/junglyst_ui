@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import SEO from '../components/SEO';
 import {
   Heart,
   ShoppingCart,
@@ -22,7 +23,7 @@ import { ProductService } from '../services/ProductService';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
-import { trackProductViewed, trackAddToCart, trackAddToWishlist } from '../utils/posthog';
+import { trackProductViewed, trackAddToCart, trackAddToWishlist } from '../utils/analytics';
 import ReviewSection from '../components/ReviewSection';
 import Recommendations from '../components/Recommendations';
 import TrustBadges from '../components/TrustBadges';
@@ -53,7 +54,7 @@ function MoreFromSeller({ sellerId, sellerName, currentProductId }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.25rem' }}>
         {items.map(p => {
-          const img = p.image || p.primary_image || p.images?.[0]?.image_url || p.image_url;
+          const img = getImageUrl(p.image || p.primary_image || p.images?.[0]?.image_url || p.image_url || '');
           const price = p.variants?.[0]?.price || p.price;
           return (
             <Link key={p.id} to={`/product/${p.slug || p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -151,21 +152,39 @@ export default function ProductDetails() {
   }, [product]);
 
   const images = useMemo(() => {
+    if (!product) return [""];
+
+    const seen = new Set();
     const list = [];
-    if (!product) return [getImageUrl("")];
 
-    // Check all possible image property names (camelCase from middleware, snake_case from DB)
-    const primaryImg = product.imageUrl || product.image_url || product.image;
-    if (primaryImg) list.push(getImageUrl(primaryImg));
+    const addImg = (url) => {
+      const resolved = getImageUrl(url || '');
+      if (resolved && !seen.has(resolved)) {
+        seen.add(resolved);
+        list.push(resolved);
+      }
+    };
 
+    // Images array from the API is the source of truth (ProductImage objects)
     if (product.images && Array.isArray(product.images)) {
-      product.images.forEach(img => {
-        if (typeof img === 'string') list.push(getImageUrl(img));
-        else if (img.imageUrl) list.push(getImageUrl(img.imageUrl));
-        else if (img.image_url) list.push(getImageUrl(img.image_url));
+      // Sort so primary images come first
+      const sorted = [...product.images].sort((a, b) => {
+        if (a.is_primary && !b.is_primary) return -1;
+        if (!a.is_primary && b.is_primary) return 1;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
+      sorted.forEach(img => {
+        if (typeof img === 'string') addImg(img);
+        else addImg(img.image_url || img.imageUrl || '');
       });
     }
-    return list.length > 0 ? list : [getImageUrl("")];
+
+    // Fallback: use the serializer's computed `image` field (primary image URL)
+    if (list.length === 0) {
+      addImg(product.image || product.image_url || product.imageUrl || '');
+    }
+
+    return list.length > 0 ? list : [""];
   }, [product]);
 
   useEffect(() => {
@@ -274,6 +293,35 @@ export default function ProductDetails() {
 
   return (
     <div style={{ backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '8rem' }}>
+      <SEO 
+        title={`${name} - Buy Online | Junglyst`} 
+        description={product?.description?.replace(/<[^>]+>/g, '').substring(0, 160) || `Buy ${name} online at Junglyst. High-quality specimens perfect for your home.`}
+        path={`/product/${product.slug || product.id}`}
+        imagePath={images[0]?.replace(/^https?:\/\/[^\/]+/, '') || ''}
+        schemaType="Product"
+        schemaData={{
+          name: name,
+          image: images,
+          description: product?.description?.replace(/<[^>]+>/g, '') || `Buy ${name} online at Junglyst.`,
+          sku: product.id,
+          brand: {
+            "@type": "Brand",
+            "name": "Junglyst"
+          },
+          offers: {
+            "@type": "Offer",
+            "url": typeof window !== 'undefined' ? window.location.href : '',
+            "priceCurrency": "INR",
+            "price": displayPrice,
+            "availability": isSoldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock"
+          },
+          aggregateRating: product.rating ? {
+            "@type": "AggregateRating",
+            "ratingValue": product.rating,
+            "reviewCount": "1"
+          } : undefined
+        }}
+      />
       <div className="container" style={{ padding: '1.5rem', fontFamily: 'var(--font-sans)', fontSize: '0.9rem' }}>
 
         {/* Breadcrumb */}
@@ -806,7 +854,7 @@ export default function ProductDetails() {
             {/* Seller Story Bridge */}
             <div style={{ display: 'flex', gap: '1.5rem', padding: '1.75rem', borderRadius: '20px', backgroundColor: 'var(--bg-deep)', color: 'white' }}>
               <div style={{ flexShrink: 0, width: '110px', height: '110px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--brand-gold)', backgroundColor: 'white' }}>
-                <img src={product.seller?.seller_profile?.logo_url || sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={getImageUrl(product.seller?.seller_profile?.logo_url) || sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>

@@ -4,6 +4,112 @@ import { OrderService } from '../services/OrderService';
 import { Package, Truck, CheckCircle, Clock, ArrowLeft, MapPin, ExternalLink, ShieldCheck } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 
+const SUB_STATUS_META = {
+  pending: { label: 'Pending', color: '#6b7280', bg: '#f3f4f6' },
+  placed: { label: 'Order Placed', color: '#1d4ed8', bg: '#dbeafe' },
+  confirmed: { label: 'Confirmed', color: '#854d0e', bg: '#fef9c3' },
+  packing: { label: 'Being Packed', color: '#c2410c', bg: '#fff7ed' },
+  shipped: { label: 'Shipped', color: '#065f46', bg: '#d1fae5' },
+  in_transit: { label: 'In Transit', color: '#065f46', bg: '#d1fae5' },
+  out_for_delivery: { label: 'Out for Delivery', color: '#14532d', bg: '#dcfce7' },
+  delivered: { label: 'Delivered', color: '#14532d', bg: '#dcfce7' },
+  delivery_failed: { label: 'Delivery Failed', color: '#991b1b', bg: '#fee2e2' },
+  doa_raised: { label: 'DOA Raised', color: '#9d174d', bg: '#fce7f3' },
+  cancelled: { label: 'Cancelled', color: '#991b1b', bg: '#fee2e2' },
+};
+
+function SubStatusBadge({ status }) {
+  const m = SUB_STATUS_META[status] || { label: status, color: '#4b5563', bg: '#f3f4f6' };
+  return (
+    <span style={{
+      padding: '0.28rem 0.65rem', borderRadius: '20px',
+      fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase',
+      backgroundColor: m.bg, color: m.color, whiteSpace: 'nowrap',
+    }}>
+      {m.label}
+    </span>
+  );
+}
+
+function SubOrderCard({ so }) {
+  const shipment = so.shipment;
+  const sellerName = so.seller_name || (so.seller && (so.seller.store_name || so.seller.username));
+  return (
+    <div style={{
+      backgroundColor: '#f8faf8', borderRadius: '16px',
+      padding: 'clamp(1rem,2.5vw,1.5rem)',
+      border: '1px solid #edf2ed',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <div>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 'clamp(0.8rem,2vw,0.9rem)', color: '#1b2d2a', fontFamily: 'monospace' }}>{so.sub_order_number}</p>
+          {sellerName && <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: '#64748b' }}>Seller: {sellerName}</p>}
+        </div>
+        <SubStatusBadge status={so.status} />
+      </div>
+
+      {/* Items */}
+      {so.items && so.items.length > 0 && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1rem',
+          padding: 'clamp(0.5rem,1.5vw,0.75rem)',
+          backgroundColor: 'white', borderRadius: '10px', border: '1px solid #edf2ed',
+        }}>
+          {so.items.map((item, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8rem' }}>
+              {item.product_image && (
+                <img
+                  src={getImageUrl(item.product_image)}
+                  alt={item.product_name}
+                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0, border: '1px solid #edf2ed' }}
+                />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontWeight: 600, color: '#1b2d2a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</p>
+                <p style={{ margin: '0.1rem 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>{item.variant_name}</p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ margin: 0, fontWeight: 700, color: '#1b2d2a' }}>×{item.quantity}</p>
+                <p style={{ margin: '0.1rem 0 0', fontSize: '0.72rem', color: '#64748b' }}>₹{(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* AWB / Courier */}
+      {so.awb_number && (
+        <div style={{
+          marginBottom: '0.75rem', padding: '0.65rem 0.85rem',
+          backgroundColor: 'white', borderRadius: '8px', border: '1px solid #d1fae5',
+        }}>
+          <p style={{ margin: '0 0 0.25rem', fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>AWB Number</p>
+          <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1b2d2a', fontFamily: 'monospace', wordBreak: 'break-all' }}>{so.awb_number}</p>
+          {so.courier_name && <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: '#64748b' }}>via {so.courier_name}</p>}
+        </div>
+      )}
+
+      {/* Courier tracking link */}
+      {shipment?.tracking_url && (
+        <a
+          href={shipment.tracking_url}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem',
+            fontSize: '0.75rem', fontWeight: 700, color: '#1b2d2a',
+            textDecoration: 'none', padding: '0.4rem 0.9rem',
+            border: '1px solid #d1fae5', borderRadius: '8px', backgroundColor: 'white',
+          }}
+        >
+          <Truck size={13} /> Track with Courier <ExternalLink size={11} />
+        </a>
+      )}
+    </div>
+  );
+}
+
 export default function OrderTracking() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -99,59 +205,32 @@ export default function OrderTracking() {
                 ))}
              </div>
 
-             {/* Logistic Context */}
-             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 'clamp(1.5rem,3vw,3rem)' }}>
-                <div>
-                   <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.25rem', color: 'var(--brand-gold)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <MapPin size={16} /> Delivery Sanctuary
-                   </h4>
-                   <div style={{ fontSize: '0.95rem', color: '#475569', lineHeight: 1.8 }}>
-                      <strong>{order.shipping_address?.firstName} {order.shipping_address?.lastName}</strong><br />
-                      {order.shipping_address?.address}<br />
-                      {order.shipping_address?.city}, {order.shipping_address?.zip}
-                   </div>
-                </div>
-                <div>
-                   <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.25rem', color: 'var(--brand-gold)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Truck size={16} /> Transit Hub
-                   </h4>
-                   <div style={{ fontSize: '0.95rem', color: '#475569', lineHeight: 1.8 }}>
-                      {order.courier_name ? (
-                        <>
-                          Carrier: <strong>{order.courier_name}</strong><br />
-                          AWB: <span style={{ fontFamily: 'monospace' }}>{order.awb_number}</span><br />
-                          <a href="#" style={{ color: 'var(--bg-deep)', textDecoration: 'underline', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.5rem' }}>
-                            External Tracking <ExternalLink size={12} />
-                          </a>
-                        </>
-                      ) : (
-                        <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>Awaiting courier assignment after quarantine...</span>
-                      )}
-                   </div>
+             {/* Delivery address */}
+             <div style={{ paddingTop: '0.5rem' }}>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', color: 'var(--brand-gold)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                   <MapPin size={16} /> Delivery Address
+                </h4>
+                <div style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.8 }}>
+                   <strong>{order.shipping_address?.firstName} {order.shipping_address?.lastName}</strong><br />
+                   {order.shipping_address?.address}<br />
+                   {order.shipping_address?.city}, {order.shipping_address?.zip}
                 </div>
              </div>
           </section>
 
-          {/* Specimen Manifest */}
-          <section style={{ backgroundColor: 'white', padding: 'clamp(1.25rem,3vw,3rem)', borderRadius: '32px', border: '1px solid #f1f5f9' }}>
-            <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.25rem)', fontWeight: 700, marginBottom: '2.5rem', fontFamily: 'var(--font-serif)' }}>Acquisition Manifest</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-               {order.items.map(item => (
-                 <div key={item.id} style={{ display: 'grid', gridTemplateColumns: 'clamp(60px,15vw,80px) 1fr auto', gap: 'clamp(0.75rem,2vw,1.5rem)', alignItems: 'center' }}>
-                    <div style={{ width: 'clamp(60px,15vw,80px)', height: 'clamp(60px,15vw,80px)', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-                       <img src={getImageUrl(item.product_image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={item.product_name} />
-                    </div>
-                    <div>
-                       <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>{item.product_name}</h4>
-                       <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{item.variant_name} • Quantity: {item.quantity}</span>
-                    </div>
-                    <div style={{ textAlign: 'right', fontWeight: 800, color: 'var(--bg-deep)' }}>
-                       ₹{parseFloat(item.unit_price * item.quantity).toLocaleString()}
-                    </div>
-                 </div>
-               ))}
-            </div>
-          </section>
+          {/* Per-seller shipment cards */}
+          {order.sub_orders && order.sub_orders.length > 0 && (
+            <section style={{ marginBottom: '3rem' }}>
+              <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.25rem)', fontWeight: 700, marginBottom: '1.25rem', fontFamily: 'var(--font-serif)' }}>
+                Shipments ({order.sub_orders.length})
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {order.sub_orders.map((so) => (
+                  <SubOrderCard key={so.id} so={so} />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Financial Anchor (Right) */}

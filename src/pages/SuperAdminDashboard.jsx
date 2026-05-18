@@ -256,13 +256,22 @@ export default function SuperAdminDashboard() {
   const [catSaving, setCatSaving] = useState(false);
   const [catError, setCatError] = useState('');
 
+  // Grower access management state
+  const [growerSearchQuery, setGrowerSearchQuery] = useState('');
+  const [growerSearchResults, setGrowerSearchResults] = useState([]);
+  const [growerSearchLoading, setGrowerSearchLoading] = useState(false);
+  const [growerActionLoading, setGrowerActionLoading] = useState({});
+  const [growerActionMsg, setGrowerActionMsg] = useState('');
+
   // Payment gateway toggle
   const [paymentGateway, setPaymentGateway] = useState('cashfree');
   const [paymentGatewaySaving, setPaymentGatewaySaving] = useState(false);
+  const [paymentConfirm, setPaymentConfirm] = useState(null); // { id, label } of gateway pending confirmation
 
   // Logistics provider toggle
   const [logisticsProvider, setLogisticsProvider] = useState('nimbuspost');
   const [logisticsProviderSaving, setLogisticsProviderSaving] = useState(false);
+  const [shippingConfirm, setShippingConfirm] = useState(null); // { id, label } of provider pending confirmation
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -619,27 +628,31 @@ export default function SuperAdminDashboard() {
       .catch(() => setLogisticsProvider('nimbuspost'));
   }, [user, authLoading, navigate]);
 
-  const setGateway = async (gw) => {
+  const confirmAndSetGateway = async () => {
+    if (!paymentConfirm) return;
     setPaymentGatewaySaving(true);
     try {
-      const res = await api.patch('/payments/gateway-settings/', { active_gateway: gw });
+      const res = await api.patch('/payments/gateway-settings/', { active_gateway: paymentConfirm.id });
       setPaymentGateway(res.data.active_gateway);
     } catch (e) {
       alert('Failed to update payment gateway. Please try again.');
     } finally {
       setPaymentGatewaySaving(false);
+      setPaymentConfirm(null);
     }
   };
 
-  const setLogisticsProviderChoice = async (provider) => {
+  const confirmAndSetLogistics = async () => {
+    if (!shippingConfirm) return;
     setLogisticsProviderSaving(true);
     try {
-      const res = await api.patch('/shipping/provider-settings/', { active_provider: provider });
+      const res = await api.patch('/shipping/provider-settings/', { active_provider: shippingConfirm.id });
       setLogisticsProvider(res.data.active_provider);
     } catch (e) {
       alert('Failed to update logistics provider. Please try again.');
     } finally {
       setLogisticsProviderSaving(false);
+      setShippingConfirm(null);
     }
   };
 
@@ -659,6 +672,33 @@ export default function SuperAdminDashboard() {
       setData(prev => ({ ...prev, sellers: prev.sellers.filter(s => s.id !== sellerId) }));
     } catch (err) {
       alert("Failed to reject seller. Please try again.");
+    }
+  };
+
+  const searchGrowerUsers = async (q) => {
+    setGrowerSearchQuery(q);
+    if (q.length < 2) { setGrowerSearchResults([]); return; }
+    setGrowerSearchLoading(true);
+    try {
+      const res = await api.get(`/analytics/super-admin/user-search/?q=${encodeURIComponent(q)}`);
+      setGrowerSearchResults(res.data || []);
+    } catch { setGrowerSearchResults([]); }
+    finally { setGrowerSearchLoading(false); }
+  };
+
+  const setGrowerAccess = async (userId, action) => {
+    setGrowerActionLoading(prev => ({ ...prev, [userId]: true }));
+    setGrowerActionMsg('');
+    try {
+      const res = await api.post(`/analytics/super-admin/set-grower/${userId}/`, { action });
+      setGrowerActionMsg(res.data.message);
+      setGrowerSearchResults(prev => prev.map(u =>
+        u.id === userId ? { ...u, role: res.data.role, is_allowed: action === 'grant' } : u
+      ));
+    } catch (e) {
+      setGrowerActionMsg(e.response?.data?.error || 'Action failed');
+    } finally {
+      setGrowerActionLoading(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -736,6 +776,76 @@ export default function SuperAdminDashboard() {
 
       <main style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
 
+        {/* Grower Access Management */}
+        <section>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Grower Access Management
+          </h2>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.65rem 1rem' }}>
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search user by email, name, or username..."
+                value={growerSearchQuery}
+                onChange={e => searchGrowerUsers(e.target.value)}
+                style={{ border: 'none', outline: 'none', flex: 1, fontSize: '0.9rem', backgroundColor: 'transparent' }}
+              />
+              {growerSearchLoading && <div style={{ width: '16px', height: '16px', border: '2px solid #e2e8f0', borderTopColor: '#1b2d2a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+            </div>
+
+            {growerActionMsg && (
+              <div style={{ padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: growerActionMsg.includes('failed') || growerActionMsg.includes('error') ? '#fee2e2' : '#f0fdf4', color: growerActionMsg.includes('failed') || growerActionMsg.includes('error') ? '#b91c1c' : '#166534', fontSize: '0.82rem', fontWeight: 600 }}>
+                {growerActionMsg}
+              </div>
+            )}
+
+            {growerSearchResults.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {growerSearchResults.map(u => (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--bg-deep)' }}>{u.full_name || u.username}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>{u.email}</div>
+                      {u.store_name && <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.1rem' }}>Store: {u.store_name}</div>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      <span style={{
+                        padding: '0.2rem 0.6rem', borderRadius: '50px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase',
+                        backgroundColor: u.role === 'grower' ? '#dcfce7' : u.role === 'admin' ? '#dbeafe' : '#f1f5f9',
+                        color: u.role === 'grower' ? '#166534' : u.role === 'admin' ? '#1e40af' : '#64748b',
+                      }}>{u.role}</span>
+                      {u.role !== 'admin' && (
+                        u.role === 'grower' || u.is_allowed ? (
+                          <button
+                            onClick={() => setGrowerAccess(u.id, 'revoke')}
+                            disabled={growerActionLoading[u.id]}
+                            style={{ padding: '0.4rem 0.9rem', borderRadius: '8px', border: '1px solid #fecaca', backgroundColor: 'white', color: '#dc2626', fontSize: '0.75rem', fontWeight: 700, cursor: growerActionLoading[u.id] ? 'not-allowed' : 'pointer', opacity: growerActionLoading[u.id] ? 0.6 : 1 }}
+                          >
+                            {growerActionLoading[u.id] ? '...' : 'Revoke Grower'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setGrowerAccess(u.id, 'grant')}
+                            disabled={growerActionLoading[u.id]}
+                            style={{ padding: '0.4rem 0.9rem', borderRadius: '8px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', fontSize: '0.75rem', fontWeight: 700, cursor: growerActionLoading[u.id] ? 'not-allowed' : 'pointer', opacity: growerActionLoading[u.id] ? 0.6 : 1 }}
+                          >
+                            {growerActionLoading[u.id] ? '...' : 'Make Grower'}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {growerSearchQuery.length >= 2 && !growerSearchLoading && growerSearchResults.length === 0 && (
+              <p style={{ fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center', padding: '1rem 0' }}>No users found matching "{growerSearchQuery}"</p>
+            )}
+          </div>
+        </section>
+
         {/* Payment Gateway Control */}
         <section>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
@@ -757,20 +867,20 @@ export default function SuperAdminDashboard() {
               ].map(opt => (
                 <button
                   key={opt.id}
-                  onClick={() => setGateway(opt.id)}
-                  disabled={paymentGatewaySaving}
+                  onClick={() => { if (paymentGateway !== opt.id) setPaymentConfirm(opt); }}
+                  disabled={paymentGatewaySaving || paymentGateway === opt.id}
                   style={{
                     padding: '0.6rem 1rem',
                     borderRadius: '10px',
                     border: paymentGateway === opt.id ? '2px solid var(--bg-deep)' : '1px solid #e2e8f0',
                     backgroundColor: paymentGateway === opt.id ? '#f0fdf4' : 'white',
-                    cursor: paymentGatewaySaving ? 'not-allowed' : 'pointer',
+                    cursor: (paymentGatewaySaving || paymentGateway === opt.id) ? 'default' : 'pointer',
                     fontWeight: 800,
                     fontSize: '0.8rem',
                     opacity: paymentGatewaySaving ? 0.6 : 1
                   }}
                 >
-                  {opt.label}
+                  {opt.label} {paymentGateway === opt.id && '✓'}
                 </button>
               ))}
             </div>
@@ -798,20 +908,20 @@ export default function SuperAdminDashboard() {
               ].map(opt => (
                 <button
                   key={opt.id}
-                  onClick={() => setLogisticsProviderChoice(opt.id)}
-                  disabled={logisticsProviderSaving}
+                  onClick={() => { if (logisticsProvider !== opt.id) setShippingConfirm(opt); }}
+                  disabled={logisticsProviderSaving || logisticsProvider === opt.id}
                   style={{
                     padding: '0.6rem 1rem',
                     borderRadius: '10px',
                     border: logisticsProvider === opt.id ? '2px solid var(--bg-deep)' : '1px solid #e2e8f0',
                     backgroundColor: logisticsProvider === opt.id ? '#f0fdf4' : 'white',
-                    cursor: logisticsProviderSaving ? 'not-allowed' : 'pointer',
+                    cursor: (logisticsProviderSaving || logisticsProvider === opt.id) ? 'default' : 'pointer',
                     fontWeight: 800,
                     fontSize: '0.8rem',
                     opacity: logisticsProviderSaving ? 0.6 : 1,
                   }}
                 >
-                  {opt.label}
+                  {opt.label} {logisticsProvider === opt.id && '✓'}
                 </button>
               ))}
             </div>
@@ -1569,6 +1679,68 @@ export default function SuperAdminDashboard() {
               <button onClick={() => setCreatingProduct(false)} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>Cancel</button>
               <button onClick={saveNewProduct} disabled={createProductSaving} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: createProductSaving ? 0.6 : 1 }}>
                 {createProductSaving ? 'Creating...' : 'Create Product'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Gateway Confirmation Modal */}
+      {paymentConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div onClick={() => setPaymentConfirm(null)} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(10,20,18,0.55)', backdropFilter: 'blur(4px)' }} />
+          <div style={{ position: 'relative', backgroundColor: 'white', borderRadius: '20px', padding: '2.5rem', maxWidth: '420px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <IndianRupee size={26} color="#92400e" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Switch Payment Gateway?</h3>
+            <p style={{ color: '#64748b', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+              You are switching to <strong style={{ color: 'var(--bg-deep)' }}>{paymentConfirm.label}</strong>.
+            </p>
+            <p style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2rem' }}>
+              This will immediately affect all active checkout sessions.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setPaymentConfirm(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', color: '#64748b' }}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndSetGateway}
+                disabled={paymentGatewaySaving}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem', opacity: paymentGatewaySaving ? 0.6 : 1 }}
+              >
+                {paymentGatewaySaving ? 'Switching…' : 'Yes, Switch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Provider Confirmation Modal */}
+      {shippingConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div onClick={() => setShippingConfirm(null)} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(10,20,18,0.55)', backdropFilter: 'blur(4px)' }} />
+          <div style={{ position: 'relative', backgroundColor: 'white', borderRadius: '20px', padding: '2.5rem', maxWidth: '420px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <Truck size={26} color="#1d4ed8" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--bg-deep)', marginBottom: '0.75rem' }}>Switch Logistics Provider?</h3>
+            <p style={{ color: '#64748b', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+              You are switching to <strong style={{ color: 'var(--bg-deep)' }}>{shippingConfirm.label}</strong>.
+            </p>
+            <p style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2rem' }}>
+              All new shipment bookings will use this provider from this point forward.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setShippingConfirm(null)} style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem', color: '#64748b' }}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndSetLogistics}
+                disabled={logisticsProviderSaving}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem', opacity: logisticsProviderSaving ? 0.6 : 1 }}
+              >
+                {logisticsProviderSaving ? 'Switching…' : 'Yes, Switch'}
               </button>
             </div>
           </div>

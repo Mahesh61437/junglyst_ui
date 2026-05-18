@@ -87,8 +87,9 @@ function FeaturedSellers({ sellers }) {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          gridTemplateColumns: `repeat(${Math.min(visible.length, 3)}, minmax(0, 1fr))`,
           gap: '1.25rem',
+          maxWidth: visible.length === 1 ? '420px' : 'none',
         }}>
           {visible.map((s, i) => (
             <motion.div key={s.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>

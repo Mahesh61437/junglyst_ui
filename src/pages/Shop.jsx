@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { trackSearch } from '../utils/posthog';
+import { trackSearch } from '../utils/analytics';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams, useNavigationType } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { ProductService } from '../services/ProductService';
-import { Search, X, Leaf, SlidersHorizontal, Check } from 'lucide-react';
+import { Search, X, Leaf, SlidersHorizontal, Check, IndianRupee } from 'lucide-react';
 
 export default function Shop() {
   const { category } = useParams();
@@ -45,6 +45,10 @@ export default function Shop() {
     'Medium': false,
     'Advanced': false,
   });
+  const [inStock, setInStock] = useState(_saved?.inStock || false);
+  const [minPrice, setMinPrice] = useState(_saved?.minPrice || '');
+  const [maxPrice, setMaxPrice] = useState(_saved?.maxPrice || '');
+  const [selectedSubCat, setSelectedSubCat] = useState(_saved?.selectedSubCat || '');
   const [page, setPage] = useState(_saved?.page || 1);
 
   // Restore sortBy from saved state on back navigation
@@ -52,22 +56,25 @@ export default function Shop() {
     if (_saved?.sortBy) setSortBy(_saved.sortBy);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [categoryData, setCategoryData] = useState([]);
+
   // Load categories from API, preserving any already-active selections
   useEffect(() => {
     ProductService.getCategories().then(data => {
       const cats = data.results || data || [];
+      setCategoryData(cats);
       setCategories(prev => {
         const merged = {};
         cats.forEach(c => { merged[c.name] = prev[c.name] ?? false; });
         return merged;
       });
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Persist filter state to sessionStorage so back navigation can restore it
   useEffect(() => {
-    sessionStorage.setItem('shopFilters', JSON.stringify({ categories, difficulties, page, sortBy }));
-  }, [categories, difficulties, page, sortBy]);
+    sessionStorage.setItem('shopFilters', JSON.stringify({ categories, difficulties, page, sortBy, inStock, minPrice, maxPrice, selectedSubCat }));
+  }, [categories, difficulties, page, sortBy, inStock, minPrice, maxPrice, selectedSubCat]);
 
   const gridRef = useRef(null);
   const isFirstRender = useRef(true);
@@ -81,6 +88,12 @@ export default function Shop() {
     () => Object.keys(difficulties).filter(k => difficulties[k]),
     [difficulties],
   );
+  // Subcategories for currently-selected single category
+  const availableSubCats = useMemo(() => {
+    if (activeCats.length !== 1) return [];
+    const cat = categoryData.find(c => c.name === activeCats[0]);
+    return cat?.subcategories || [];
+  }, [activeCats, categoryData]);
 
   const sortParam = useMemo(() => {
     if (sortBy === 'Price: Low to High') return 'price';
@@ -94,8 +107,12 @@ export default function Shop() {
     if (searchTerm.trim()) p.search = searchTerm.trim();
     if (activeCats.length === 1) p.category = activeCats[0];   // single cat filter
     if (activeDiffs.length > 0) p.care_level = activeDiffs.join(',');
+    if (inStock) p.in_stock = 'true';
+    if (minPrice) p.min_price = minPrice;
+    if (maxPrice) p.max_price = maxPrice;
+    if (selectedSubCat) p.sub_category_id = selectedSubCat;
     return p;
-  }, [page, sortParam, searchTerm, activeCats, activeDiffs]);
+  }, [page, sortParam, searchTerm, activeCats, activeDiffs, inStock, minPrice, maxPrice, selectedSubCat]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['products', apiParams],
@@ -135,6 +152,10 @@ export default function Shop() {
       return category ? { ...cleared, [category]: true } : cleared;
     });
     setDifficulties(prev => Object.keys(prev).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
+    setInStock(false);
+    setMinPrice('');
+    setMaxPrice('');
+    setSelectedSubCat('');
     setPage(1);
   }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -175,6 +196,10 @@ export default function Shop() {
   const clearAllFilters = () => {
     setCategories(Object.keys(categories).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
     setDifficulties(Object.keys(difficulties).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
+    setInStock(false);
+    setMinPrice('');
+    setMaxPrice('');
+    setSelectedSubCat('');
     setSearchTerm('');
     setPage(1);
     if (category) navigate('/shop');
@@ -182,7 +207,10 @@ export default function Shop() {
 
   const activeFilterCount =
     Object.values(categories).filter(Boolean).length +
-    Object.values(difficulties).filter(Boolean).length;
+    Object.values(difficulties).filter(Boolean).length +
+    (inStock ? 1 : 0) +
+    (minPrice || maxPrice ? 1 : 0) +
+    (selectedSubCat ? 1 : 0);
 
   const hasActiveFilters = activeFilterCount > 0 || !!searchTerm;
 
@@ -258,6 +286,50 @@ export default function Shop() {
         })}
       </div>
 
+      {/* Subcategory — only shown when exactly one parent category is selected */}
+      {availableSubCats.length > 0 && (
+        <>
+          <p style={{
+            fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase',
+            letterSpacing: '0.15em', color: 'var(--brand-gold)', marginBottom: '0.875rem', marginTop: '1.5rem',
+          }}>
+            Sub-Category
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '2rem' }}>
+            {availableSubCats.map(sub => {
+              const active = selectedSubCat === String(sub.id);
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => { setSelectedSubCat(active ? '' : String(sub.id)); setPage(1); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    padding: '0.65rem 0.875rem', borderRadius: '12px', cursor: 'pointer',
+                    border: `1.5px solid ${active ? '#10b981' : '#e8ede9'}`,
+                    backgroundColor: active ? '#ecfdf5' : 'white',
+                    color: active ? '#065f46' : '#4b5563',
+                    fontWeight: active ? 700 : 500, fontSize: '0.875rem',
+                    transition: 'all 0.18s', textAlign: 'left',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  <span style={{
+                    width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0,
+                    border: `1.5px solid ${active ? '#10b981' : '#d1d5db'}`,
+                    backgroundColor: active ? '#10b981' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.18s',
+                  }}>
+                    {active && <Check size={12} color="white" strokeWidth={3} />}
+                  </span>
+                  {sub.name}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* Care Level */}
       <p style={{
         fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase',
@@ -265,12 +337,12 @@ export default function Shop() {
       }}>
         Care Level
       </p>
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
         {Object.keys(difficulties).map(diff => {
           const active = difficulties[diff];
           const palette = {
-            Easy:     { bg: '#f0fdf4', border: '#86efac', text: '#166534', activeBg: '#22c55e' },
-            Medium:   { bg: '#fffbeb', border: '#fcd34d', text: '#92400e', activeBg: '#f59e0b' },
+            Easy: { bg: '#f0fdf4', border: '#86efac', text: '#166534', activeBg: '#22c55e' },
+            Medium: { bg: '#fffbeb', border: '#fcd34d', text: '#92400e', activeBg: '#f59e0b' },
             Advanced: { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', activeBg: '#ef4444' },
           };
           const p = palette[diff];
@@ -293,6 +365,75 @@ export default function Shop() {
           );
         })}
       </div>
+
+      {/* Price Range */}
+      <p style={{
+        fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase',
+        letterSpacing: '0.15em', color: 'var(--brand-gold)', marginBottom: '0.875rem',
+      }}>
+        Price Range (₹)
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <IndianRupee size={11} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+          <input
+            type="number"
+            placeholder="Min"
+            value={minPrice}
+            min="0"
+            onChange={e => { setMinPrice(e.target.value); setPage(1); }}
+            style={{
+              width: '100%', padding: '0.55rem 0.5rem 0.55rem 1.75rem',
+              borderRadius: '10px', border: `1.5px solid ${minPrice ? '#10b981' : '#e8ede9'}`,
+              fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box',
+              fontFamily: 'var(--font-sans)',
+            }}
+          />
+        </div>
+        <span style={{ color: '#9ca3af', fontSize: '0.75rem', flexShrink: 0 }}>—</span>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <IndianRupee size={11} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+          <input
+            type="number"
+            placeholder="Max"
+            value={maxPrice}
+            min="0"
+            onChange={e => { setMaxPrice(e.target.value); setPage(1); }}
+            style={{
+              width: '100%', padding: '0.55rem 0.5rem 0.55rem 1.75rem',
+              borderRadius: '10px', border: `1.5px solid ${maxPrice ? '#10b981' : '#e8ede9'}`,
+              fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box',
+              fontFamily: 'var(--font-sans)',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* In Stock */}
+      <button
+        onClick={() => { setInStock(v => !v); setPage(1); }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+          width: '100%', padding: '0.75rem 0.875rem', borderRadius: '12px', cursor: 'pointer',
+          border: `1.5px solid ${inStock ? '#10b981' : '#e8ede9'}`,
+          backgroundColor: inStock ? '#ecfdf5' : 'white',
+          color: inStock ? '#065f46' : '#4b5563',
+          fontWeight: inStock ? 700 : 500, fontSize: '0.875rem',
+          transition: 'all 0.18s', textAlign: 'left',
+          fontFamily: 'var(--font-sans)',
+        }}
+      >
+        <span style={{
+          width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0,
+          border: `1.5px solid ${inStock ? '#10b981' : '#d1d5db'}`,
+          backgroundColor: inStock ? '#10b981' : 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.18s',
+        }}>
+          {inStock && <Check size={12} color="white" strokeWidth={3} />}
+        </span>
+        In Stock Only
+      </button>
     </div>
   );
 

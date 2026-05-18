@@ -7,7 +7,7 @@ import api from '../services/api';
 import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 import { load } from '@cashfreepayments/cashfree-js';
-import { trackEvent } from '../utils/posthog';
+import { trackEvent, trackCheckoutInitiated } from '../utils/analytics';
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -54,7 +54,7 @@ export default function Checkout() {
   // Fire checkout_initiated once when user lands on checkout with a valid cart
   useEffect(() => {
     if (cart?.items?.length) {
-      trackEvent('checkout_page_viewed', { value: cart.grand_total, num_items: cart.items.length });
+      trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.items.length });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
