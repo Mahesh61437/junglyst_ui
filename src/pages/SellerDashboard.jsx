@@ -2642,48 +2642,49 @@ export default function SellerDashboard() {
                                   </div>
                                 </div>
 
-                                {/* Pricing — seller enters GST-inclusive price, Junglyst adds 10% */}
+                                {/* Pricing — seller enters their price, we show payout after commission */}
                                 <div style={{ padding: isMobile ? '1.25rem' : '2rem', backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', marginBottom: '2.5rem' }}>
-                                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                                    <div>
-                                      <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.4rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>
-                                        Your Selling Price (₹, incl. GST) <span style={{ color: '#ef4444' }}>*</span>
-                                        {fieldErrors[`variant_${idx}_base_price`] && ` — ${fieldErrors[`variant_${idx}_base_price`]}`}
-                                      </label>
-                                      <p style={{ fontSize: '0.6rem', color: '#94a3b8', margin: '0 0 0.6rem', fontWeight: 500 }}>Enter the price you want to receive. Must include GST.</p>
-                                      <input
-                                        type="number"
-                                        value={v.base_price}
-                                        onChange={e => {
-                                          const updated = [...newProduct.variants];
-                                          updated[idx].base_price = e.target.value;
-                                          setNewProduct({ ...newProduct, variants: updated });
-                                          setFieldErrors({ ...fieldErrors, [`variant_${idx}_base_price`]: null });
-                                        }}
-                                        placeholder="e.g. 450"
-                                        className={fieldErrors[`variant_${idx}_base_price`] ? 'form-error-input' : ''}
-                                        style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
-                                      />
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                                      <p style={{ fontSize: '0.6rem', fontWeight: 700, color: '#64748b', margin: '0 0 0.4rem', textTransform: 'uppercase' }}>Junglyst Commission</p>
-                                      <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0 0 0.6rem' }}>10% added on top of your price</p>
-                                      <div style={{ padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
-                                        <p style={{ fontSize: '0.65rem', color: '#15803d', fontWeight: 600, margin: 0 }}>
-                                          Commission: ₹{(parseFloat(v.base_price || 0) * 0.10).toFixed(2)}
-                                        </p>
+                                  <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.4rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>
+                                    Your Listed Price (₹) <span style={{ color: '#ef4444' }}>*</span>
+                                    {fieldErrors[`variant_${idx}_base_price`] && ` — ${fieldErrors[`variant_${idx}_base_price`]}`}
+                                  </label>
+                                  <p style={{ fontSize: '0.6rem', color: '#94a3b8', margin: '0 0 0.6rem', fontWeight: 500 }}>Set the price you want your product listed at.</p>
+                                  <input
+                                    type="number"
+                                    value={v.base_price}
+                                    onChange={e => {
+                                      const updated = [...newProduct.variants];
+                                      updated[idx].base_price = e.target.value;
+                                      setNewProduct({ ...newProduct, variants: updated });
+                                      setFieldErrors({ ...fieldErrors, [`variant_${idx}_base_price`]: null });
+                                    }}
+                                    placeholder="e.g. 450"
+                                    className={fieldErrors[`variant_${idx}_base_price`] ? 'form-error-input' : ''}
+                                    style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', marginBottom: '1.25rem' }}
+                                  />
+
+                                  {/* Payout breakdown */}
+                                  {parseFloat(v.base_price) > 0 && (() => {
+                                    const listed = parseFloat(v.base_price) || 0;
+                                    const commission = listed * 0.10;
+                                    const payout = listed - commission;
+                                    return (
+                                      <div style={{ backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px dashed #e2e8f0' }}>
+                                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Listed price</span>
+                                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1b2d2a' }}>₹{listed.toFixed(2)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px dashed #e2e8f0' }}>
+                                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Platform fee (10%)</span>
+                                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ef4444' }}>−₹{commission.toFixed(2)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', backgroundColor: '#f0fdf4' }}>
+                                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#15803d' }}>You receive</span>
+                                          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#15803d' }}>₹{payout.toFixed(2)}</span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.25rem', borderTop: '1px dashed #edf2ed' }}>
-                                    <div>
-                                      <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1b2d2a', margin: 0 }}>Buyer sees</p>
-                                      <p style={{ fontSize: '0.6rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>Your price + 10% Junglyst fee</p>
-                                    </div>
-                                    <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1b2d2a' }}>
-                                      ₹{(parseFloat(v.base_price || 0) * 1.10).toFixed(2)}
-                                    </span>
-                                  </div>
+                                    );
+                                  })()}
                                 </div>
 
                                 {/* Shipping fields */}
