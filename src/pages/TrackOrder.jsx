@@ -60,7 +60,14 @@ function SubOrderCard({ so }) {
           backgroundColor: 'white', borderRadius: '8px', border: '1px solid #edf2ed',
         }}>
           {so.items.map((item, idx) => (
-            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', fontSize: 'clamp(0.7rem,1.8vw,0.75rem)' }}>
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: 'clamp(0.7rem,1.8vw,0.75rem)' }}>
+              {item.product_image && (
+                <img
+                  src={item.product_image}
+                  alt={item.product_name}
+                  style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0, border: '1px solid #edf2ed' }}
+                />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ margin: 0, fontWeight: 600, color: '#1b2d2a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</p>
                 <p style={{ margin: '0.1rem 0 0', fontSize: 'clamp(0.6rem,1.5vw,0.65rem)', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.variant_name}</p>
@@ -303,57 +310,6 @@ export default function TrackOrder() {
                 </div>
               </div>
             </section>
-
-            {/* Order Items */}
-            {orderData.items && orderData.items.length > 0 && (
-              <section style={{
-                backgroundColor: 'white',
-                padding: 'clamp(1.25rem,3vw,2rem)',
-                borderRadius: '24px', border: '1px solid #f1f5f9', marginBottom: '3rem',
-              }}>
-                <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.2rem)', fontFamily: 'var(--font-serif)', marginBottom: '1.5rem' }}>
-                  Order Items ({orderData.items.length})
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {orderData.items.map((item) => (
-                    <div key={item.id} style={{
-                      display: 'flex', alignItems: 'center',
-                      gap: 'clamp(0.75rem,2vw,1rem)',
-                      padding: 'clamp(0.75rem,2vw,1rem)',
-                      backgroundColor: '#f8faf8', borderRadius: '12px', border: '1px solid #edf2ed',
-                    }}>
-                      {item.product_image && (
-                        <img
-                          src={item.product_image}
-                          alt={item.product_name}
-                          style={{
-                            width: 'clamp(45px,8vw,60px)', height: 'clamp(45px,8vw,60px)',
-                            objectFit: 'cover', borderRadius: '8px',
-                            border: '1px solid #edf2ed', flexShrink: 0,
-                          }}
-                        />
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontWeight: 600, fontSize: 'clamp(0.8rem,2vw,0.9rem)', color: '#1b2d2a' }}>
-                          {item.product_name}
-                        </p>
-                        <p style={{ margin: '0.25rem 0 0', fontSize: 'clamp(0.7rem,1.8vw,0.8rem)', color: '#94a3b8' }}>
-                          {item.variant_name}
-                        </p>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p style={{ margin: 0, fontWeight: 700, fontSize: 'clamp(0.75rem,2vw,0.85rem)', color: '#1b2d2a' }}>
-                          Qty: {item.quantity}
-                        </p>
-                        <p style={{ margin: '0.25rem 0 0', fontSize: 'clamp(0.7rem,1.8vw,0.8rem)', color: '#64748b' }}>
-                          ₹{(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
 
             {/* Sub-orders */}
             {orderData.sub_orders && orderData.sub_orders.length > 0 && (

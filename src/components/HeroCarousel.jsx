@@ -99,9 +99,13 @@ export default function HeroCarousel({ sellers = [] }) {
             {slide.store_name}
           </h1>
 
-          {/* Tagline / bio */}
-          <p style={{ fontSize: 'clamp(0.9rem, 1.8vw, 1.1rem)', color: 'rgba(255,255,255,0.72)', lineHeight: 1.65, marginBottom: '2.25rem', maxWidth: '500px' }}>
-            {slide.tagline || slide.bio}
+          {/* Tagline / bio — tagline preferred; bio capped to keep carousel clean */}
+          <p style={{
+            fontSize: 'clamp(0.9rem, 1.8vw, 1.05rem)', color: 'rgba(255,255,255,0.72)', lineHeight: 1.65,
+            marginBottom: '2.25rem', maxWidth: '480px',
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {slide.tagline || (slide.bio ? slide.bio.replace(/\s+/g, ' ').trim().slice(0, 130) + (slide.bio.length > 130 ? '…' : '') : '')}
           </p>
 
           {/* CTAs */}

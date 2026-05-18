@@ -746,21 +746,24 @@ export default function SellerDashboard() {
   const handleShipNow = async (subOrderIds) => {
     if (!subOrderIds || subOrderIds.length === 0) return;
     setBulkShipping(true);
+    setFormError('');
+    setSuccess('');
     let successCount = 0;
-    const errors = [];
+    const errorMessages = [];
     for (const id of subOrderIds) {
       try {
         const res = await api.post(`/orders/seller/sub-orders/${id}/ship/`);
         setOrders(prev => prev.map(o => o.id === id ? res.data : o));
         successCount++;
       } catch (err) {
-        errors.push(id);
+        const msg = err.response?.data?.error || 'Shipment initiation failed.';
+        errorMessages.push(msg);
       }
     }
     setBulkShipping(false);
     setSelectedOrders(new Set());
     if (successCount > 0) setSuccess(`${successCount} shipment${successCount > 1 ? 's' : ''} initiated — labels will be ready shortly.`);
-    if (errors.length > 0) setFormError(`Failed to initiate ${errors.length} shipment(s). Ensure at least one packaging photo is uploaded.`);
+    if (errorMessages.length > 0) setFormError(errorMessages.join(' | '));
   };
 
   const handlePackageImageUpload = async (subOrderId, file) => {
