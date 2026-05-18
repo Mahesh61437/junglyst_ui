@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const TOPICS = [
   'Order Issue',
@@ -32,6 +33,11 @@ export default function Contact() {
 
   return (
     <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-primary)' }}>
+      <SEO
+        title="Contact Us | Junglyst"
+        description="Get in touch with the Junglyst team for order support, shipping queries, seller inquiries, or partnership opportunities."
+        path="/contact"
+      />
 
       {/* Hero */}
       <section style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: '7rem 0 5rem' }}>

@@ -1,6 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Calendar, Clock, User } from 'lucide-react';
 import { blogs } from '../data/blogs';
+import SEO from '../components/SEO';
 
 export default function BlogDetail() {
   const { slug } = useParams();
@@ -32,6 +33,20 @@ export default function BlogDetail() {
   
   return (
     <div style={{ fontFamily: 'Inter, sans-serif', color: '#1f2937', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <SEO
+        title={`${blog.title} | Junglyst`}
+        description={blog.excerpt || blog.description || `${blog.title} — read the full care guide on Junglyst.`}
+        path={`/blog/${blog.slug}`}
+        image={blog.image || blog.coverImage || undefined}
+        type="article"
+        schemaType="Article"
+        schemaData={{
+          headline: blog.title,
+          author: { '@type': 'Person', name: blog.author || 'Junglyst' },
+          datePublished: blog.date || blog.publishedAt,
+          image: blog.image || blog.coverImage,
+        }}
+      />
       {/* Hero Section */}
       <div style={{ backgroundColor: '#0A3029', color: 'white', paddingTop: '4rem', paddingBottom: '3rem', position: 'relative', overflow: 'hidden' }}>
         <div className="container" style={{ maxWidth: '900px' }}>

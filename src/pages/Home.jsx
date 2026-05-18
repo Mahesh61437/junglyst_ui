@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
@@ -173,6 +174,11 @@ export default function Home() {
 
   return (
     <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', overflowX: 'hidden' }}>
+      <SEO
+        title="Junglyst — Rare Aquatic Botanicals"
+        description="Discover and buy rare aquatic plants, aquarium moss, and tropical botanicals from verified growers across India. Curated for hobbyists and collectors."
+        path="/"
+      />
 
       {/* Promoted seller slides — sort_order + is_featured controls which sellers appear */}
       <HeroCarousel sellers={featuredSellers} />

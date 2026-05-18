@@ -1,4 +1,5 @@
 import PolicyLayout, { Section, Notice, Divider } from '../components/PolicyLayout';
+import SEO from '../components/SEO';
 
 const RELATED = [
   { to: '/refund-policy', label: 'Refunds & Returns' },
@@ -32,6 +33,12 @@ const tdAltStyle = { ...tdStyle, background: '#f8fafc' };
 
 export default function ShippingPolicy() {
   return (
+    <>
+    <SEO
+      title="Shipping Policy | Junglyst"
+      description="Junglyst shipping policy — delivery timelines, live plant packaging, AWB tracking, and what to do if your order is delayed or damaged in transit."
+      path="/shipping-policy"
+    />
     <PolicyLayout
       badge="Shipping"
       title="Shipping Policy"
@@ -138,5 +145,6 @@ export default function ShippingPolicy() {
         <p>For any shipping-related concerns, contact us at <strong>admin@junglyst.com</strong> or raise a query through our <a href="/contact" style={{ color: 'var(--brand-gold)', fontWeight: 700 }}>Contact page</a>. Please have your order number and AWB number ready for faster resolution.</p>
       </Section>
     </PolicyLayout>
+    </>
   );
 }

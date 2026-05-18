@@ -2,12 +2,18 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Leaf, Droplets, Sun, Wind, ChevronRight, Search, Microscope } from 'lucide-react';
 import { blogs } from '../data/blogs';
+import SEO from '../components/SEO';
 
 export default function CareGuides() {
   const [searchTerm, setSearchTerm] = useState('');
 
   return (
     <div className="container" style={{ padding: '6rem 1rem', minHeight: '80vh', fontFamily: 'Inter, sans-serif' }}>
+      <SEO
+        title="Aquatic Plant Care Guides | Junglyst"
+        description="In-depth care guides for aquatic plants, aquarium moss, and tropical botanicals. Learn about lighting, CO₂, substrate, and water parameters for healthy plants."
+        path="/guides"
+      />
       <div style={{ marginBottom: '5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '3rem' }}>
           <div style={{ maxWidth: '600px' }}>

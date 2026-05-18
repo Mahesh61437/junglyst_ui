@@ -1,4 +1,5 @@
 import PolicyLayout, { Section, Notice, Divider } from '../components/PolicyLayout';
+import SEO from '../components/SEO';
 
 const RELATED = [
   { to: '/privacy', label: 'Privacy Policy' },
@@ -9,6 +10,12 @@ const RELATED = [
 
 export default function Terms() {
   return (
+    <>
+    <SEO
+      title="Terms & Conditions | Junglyst"
+      description="Read Junglyst's terms and conditions governing use of our marketplace platform, buyer protections, and seller obligations."
+      path="/terms"
+    />
     <PolicyLayout
       badge="Legal"
       title="Terms & Conditions"
@@ -91,5 +98,6 @@ export default function Terms() {
         <p>For questions regarding these Terms, write to us at <strong>legal@junglyst.com</strong> or visit our <a href="/contact" style={{ color: 'var(--brand-gold)', fontWeight: 700 }}>Contact page</a>.</p>
       </Section>
     </PolicyLayout>
+    </>
   );
 }

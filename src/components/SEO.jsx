@@ -1,47 +1,46 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
-// Retrieve domain from Vite environment variables (falling back to window.location.origin)
-// As requested, leveraging VITE_API_URL to determine the domain if available
-const getDomain = () => {
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return window.location.origin;
-  }
-  
-  const apiUrl = import.meta.env.VITE_API_URL || '';
-  const match = apiUrl.match(/^(https?:\/\/[^\/]+)/);
-  if (match) {
-    return match[1];
-  }
-  
-  return '';
-};
+const DOMAIN =
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : import.meta.env.VITE_SITE_URL || '';
 
-const DOMAIN = getDomain();
-
-const SEO = ({ title, description, path, imagePath, schemaType, schemaData }) => {
-  const url = `${DOMAIN}${path}`;
-  const image = imagePath ? `${DOMAIN}${imagePath}` : undefined;
+const SEO = ({ title, description, path, image, type = 'website', schemaType, schemaData }) => {
+  const url = `${DOMAIN}${path || ''}`;
+  // Accept a full URL (e.g. S3) or a root-relative path
+  const imageUrl = image
+    ? image.startsWith('http')
+      ? image
+      : `${DOMAIN}${image}`
+    : undefined;
 
   return (
     <Helmet>
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={url} />
-      
-      {/* Open Graph / Social */}
+
+      {/* Open Graph */}
+      <meta property="og:type" content={type} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={url} />
-      {image && <meta property="og:image" content={image} />}
+      {imageUrl && <meta property="og:image" content={imageUrl} />}
+
+      {/* Twitter Card */}
+      <meta name="twitter:card" content={imageUrl ? 'summary_large_image' : 'summary'} />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      {imageUrl && <meta name="twitter:image" content={imageUrl} />}
 
       {/* Structured Data (JSON-LD) */}
       {schemaType && schemaData && (
         <script type="application/ld+json">
           {JSON.stringify({
-            "@context": "https://schema.org/",
-            "@type": schemaType,
-            ...schemaData
+            '@context': 'https://schema.org/',
+            '@type': schemaType,
+            ...schemaData,
           })}
         </script>
       )}

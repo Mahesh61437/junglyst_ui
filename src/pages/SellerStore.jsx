@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink, Sparkles, CheckCircle2 } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import ProductCard from '../components/ProductCard';
@@ -119,7 +120,13 @@ export default function SellerStore() {
 
   return (
     <div style={{ backgroundColor: '#f9f8f4', minHeight: '100vh', paddingBottom: '6rem', fontFamily: 'Inter, sans-serif', color: '#1a1a1a' }}>
-      
+      <SEO
+        title={`${sellerInfo.name || sellerName} — Verified Grower | Junglyst`}
+        description={sellerInfo.tagline || `Browse rare aquatic plants and botanicals from ${sellerInfo.name || sellerName} on Junglyst.`}
+        path={`/store/${sellerName}`}
+        image={sellerInfo.heroImage?.startsWith('/') ? undefined : sellerInfo.heroImage}
+      />
+
       {/* 1. Fashion Editorial Hero */}
       <section className="seller-hero" style={{ position: 'relative', backgroundColor: '#f3f4f1' }}>
         {/* Hero Image (top on mobile, right on desktop) */}
