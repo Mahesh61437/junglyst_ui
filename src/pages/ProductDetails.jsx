@@ -565,7 +565,7 @@ export default function ProductDetails() {
                   <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '1rem' }}>
                     <div style={{ position: 'relative' }}>
                       <div style={{ maxHeight: showFullDesc ? 'none' : '450px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
-                        <div dangerouslySetInnerHTML={{ __html: product.description || "A pristine specimen selected for its exceptional vigor and spectral vibrancy." }} />
+                        <div className="product-description-html" dangerouslySetInnerHTML={{ __html: product.description || "A pristine specimen selected for its exceptional vigor and spectral vibrancy." }} />
                         {!product.description && <p>Each {name} has been meticulously inspected by our studio team, ensuring that leaf health, root distribution, and metabolic activity are at their peak before being cleared for acquisition.</p>}
                       </div>
                       {!showFullDesc && (
@@ -854,7 +854,7 @@ export default function ProductDetails() {
             {/* Seller Story Bridge */}
             <div style={{ display: 'flex', gap: '1.5rem', padding: '1.75rem', borderRadius: '20px', backgroundColor: 'var(--bg-deep)', color: 'white' }}>
               <div style={{ flexShrink: 0, width: '110px', height: '110px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--brand-gold)', backgroundColor: 'white' }}>
-                <img src={getImageUrl(product.seller?.seller_profile?.logo_url) || sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={getImageUrl(product.seller?.seller_profile?.icon_url || product.seller?.seller_profile?.logo_url) || sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>

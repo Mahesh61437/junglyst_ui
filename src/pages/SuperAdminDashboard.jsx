@@ -355,7 +355,12 @@ export default function SuperAdminDashboard() {
       tagline: profile.tagline || '',
       brand_color: profile.brand_color || '#0A3029',
       location_city: profile.location_city || '',
+      location_pincode: profile.location_pincode || '',
+      gst_number: profile.gst_number || '',
+      is_active: profile.is_active !== false,
+      identity_verified: profile.identity_verified || false,
       logo_url: profile.logo_url || '',
+      icon_url: profile.icon_url || '',
       banner_url: profile.banner_url || '',
       expertise_tags: (profile.expertise_tags || []).join(', '),
     });
@@ -364,7 +369,7 @@ export default function SuperAdminDashboard() {
   };
 
   const uploadSellerImage = async (file, field) => {
-    const key = field === 'logo_url' ? 'logo' : 'banner';
+    const key = field === 'icon_url' ? 'icon' : field === 'logo_url' ? 'logo' : 'banner';
     setImageUploading(prev => ({ ...prev, [key]: true }));
     try {
       const formData = new FormData();
@@ -1198,11 +1203,11 @@ export default function SuperAdminDashboard() {
             {promoSellers.map(profile => (
               <div key={profile.id} style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ height: '80px', backgroundColor: profile.brand_color || 'var(--bg-deep)', backgroundImage: profile.banner_url ? `url(${profile.banner_url})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }}>
-                  {profile.logo_url && (
-                    <img src={profile.logo_url} alt="" style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
+                  {(profile.icon_url || profile.logo_url) && (
+                    <img src={profile.icon_url || profile.logo_url} alt="" style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
                   )}
                 </div>
-                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: profile.logo_url ? '1.75rem' : '1.25rem' }}>
+                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: (profile.icon_url || profile.logo_url) ? '1.75rem' : '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <p style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--bg-deep)', margin: '0 0 0.15rem' }}>{profile.store_name}</p>
@@ -1537,6 +1542,8 @@ export default function SuperAdminDashboard() {
                 { label: 'Store Name', key: 'store_name' },
                 { label: 'Location City', key: 'location_city' },
                 { label: 'Tagline', key: 'tagline' },
+                { label: 'Location Pincode', key: 'location_pincode' },
+                { label: 'GST Number', key: 'gst_number' },
                 { label: 'Brand Color (hex)', key: 'brand_color' },
               ].map(({ label, key }) => (
                 <div key={key}>
@@ -1551,8 +1558,9 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Logo & Banner */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               {[
+                { label: 'Icon (profile pic)', field: 'icon_url', uploadKey: 'icon' },
                 { label: 'Logo', field: 'logo_url', uploadKey: 'logo' },
                 { label: 'Banner', field: 'banner_url', uploadKey: 'banner' },
               ].map(({ label, field, uploadKey }) => (
@@ -1579,6 +1587,23 @@ export default function SuperAdminDashboard() {
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={labelStyle}>Expertise Tags (comma separated)</label>
               <input value={editSellerForm.expertise_tags || ''} onChange={e => setEditSellerForm(f => ({ ...f, expertise_tags: e.target.value }))} placeholder="Bucephalandra, Rare Aroids, Aquatic Plants" style={inputStyle} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              {[
+                { label: 'Store Active', key: 'is_active' },
+                { label: 'Identity Verified', key: 'identity_verified' },
+              ].map(({ label, key }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!editSellerForm[key]}
+                    onChange={e => setEditSellerForm(f => ({ ...f, [key]: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginBottom: '2rem' }}>
