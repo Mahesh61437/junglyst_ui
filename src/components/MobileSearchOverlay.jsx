@@ -74,7 +74,7 @@ export default function MobileSearchOverlay({ open, onClose }) {
           {/* Input */}
           <input
             ref={inputRef}
-            type="search"
+            type="text"
             enterKeyHint="search"
             placeholder="Search plants, hardscape…"
             value={query}

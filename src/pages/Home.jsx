@@ -215,6 +215,18 @@ export default function Home() {
             ))}
           </div>
         )}
+
+        {!loading && products.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'clamp(2rem,4vw,3rem)' }}>
+            <Link
+              to="/shop"
+              className="btn btn-primary"
+              style={{ padding: '0.85rem 2.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}
+            >
+              View All Products <ArrowRight size={15} />
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Trust badges */}
