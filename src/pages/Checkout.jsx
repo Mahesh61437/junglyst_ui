@@ -42,6 +42,7 @@ export default function Checkout() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showGuestConfirm, setShowGuestConfirm] = useState(false);
   const [verifying, setVerifying] = useState(false); // polling overlay state
   // Ref to prevent empty-cart guard from redirecting to /cart after order is placed
   const orderPlaced = useRef(false);
@@ -107,7 +108,7 @@ export default function Checkout() {
         if (pStatus === 'success') {
           clearInterval(interval);
           clearCart();
-          try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch {}
+          try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch { }
           navigate('/checkout/success', { state: { order } });
         } else if (pStatus === 'failed') {
           clearInterval(interval);
@@ -159,6 +160,12 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (!user && !showGuestConfirm) {
+      setShowGuestConfirm(true);
+      return;
+    }
+    setShowGuestConfirm(false);
 
     if (deliveryBlocked) {
       setError("Delivery is not available for your selected address. Please update the address or contact support.");
@@ -231,7 +238,7 @@ export default function Checkout() {
 
       if (mock_payment) {
         await clearCart();
-        try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch {}
+        try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch { }
         navigate('/checkout/success', { state: { order } });
         return;
       }
@@ -303,7 +310,7 @@ export default function Checkout() {
                 razorpay_signature: rzpRes.razorpay_signature,
               });
               clearCart();
-              try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch {}
+              try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch { }
               navigate('/checkout/success', { state: { order: response.order } });
             } catch (e) {
               console.error('Razorpay verify failed:', e);
@@ -379,7 +386,7 @@ export default function Checkout() {
             cashfree_order_id: cashfree_order_id,
           }).then((response) => {
             clearCart();
-            try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch {}
+            try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch { }
             navigate('/checkout/success', { state: { order: response.order } });
           }).catch(() => {
             orderPlaced.current = false;
@@ -420,6 +427,7 @@ export default function Checkout() {
   };
 
   return (
+    <>
     <div className="container" style={{ padding: '4rem 1rem 10rem' }}>
 
       {/* ── Payment Verifying Overlay ── */}
@@ -520,7 +528,7 @@ export default function Checkout() {
                 </div>
                 <div>
                   <label style={labelStyle}>Mobile <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required type="tel" placeholder="+91 98765 43210" value={shipping.phone} onChange={f('phone')} style={inputStyle} />
+                  <input required type="tel" placeholder="+91 12345 67890" value={shipping.phone} onChange={f('phone')} style={inputStyle} />
                 </div>
               </div>
 
@@ -741,5 +749,40 @@ export default function Checkout() {
 
       </div>
     </div>
+
+      {/* Guest checkout confirmation modal */}
+
+      {showGuestConfirm && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '2rem', maxWidth: '400px', width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
+              <Info size={22} color="#ca8a04" />
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.25rem', color: '#1b2d2a', marginBottom: '0.5rem' }}>Continue without signing in?</h3>
+            <p style={{ fontSize: '0.88rem', color: '#64748b', lineHeight: 1.6, marginBottom: '1.75rem' }}>
+              You're about to complete your order as a guest. You won't be able to track your order or view it in your account later.{' '}
+              <Link to="/login" style={{ color: '#1b2d2a', fontWeight: 700, textDecoration: 'underline' }}>Sign in</Link> for a better experience.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowGuestConfirm(false)}
+                style={{ flex: 1, padding: '0.85rem', borderRadius: '12px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#1b2d2a', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Go Back
+              </button>
+              <button
+                onClick={() => {
+                  const form = document.getElementById('checkout-form');
+                  if (form) form.requestSubmit();
+                }}
+                style={{ flex: 1, padding: '0.85rem', borderRadius: '12px', border: 'none', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Continue as Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

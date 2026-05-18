@@ -114,7 +114,7 @@ function FeaturedSellers({ sellers }) {
                         src={getImageUrl(s.icon_url || s.logo_url) || '/assets/default-logo.jpg'}
                         alt={s.store_name}
                         onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '9px' }}
                       />
                     </div>
 
