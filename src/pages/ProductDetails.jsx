@@ -855,7 +855,7 @@ export default function ProductDetails() {
             {/* Seller Story Bridge */}
             <div style={{ display: 'flex', gap: '1.5rem', padding: '1.75rem', borderRadius: '20px', backgroundColor: 'var(--bg-deep)', color: 'white' }}>
               <div style={{ flexShrink: 0, width: '110px', height: '110px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--brand-gold)', backgroundColor: 'white' }}>
-                <img src={getImageUrl(product.seller?.seller_profile?.icon_url || product.seller?.seller_profile?.logo_url) || sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
