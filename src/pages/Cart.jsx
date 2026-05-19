@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackCheckoutInitiated } from '../utils/analytics';
-import { Trash2, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Calendar, Truck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
@@ -208,12 +208,26 @@ export default function Cart() {
                     })}
                   </div>
 
-                  {/* Per-seller shipping line */}
-                  <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', backgroundColor: '#f8faf9', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Shipping from {storeName}</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
-                      {cart.delivery_blocked ? '—' : group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
-                    </span>
+                  {/* Per-seller shipping line + next dispatch window */}
+                  <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', backgroundColor: '#f8faf9', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Shipping from {storeName}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
+                        {cart.delivery_blocked ? '—' : group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
+                      </span>
+                    </div>
+                    {group.shipping_window && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
+                          <Calendar size={12} color="#64748b" />
+                          Ships: <strong style={{ color: '#1b2d2a' }}>{group.shipping_window.ships_on}</strong>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
+                          <Truck size={12} color="#64748b" />
+                          Est. delivery: <strong style={{ color: '#1b2d2a' }}>{group.shipping_window.estimated_delivery}</strong>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

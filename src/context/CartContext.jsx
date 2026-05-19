@@ -4,6 +4,58 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import api from '../services/api';
 
+// ── Shipping window helpers ───────────────────────────────────────────────────
+// shipping_days uses Python/ISO convention: 0=Mon … 6=Sun
+// JS Date.getDay() uses: 0=Sun, 1=Mon … 6=Sat → convert via (jsDay + 6) % 7
+function getNextShippingDate(shippingDays) {
+  if (!shippingDays || shippingDays.length === 0) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const jsDay = today.getDay();
+  const currentWeekday = (jsDay + 6) % 7; // convert to ISO Mon=0
+  const sorted = [...new Set(shippingDays)].sort((a, b) => a - b);
+  for (const day of sorted) {
+    if (day >= currentWeekday) {
+      const next = new Date(today);
+      next.setDate(today.getDate() + (day - currentWeekday));
+      return next;
+    }
+  }
+  // Wrap to next week
+  const next = new Date(today);
+  next.setDate(today.getDate() + (7 - currentWeekday + sorted[0]));
+  return next;
+}
+
+function formatShipDate(date) {
+  const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (date.getTime() === today.getTime()) return 'Today';
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  if (date.getTime() === tomorrow.getTime()) return 'Tomorrow';
+  return `${DAY[date.getDay()]}, ${date.getDate()} ${MON[date.getMonth()]}`;
+}
+
+export function buildShippingWindow(shippingDays) {
+  const next = getNextShippingDate(shippingDays);
+  if (!next) return null;
+  const min = new Date(next); min.setDate(next.getDate() + 3);
+  const max = new Date(next); max.setDate(next.getDate() + 7);
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const minStr = `${min.getDate()} ${MON[min.getMonth()]}`;
+  const maxStr = min.getMonth() === max.getMonth()
+    ? `${max.getDate()} ${MON[max.getMonth()]}`
+    : `${max.getDate()} ${MON[max.getMonth()]}`;
+  return {
+    ships_on: formatShipDate(next),
+    ships_date: next,
+    estimated_delivery: `${minStr} – ${maxStr}`,
+  };
+}
+
 const CartContext = createContext();
 export const useCart = () => useContext(CartContext);
 
@@ -63,6 +115,7 @@ function calculateFinancials(items = [], deliveryZone = null) {
     const sellerId = product.seller?.id || 'unknown';
 
     if (!seller_groups[sellerId]) {
+      const sellerProfile = product.seller?.seller_profile || {};
       seller_groups[sellerId] = {
         seller: product.seller || {},
         items: [],
@@ -70,6 +123,7 @@ function calculateFinancials(items = [], deliveryZone = null) {
         has_heavy: false,
         shipping_fee: 0,
         nudge: null,
+        shipping_window: buildShippingWindow(sellerProfile.shipping_days),
       };
     }
 

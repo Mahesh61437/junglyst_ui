@@ -1,22 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useNavigationType } from 'react-router-dom';
 import api from '../services/api';
-import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, XCircle, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
 import { useScrollRestoration } from '../utils/useScrollRestoration';
 import Pagination from '../components/Pagination';
 
+// Covers both master Order statuses and sub-order SubOrderStatuses
 const STATUS_META = {
+  // Master order statuses
   pending:           { label: 'Pending Payment',    color: '#6b7280', bg: '#f3f4f6' },
-  placed:            { label: 'Order Placed',        color: '#1d4ed8', bg: '#dbeafe' },
-  confirmed:         { label: 'Confirmed',           color: '#854d0e', bg: '#fef9c3' },
-  packing:           { label: 'Being Packed',        color: '#c2410c', bg: '#fff7ed' },
-  shipped:           { label: 'Shipped',             color: '#065f46', bg: '#d1fae5' },
-  in_transit:        { label: 'In Transit',          color: '#065f46', bg: '#d1fae5' },
-  out_for_delivery:  { label: 'Out for Delivery',   color: '#14532d', bg: '#dcfce7' },
-  delivered:         { label: 'Delivered',           color: '#14532d', bg: '#dcfce7' },
-  delivery_failed:   { label: 'Delivery Failed',    color: '#991b1b', bg: '#fee2e2' },
-  doa_raised:        { label: 'DOA Raised',          color: '#9d174d', bg: '#fce7f3' },
-  cancelled:         { label: 'Cancelled',           color: '#991b1b', bg: '#fee2e2' },
+  confirmed:         { label: 'Payment Confirmed',  color: '#1d4ed8', bg: '#dbeafe' },
+  failed:            { label: 'Payment Failed',     color: '#991b1b', bg: '#fee2e2' },
+  processing:        { label: 'Processing',         color: '#854d0e', bg: '#fef9c3' },
+  // Sub-order statuses (overlap with master where applicable)
+  placed:            { label: 'Order Received',     color: '#1d4ed8', bg: '#dbeafe' },
+  packing:           { label: 'Being Packed',       color: '#c2410c', bg: '#fff7ed' },
+  shipped:           { label: 'Shipped',            color: '#065f46', bg: '#d1fae5' },
+  in_transit:        { label: 'In Transit',         color: '#065f46', bg: '#d1fae5' },
+  out_for_delivery:  { label: 'Out for Delivery',  color: '#14532d', bg: '#dcfce7' },
+  delivered:         { label: 'Delivered',          color: '#14532d', bg: '#dcfce7' },
+  delivery_failed:   { label: 'Delivery Failed',   color: '#991b1b', bg: '#fee2e2' },
+  doa_raised:        { label: 'DOA Raised',         color: '#9d174d', bg: '#fce7f3' },
+  cancelled:         { label: 'Cancelled',          color: '#991b1b', bg: '#fee2e2' },
 };
 
 function StatusBadge({ status }) {
@@ -29,22 +34,30 @@ function StatusBadge({ status }) {
 }
 
 function StatusIcon({ status }) {
-  if (['delivered'].includes(status)) return <CheckCircle size={15} color="#10b981" />;
+  if (status === 'delivered') return <CheckCircle size={15} color="#10b981" />;
+  if (['failed', 'cancelled', 'delivery_failed'].includes(status)) return <XCircle size={15} color="#ef4444" />;
   if (['shipped', 'in_transit', 'out_for_delivery'].includes(status)) return <Truck size={15} color="#f59e0b" />;
-  if (['confirmed', 'packing'].includes(status)) return <Clock size={15} color="#f59e0b" />;
+  if (['confirmed', 'processing', 'packing'].includes(status)) return <Clock size={15} color="#f59e0b" />;
   return <Package size={15} color="#94a3b8" />;
 }
 
 function SubOrderCard({ so }) {
   const shipment = so.shipment;
+  const sellerName = so.seller_name || so.seller?.store_name || so.seller?.username || null;
   return (
     <div style={{ backgroundColor: '#f8faf8', borderRadius: '14px', padding: '1.25rem 1.5rem', border: '1px solid #edf2ed' }}>
+      {/* Header: sub-order number + seller + status */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
         <div>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: '#1b2d2a' }}>{so.sub_order_number}</p>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: '#1b2d2a', fontFamily: 'monospace' }}>{so.sub_order_number}</p>
+          {sellerName && (
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+              from <strong style={{ color: '#1b2d2a' }}>{sellerName}</strong>
+            </p>
+          )}
           {so.awb_number && (
             <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: '#64748b' }}>
-              AWB: <strong>{so.awb_number}</strong>{so.courier_name ? ` via ${so.courier_name}` : ''}
+              AWB: <strong>{so.awb_number}</strong>{so.courier_name ? ` · ${so.courier_name}` : ''}
             </p>
           )}
         </div>
@@ -52,7 +65,7 @@ function SubOrderCard({ so }) {
       </div>
 
       {/* Items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: so.shipment ? '1rem' : 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: (shipment || so.awb_number) ? '1rem' : 0 }}>
         {(so.items || []).map(item => (
           <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {item.product_image && (
@@ -170,7 +183,7 @@ export default function MyOrders() {
                       <p style={{ margin: '0 0 0.4rem', fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Status</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <StatusIcon status={order.status} />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'capitalize' }}>{order.status}</span>
+                        <StatusBadge status={order.status} />
                       </div>
                     </div>
 
@@ -209,11 +222,19 @@ export default function MyOrders() {
                   <div style={{ padding: '0 2rem 2rem', borderTop: '1px solid #f1f5f9' }}>
                     {subOrders.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '1.5rem' }}>
-                        {subOrders.length > 1 && (
-                          <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                            {subOrders.length} shipments from different sellers
-                          </p>
-                        )}
+                        {subOrders.length > 1 && (() => {
+                          const shippedCount = subOrders.filter(s => ['shipped','in_transit','out_for_delivery','delivered'].includes(s.status)).length;
+                          const hasPartial = shippedCount > 0 && shippedCount < subOrders.length;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '8px', backgroundColor: hasPartial ? '#fffbeb' : '#f8faf8', border: `1px solid ${hasPartial ? '#fde68a' : '#edf2ed'}` }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: hasPartial ? '#92400e' : '#94a3b8', textTransform: 'uppercase' }}>
+                                {hasPartial
+                                  ? `${shippedCount} of ${subOrders.length} shipments dispatched`
+                                  : `${subOrders.length} shipments from different sellers`}
+                              </span>
+                            </div>
+                          );
+                        })()}
                         {subOrders.map(so => <SubOrderCard key={so.id} so={so} />)}
                       </div>
                     ) : (

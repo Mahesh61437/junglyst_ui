@@ -43,6 +43,7 @@ import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { OrderProvider } from './context/OrderContext';
 
 /** Fires Meta Pixel PageView + PostHog $pageview on every SPA navigation */
 function NavigationTracker() {
@@ -61,6 +62,7 @@ function App() {
       <WishlistProvider>
         <ToastProvider>
         <CartProvider>
+        <OrderProvider>
           <BrowserRouter>
             <NavigationTracker />
             <ScrollToTop />
@@ -105,6 +107,7 @@ function App() {
               <Route path="/super-admin/gst" element={<GstManagement />} />
             </Routes>
           </BrowserRouter>
+        </OrderProvider>
         </CartProvider>
         </ToastProvider>
       </WishlistProvider>

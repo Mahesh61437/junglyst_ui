@@ -634,9 +634,6 @@ export default function Shop() {
                   (() => {
                     const variant = Array.isArray(product.variants) ? product.variants?.[0] : null;
                     const basePrice = parseFloat(
-                      product.base_price ??
-                      product.basePrice ??
-                      variant?.base_price ??
                       variant?.compare_at_price ??
                       product.compare_at_price ??
                       product.compareAtPrice ??
