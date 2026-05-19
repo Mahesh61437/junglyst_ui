@@ -2361,6 +2361,7 @@ export default function SellerDashboard() {
                 {activeTab === 'bulk-upload' && (() => {
                   const VARIANT_TYPES = ['Plant','Rhizome','Pot','Clump','Tissue Culture','Cutting','Bunch','Mat','Cup','Emersed','Submerged','Seedling','Bulb','Corm','Dry Start','Colony','Pair','Trio','Other'];
                   const WEIGHT_CATS = ['light','heavy'];
+                  const MAX_IMAGES = 5;
                   const emptyRow = () => ({
                     product_name: '', scientific_name: '', origin: '',
                     category_id: '', sub_category_id: '',
@@ -2368,23 +2369,22 @@ export default function SellerDashboard() {
                     base_price: '', stock: '',
                     item_category: 'light', packed_weight_grams: '',
                     box_length: '10', box_width: '10', box_height: '10',
-                    image_folder: '', sku: '',
+                    sku: '',
+                    images: [], // [{ file, preview, name }]
                   });
 
                   const BulkUpload = () => {
                     const [rows, setRows] = useState([emptyRow(), emptyRow()]);
                     const [subcatMap, setSubcatMap] = useState({});
                     const [downloading, setDownloading] = useState(false);
+                    const [openImageRow, setOpenImageRow] = useState(null);
+                    const [dragOverRow, setDragOverRow] = useState(null);
 
                     useEffect(() => {
-                      // Build subcategory map from already-fetched categories
                       const map = {};
                       categories.forEach(cat => {
-                        if (cat.subcategories && cat.subcategories.length) {
-                          map[cat.id] = cat.subcategories;
-                        }
+                        if (cat.subcategories && cat.subcategories.length) map[cat.id] = cat.subcategories;
                       });
-                      // If subcategories aren't nested, fetch them per category
                       if (Object.keys(map).length === 0 && categories.length > 0) {
                         Promise.all(
                           categories.map(cat =>
@@ -2407,18 +2407,40 @@ export default function SellerDashboard() {
                         const next = prev.map((r, i) => i === idx ? { ...r, [field]: value } : r);
                         if (field === 'category_id') {
                           next[idx].sub_category_id = '';
-                          const cat = categories.find(c => String(c.id) === String(value));
-                          next[idx].gst = cat ? cat.gst_percentage : '';
                         }
                         return next;
                       });
                     };
 
+                    const addImages = (idx, files) => {
+                      const valid = Array.from(files)
+                        .filter(f => f.type.startsWith('image/'))
+                        .slice(0, MAX_IMAGES - (rows[idx]?.images?.length || 0));
+                      if (!valid.length) return;
+                      const newImgs = valid.map(f => ({ file: f, preview: URL.createObjectURL(f), name: f.name }));
+                      setRows(prev => prev.map((r, i) => i === idx ? { ...r, images: [...r.images, ...newImgs].slice(0, MAX_IMAGES) } : r));
+                    };
+
+                    const removeImage = (rowIdx, imgIdx) => {
+                      setRows(prev => prev.map((r, i) => {
+                        if (i !== rowIdx) return r;
+                        URL.revokeObjectURL(r.images[imgIdx]?.preview);
+                        return { ...r, images: r.images.filter((_, j) => j !== imgIdx) };
+                      }));
+                    };
+
+                    const toggleImageRow = idx => setOpenImageRow(prev => prev === idx ? null : idx);
+
                     const addRow = () => setRows(prev => [...prev, emptyRow()]);
-                    const removeRow = idx => setRows(prev => prev.filter((_, i) => i !== idx));
+                    const removeRow = idx => {
+                      if (openImageRow === idx) setOpenImageRow(null);
+                      rows[idx]?.images?.forEach(img => URL.revokeObjectURL(img.preview));
+                      setRows(prev => prev.filter((_, i) => i !== idx));
+                    };
                     const duplicateRow = idx => setRows(prev => {
                       const copy = [...prev];
-                      copy.splice(idx + 1, 0, { ...prev[idx] });
+                      const dup = { ...prev[idx], images: [] }; // don't copy File refs
+                      copy.splice(idx + 1, 0, dup);
                       return copy;
                     });
 
@@ -2431,7 +2453,7 @@ export default function SellerDashboard() {
                           'Base Price (₹)', 'Stock Qty',
                           'Weight Category (light/heavy)', 'Packed Weight (grams)',
                           'Box Length (cm)', 'Box Width (cm)', 'Box Height (cm)',
-                          'GST %', 'Image Folder Name', 'SKU (optional)',
+                          'GST %', 'Images (filenames)', 'SKU (optional)',
                         ];
                         const data = rows.map(row => {
                           const cat = categories.find(c => String(c.id) === String(row.category_id));
@@ -2444,7 +2466,9 @@ export default function SellerDashboard() {
                             row.base_price, row.stock,
                             row.item_category, row.packed_weight_grams,
                             row.box_length, row.box_width, row.box_height,
-                            cat?.gst_percentage ?? '', row.image_folder, row.sku,
+                            cat?.gst_percentage ?? '',
+                            row.images.map(img => img.name).join(', '),
+                            row.sku,
                           ];
                         });
                         const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
@@ -2468,6 +2492,7 @@ export default function SellerDashboard() {
                         {label}{note && <span style={{ display: 'block', fontWeight: 400, opacity: 0.6, textTransform: 'none', fontSize: '0.6rem' }}>{note}</span>}
                       </th>
                     );
+                    const TOTAL_COLS = 19; // for colspan on image panel row
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -2475,20 +2500,13 @@ export default function SellerDashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                           <div>
                             <h2 style={{ fontSize: '1.5rem', fontFamily: 'serif', margin: 0 }}>Bulk Product Upload</h2>
-                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>Fill the table below and download as Excel, or submit directly.</p>
+                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>Fill details and attach photos row by row, then download as Excel or submit.</p>
                           </div>
                           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            <button
-                              onClick={addRow}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}
-                            >
+                            <button onClick={addRow} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>
                               <Plus size={15} /> Add Row
                             </button>
-                            <button
-                              onClick={downloadExcel}
-                              disabled={downloading}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}
-                            >
+                            <button onClick={downloadExcel} disabled={downloading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>
                               <Download size={15} /> {downloading ? 'Preparing…' : 'Download Excel'}
                             </button>
                           </div>
@@ -2515,7 +2533,7 @@ export default function SellerDashboard() {
                                 {colHead('Box W', 'cm')}
                                 {colHead('Box H', 'cm')}
                                 {colHead('GST %', 'auto')}
-                                {colHead('Image Folder')}
+                                {colHead('Photos', `max ${MAX_IMAGES}`)}
                                 {colHead('SKU', 'optional')}
                                 <th style={{ padding: '0.75rem 0.6rem', backgroundColor: '#1b2d2a', color: 'white', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', width: '80px', position: 'sticky', top: 0, zIndex: 1 }}>Actions</th>
                               </tr>
@@ -2526,60 +2544,154 @@ export default function SellerDashboard() {
                                 const subcats = subcatMap[row.category_id] || (cat?.subcategories) || [];
                                 const gstVal = cat ? cat.gst_percentage : '—';
                                 const rowBg = idx % 2 === 0 ? 'white' : '#fafbfa';
+                                const imgOpen = openImageRow === idx;
+                                const imgCount = row.images.length;
+                                const canAddMore = imgCount < MAX_IMAGES;
                                 const td = (children, opts = {}) => (
-                                  <td style={{ padding: '0.5rem 0.4rem', borderBottom: '1px solid #f1f5f4', verticalAlign: 'middle', backgroundColor: rowBg, ...opts.style }}>{children}</td>
+                                  <td style={{ padding: '0.5rem 0.4rem', borderBottom: imgOpen ? 'none' : '1px solid #f1f5f4', verticalAlign: 'middle', backgroundColor: rowBg, ...opts.style }}>{children}</td>
                                 );
                                 return (
-                                  <tr key={idx}>
-                                    {td(<span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, paddingLeft: '0.25rem' }}>{idx + 1}</span>)}
-                                    {td(<input style={inputStyle} placeholder="e.g. Anubias Nana" value={row.product_name} onChange={e => updateRow(idx, 'product_name', e.target.value)} />)}
-                                    {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="Anubias barteri" value={row.scientific_name} onChange={e => updateRow(idx, 'scientific_name', e.target.value)} />)}
-                                    {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="West Africa" value={row.origin} onChange={e => updateRow(idx, 'origin', e.target.value)} />)}
-                                    {td(
-                                      <select style={selectStyle} value={row.category_id} onChange={e => updateRow(idx, 'category_id', e.target.value)}>
-                                        <option value="">Select…</option>
-                                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                      </select>
+                                  <React.Fragment key={idx}>
+                                    <tr>
+                                      {td(<span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, paddingLeft: '0.25rem' }}>{idx + 1}</span>)}
+                                      {td(<input style={inputStyle} placeholder="e.g. Anubias Nana" value={row.product_name} onChange={e => updateRow(idx, 'product_name', e.target.value)} />)}
+                                      {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="Anubias barteri" value={row.scientific_name} onChange={e => updateRow(idx, 'scientific_name', e.target.value)} />)}
+                                      {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="West Africa" value={row.origin} onChange={e => updateRow(idx, 'origin', e.target.value)} />)}
+                                      {td(
+                                        <select style={selectStyle} value={row.category_id} onChange={e => updateRow(idx, 'category_id', e.target.value)}>
+                                          <option value="">Select…</option>
+                                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                      )}
+                                      {td(
+                                        <select style={selectStyle} value={row.sub_category_id} onChange={e => updateRow(idx, 'sub_category_id', e.target.value)} disabled={!row.category_id}>
+                                          <option value="">{row.category_id ? 'Select…' : '← Pick category'}</option>
+                                          {subcats.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                      )}
+                                      {td(
+                                        <select style={selectStyle} value={row.variant_type} onChange={e => updateRow(idx, 'variant_type', e.target.value)}>
+                                          {VARIANT_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                                        </select>
+                                      )}
+                                      {td(<input style={inputStyle} placeholder="Standard" value={row.variant_name} onChange={e => updateRow(idx, 'variant_name', e.target.value)} />)}
+                                      {td(<input style={inputStyle} type="number" min="0" placeholder="299" value={row.base_price} onChange={e => updateRow(idx, 'base_price', e.target.value)} />)}
+                                      {td(<input style={inputStyle} type="number" min="0" placeholder="10" value={row.stock} onChange={e => updateRow(idx, 'stock', e.target.value)} />)}
+                                      {td(
+                                        <select style={selectStyle} value={row.item_category} onChange={e => updateRow(idx, 'item_category', e.target.value)}>
+                                          {WEIGHT_CATS.map(w => <option key={w} value={w}>{w}</option>)}
+                                        </select>
+                                      )}
+                                      {td(<input style={inputStyle} type="number" min="1" max="30000" placeholder="250" value={row.packed_weight_grams} onChange={e => updateRow(idx, 'packed_weight_grams', e.target.value)} />)}
+                                      {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_length} onChange={e => updateRow(idx, 'box_length', e.target.value)} />)}
+                                      {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_width} onChange={e => updateRow(idx, 'box_width', e.target.value)} />)}
+                                      {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_height} onChange={e => updateRow(idx, 'box_height', e.target.value)} />)}
+                                      {td(
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: cat ? '#166534' : '#94a3b8', backgroundColor: cat ? '#f0fdf4' : '#f8fafc', padding: '0.3rem 0.6rem', borderRadius: '6px', whiteSpace: 'nowrap' }}>
+                                          {cat ? `${gstVal}%` : '—'}
+                                        </span>
+                                      )}
+                                      {td(
+                                        <button
+                                          onClick={() => toggleImageRow(idx)}
+                                          style={{
+                                            display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                            padding: '0.4rem 0.65rem',
+                                            backgroundColor: imgOpen ? '#1b2d2a' : imgCount > 0 ? '#f0fdf4' : '#f8fafc',
+                                            color: imgOpen ? 'white' : imgCount > 0 ? '#166534' : '#94a3b8',
+                                            border: `1px solid ${imgOpen ? '#1b2d2a' : imgCount > 0 ? '#bbf7d0' : '#e2e8f0'}`,
+                                            borderRadius: '8px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700,
+                                            whiteSpace: 'nowrap', transition: 'all 0.15s',
+                                          }}
+                                        >
+                                          <Camera size={13} />
+                                          {imgCount > 0 ? `${imgCount} photo${imgCount > 1 ? 's' : ''}` : 'Add photos'}
+                                          {imgCount > 0 && !imgOpen && (
+                                            <div style={{ display: 'flex', gap: '2px', marginLeft: '2px' }}>
+                                              {row.images.slice(0, 3).map((img, i) => (
+                                                <img key={i} src={img.preview} alt="" style={{ width: '18px', height: '18px', borderRadius: '3px', objectFit: 'cover', border: '1px solid #bbf7d0' }} />
+                                              ))}
+                                            </div>
+                                          )}
+                                        </button>
+                                      )}
+                                      {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="optional" value={row.sku} onChange={e => updateRow(idx, 'sku', e.target.value)} />)}
+                                      {td(
+                                        <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                          <button title="Duplicate row" onClick={() => duplicateRow(idx)} style={{ padding: '0.35rem 0.45rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', cursor: 'pointer', color: '#0369a1', fontSize: '0.65rem', fontWeight: 700 }}>+</button>
+                                          {rows.length > 1 && (
+                                            <button title="Remove row" onClick={() => removeRow(idx)} style={{ padding: '0.35rem 0.45rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', color: '#ef4444', fontSize: '0.65rem', fontWeight: 700 }}>✕</button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </tr>
+
+                                    {/* Inline image panel */}
+                                    {imgOpen && (
+                                      <tr>
+                                        <td colSpan={TOTAL_COLS} style={{ padding: '0', borderBottom: '1px solid #f1f5f4', backgroundColor: rowBg }}>
+                                          <div
+                                            style={{ margin: '0 0.75rem 0.75rem', padding: '1.25rem', backgroundColor: '#f8faf9', borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                                            onDragOver={e => { e.preventDefault(); setDragOverRow(idx); }}
+                                            onDragLeave={() => setDragOverRow(null)}
+                                            onDrop={e => { e.preventDefault(); setDragOverRow(null); addImages(idx, e.dataTransfer.files); }}
+                                          >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                                              {/* Thumbnails */}
+                                              {row.images.map((img, imgIdx) => (
+                                                <div key={imgIdx} style={{ position: 'relative', flexShrink: 0 }}>
+                                                  <img
+                                                    src={img.preview}
+                                                    alt={img.name}
+                                                    style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '10px', border: '2px solid #bbf7d0', display: 'block' }}
+                                                  />
+                                                  {imgIdx === 0 && (
+                                                    <span style={{ position: 'absolute', bottom: '3px', left: '3px', backgroundColor: '#1b2d2a', color: 'white', fontSize: '0.5rem', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase' }}>Cover</span>
+                                                  )}
+                                                  <button
+                                                    onClick={() => removeImage(idx, imgIdx)}
+                                                    style={{ position: 'absolute', top: '-6px', right: '-6px', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#ef4444', color: 'white', border: '2px solid white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, fontSize: '10px', lineHeight: 1 }}
+                                                  >✕</button>
+                                                </div>
+                                              ))}
+
+                                              {/* Drop / browse zone */}
+                                              {canAddMore && (
+                                                <label
+                                                  style={{
+                                                    width: '72px', height: '72px', borderRadius: '10px', flexShrink: 0,
+                                                    border: `2px dashed ${dragOverRow === idx ? '#1b2d2a' : '#cbd5e1'}`,
+                                                    backgroundColor: dragOverRow === idx ? '#f0fdf4' : 'white',
+                                                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                                    cursor: 'pointer', transition: 'all 0.15s', gap: '4px',
+                                                  }}
+                                                >
+                                                  <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    multiple
+                                                    style={{ display: 'none' }}
+                                                    onChange={e => { addImages(idx, e.target.files); e.target.value = ''; }}
+                                                  />
+                                                  <ImagePlus size={20} color={dragOverRow === idx ? '#1b2d2a' : '#94a3b8'} />
+                                                  <span style={{ fontSize: '0.55rem', color: '#94a3b8', textAlign: 'center', lineHeight: 1.3 }}>
+                                                    {row.images.length === 0 ? 'Drop or click' : `Add more`}
+                                                  </span>
+                                                </label>
+                                              )}
+
+                                              {/* Hints */}
+                                              <div style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.6, textAlign: 'right' }}>
+                                                <div>{imgCount}/{MAX_IMAGES} photos</div>
+                                                {imgCount === 0 && <div style={{ color: '#cbd5e1' }}>First photo = cover image</div>}
+                                                <div style={{ color: '#cbd5e1' }}>JPG / PNG / WEBP</div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
                                     )}
-                                    {td(
-                                      <select style={selectStyle} value={row.sub_category_id} onChange={e => updateRow(idx, 'sub_category_id', e.target.value)} disabled={!row.category_id}>
-                                        <option value="">{row.category_id ? 'Select…' : '← Pick category'}</option>
-                                        {subcats.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                      </select>
-                                    )}
-                                    {td(
-                                      <select style={selectStyle} value={row.variant_type} onChange={e => updateRow(idx, 'variant_type', e.target.value)}>
-                                        {VARIANT_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-                                      </select>
-                                    )}
-                                    {td(<input style={inputStyle} placeholder="Standard" value={row.variant_name} onChange={e => updateRow(idx, 'variant_name', e.target.value)} />)}
-                                    {td(<input style={inputStyle} type="number" min="0" placeholder="299" value={row.base_price} onChange={e => updateRow(idx, 'base_price', e.target.value)} />)}
-                                    {td(<input style={inputStyle} type="number" min="0" placeholder="10" value={row.stock} onChange={e => updateRow(idx, 'stock', e.target.value)} />)}
-                                    {td(
-                                      <select style={selectStyle} value={row.item_category} onChange={e => updateRow(idx, 'item_category', e.target.value)}>
-                                        {WEIGHT_CATS.map(w => <option key={w} value={w}>{w}</option>)}
-                                      </select>
-                                    )}
-                                    {td(<input style={inputStyle} type="number" min="1" max="30000" placeholder="250" value={row.packed_weight_grams} onChange={e => updateRow(idx, 'packed_weight_grams', e.target.value)} />)}
-                                    {td(<input style={{ ...inputStyle, width: '64px' }} type="number" min="1" placeholder="10" value={row.box_length} onChange={e => updateRow(idx, 'box_length', e.target.value)} />)}
-                                    {td(<input style={{ ...inputStyle, width: '64px' }} type="number" min="1" placeholder="10" value={row.box_width} onChange={e => updateRow(idx, 'box_width', e.target.value)} />)}
-                                    {td(<input style={{ ...inputStyle, width: '64px' }} type="number" min="1" placeholder="10" value={row.box_height} onChange={e => updateRow(idx, 'box_height', e.target.value)} />)}
-                                    {td(
-                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: cat ? '#166534' : '#94a3b8', backgroundColor: cat ? '#f0fdf4' : '#f8fafc', padding: '0.3rem 0.6rem', borderRadius: '6px', whiteSpace: 'nowrap' }}>
-                                        {cat ? `${gstVal}%` : '—'}
-                                      </span>
-                                    )}
-                                    {td(<input style={inputStyle} placeholder="folder-name" value={row.image_folder} onChange={e => updateRow(idx, 'image_folder', e.target.value)} />)}
-                                    {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="optional" value={row.sku} onChange={e => updateRow(idx, 'sku', e.target.value)} />)}
-                                    {td(
-                                      <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                        <button title="Duplicate row" onClick={() => duplicateRow(idx)} style={{ padding: '0.35rem 0.45rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', cursor: 'pointer', color: '#0369a1', fontSize: '0.65rem', fontWeight: 700 }}>+</button>
-                                        {rows.length > 1 && (
-                                          <button title="Remove row" onClick={() => removeRow(idx)} style={{ padding: '0.35rem 0.45rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', color: '#ef4444', fontSize: '0.65rem', fontWeight: 700 }}>✕</button>
-                                        )}
-                                      </div>
-                                    )}
-                                  </tr>
+                                  </React.Fragment>
                                 );
                               })}
                             </tbody>
@@ -2587,9 +2699,9 @@ export default function SellerDashboard() {
                         </div>
 
                         {/* Footer tips */}
-                        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px', padding: '1.25rem 1.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                          <div style={{ fontSize: '0.78rem', color: '#166534', lineHeight: 1.6 }}>
-                            <strong>Tips:</strong> GST fills automatically from category. Sub-category unlocks after picking a category. Duplicate a row to list another variant of the same plant — just change Variant Type/Name. Download Excel to share or keep a record.
+                        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px', padding: '1.25rem 1.5rem' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#166534', lineHeight: 1.7 }}>
+                            <strong>Tips:</strong> Click <em>Add photos</em> on any row to attach up to 5 images — the first one becomes the cover. GST fills automatically once you pick a category. Sub-category unlocks after category is selected. Duplicate a row to list another variant of the same plant (photos won't carry over). Download Excel exports filenames for your records.
                           </div>
                         </div>
                       </div>
