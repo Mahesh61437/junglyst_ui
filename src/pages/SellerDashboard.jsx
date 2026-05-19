@@ -2373,12 +2373,51 @@ export default function SellerDashboard() {
                     images: [], // [{ file, preview, name }]
                   });
 
+                  const DRAFT_KEY = 'junglyst_bulk_upload_draft';
+
                   const BulkUpload = () => {
-                    const [rows, setRows] = useState([emptyRow(), emptyRow()]);
+                    const [rows, setRows] = useState(() => {
+                      try {
+                        const saved = localStorage.getItem(DRAFT_KEY);
+                        if (saved) {
+                          const { rows: r } = JSON.parse(saved);
+                          // Restore text fields; images can't survive page reload (File/blob refs die)
+                          return r.map(row => ({ ...emptyRow(), ...row, images: [] }));
+                        }
+                      } catch {}
+                      return [emptyRow(), emptyRow()];
+                    });
                     const [subcatMap, setSubcatMap] = useState({});
                     const [downloading, setDownloading] = useState(false);
                     const [openImageRow, setOpenImageRow] = useState(null);
                     const [dragOverRow, setDragOverRow] = useState(null);
+                    const [lastSaved, setLastSaved] = useState(() => {
+                      try {
+                        const saved = localStorage.getItem(DRAFT_KEY);
+                        if (saved) return JSON.parse(saved).savedAt || null;
+                      } catch {}
+                      return null;
+                    });
+                    const [draftRestored, setDraftRestored] = useState(() => !!localStorage.getItem(DRAFT_KEY));
+                    const [showResetConfirm, setShowResetConfirm] = useState(false);
+                    const [saveFlash, setSaveFlash] = useState(false);
+
+                    // Auto-save to localStorage whenever rows change (1.2s debounce)
+                    useEffect(() => {
+                      const timer = setTimeout(() => {
+                        const payload = {
+                          rows: rows.map(r => ({
+                            ...r,
+                            images: [],
+                            _imageNames: r.images.map(i => i.name),
+                          })),
+                          savedAt: new Date().toISOString(),
+                        };
+                        localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+                        setLastSaved(payload.savedAt);
+                      }, 1200);
+                      return () => clearTimeout(timer);
+                    }, [rows]);
 
                     useEffect(() => {
                       const map = {};
@@ -2405,9 +2444,7 @@ export default function SellerDashboard() {
                     const updateRow = (idx, field, value) => {
                       setRows(prev => {
                         const next = prev.map((r, i) => i === idx ? { ...r, [field]: value } : r);
-                        if (field === 'category_id') {
-                          next[idx].sub_category_id = '';
-                        }
+                        if (field === 'category_id') next[idx].sub_category_id = '';
                         return next;
                       });
                     };
@@ -2439,10 +2476,40 @@ export default function SellerDashboard() {
                     };
                     const duplicateRow = idx => setRows(prev => {
                       const copy = [...prev];
-                      const dup = { ...prev[idx], images: [] }; // don't copy File refs
-                      copy.splice(idx + 1, 0, dup);
+                      copy.splice(idx + 1, 0, { ...prev[idx], images: [] });
                       return copy;
                     });
+
+                    const saveDraftNow = () => {
+                      const payload = {
+                        rows: rows.map(r => ({ ...r, images: [], _imageNames: r.images.map(i => i.name) })),
+                        savedAt: new Date().toISOString(),
+                      };
+                      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+                      setLastSaved(payload.savedAt);
+                      setSaveFlash(true);
+                      setTimeout(() => setSaveFlash(false), 2000);
+                    };
+
+                    const resetAll = () => {
+                      rows.forEach(r => r.images.forEach(img => URL.revokeObjectURL(img.preview)));
+                      localStorage.removeItem(DRAFT_KEY);
+                      setRows([emptyRow(), emptyRow()]);
+                      setLastSaved(null);
+                      setDraftRestored(false);
+                      setOpenImageRow(null);
+                      setShowResetConfirm(false);
+                    };
+
+                    const formatSavedAt = iso => {
+                      if (!iso) return '';
+                      const d = new Date(iso);
+                      const now = new Date();
+                      const diffMin = Math.round((now - d) / 60000);
+                      if (diffMin < 1) return 'just now';
+                      if (diffMin < 60) return `${diffMin}m ago`;
+                      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    };
 
                     const downloadExcel = () => {
                       setDownloading(true);
@@ -2496,21 +2563,60 @@ export default function SellerDashboard() {
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                        {/* Draft restored banner */}
+                        {draftRestored && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.9rem 1.25rem', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '14px' }}>
+                            <Save size={16} color="#d97706" style={{ flexShrink: 0 }} />
+                            <div style={{ flex: 1, fontSize: '0.82rem', color: '#92400e' }}>
+                              <strong>Draft restored</strong> — your previous session was recovered.
+                              {lastSaved && <span style={{ opacity: 0.7 }}> Last saved {formatSavedAt(lastSaved)}.</span>}
+                              {' '}<span style={{ opacity: 0.7 }}>Photos need to be re-attached (they can't be stored locally).</span>
+                            </div>
+                            <button onClick={() => setDraftRestored(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#d97706', fontSize: '1rem', lineHeight: 1, padding: '0.25rem' }}>✕</button>
+                          </div>
+                        )}
+
                         {/* Header */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                           <div>
                             <h2 style={{ fontSize: '1.5rem', fontFamily: 'serif', margin: 0 }}>Bulk Product Upload</h2>
-                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>Fill details and attach photos row by row, then download as Excel or submit.</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem' }}>
+                              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Fill details and attach photos row by row, then download as Excel or submit.</p>
+                              {lastSaved && (
+                                <span style={{ fontSize: '0.72rem', color: saveFlash ? '#166534' : '#94a3b8', fontWeight: saveFlash ? 700 : 400, transition: 'color 0.3s', whiteSpace: 'nowrap' }}>
+                                  {saveFlash ? '✓ Saved' : `Auto-saved ${formatSavedAt(lastSaved)}`}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                             <button onClick={addRow} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>
                               <Plus size={15} /> Add Row
+                            </button>
+                            <button onClick={saveDraftNow} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: saveFlash ? '#f0fdf4' : 'white', color: saveFlash ? '#166534' : '#475569', border: `1px solid ${saveFlash ? '#bbf7d0' : '#e2e8f0'}`, borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.3s' }}>
+                              <Save size={15} /> {saveFlash ? 'Saved!' : 'Save Draft'}
+                            </button>
+                            <button onClick={() => setShowResetConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: 'white', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>
+                              <Trash2 size={15} /> Start Fresh
                             </button>
                             <button onClick={downloadExcel} disabled={downloading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>
                               <Download size={15} /> {downloading ? 'Preparing…' : 'Download Excel'}
                             </button>
                           </div>
                         </div>
+
+                        {/* Reset confirmation */}
+                        {showResetConfirm && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '14px', flexWrap: 'wrap' }}>
+                            <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0 }} />
+                            <span style={{ flex: 1, fontSize: '0.82rem', color: '#b91c1c', fontWeight: 600 }}>This will clear all rows and delete the saved draft. Are you sure?</span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button onClick={resetAll} style={{ padding: '0.45rem 1rem', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>Yes, clear everything</button>
+                              <button onClick={() => setShowResetConfirm(false)} style={{ padding: '0.45rem 1rem', backgroundColor: 'white', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Table */}
                         <div style={{ backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', overflow: 'auto' }}>
