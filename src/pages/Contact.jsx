@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock } from 'lucide-react';
 import SEO from '../components/SEO';
+import api from '../services/api';
 
 const TOPICS = [
   'Order Issue',
@@ -22,8 +23,7 @@ export default function Contact() {
     e.preventDefault();
     setStatus('sending');
     try {
-      // Replace with actual API endpoint if backend contact endpoint exists
-      await new Promise(res => setTimeout(res, 1200));
+      await api.post('/notifications/contact/', form);
       setStatus('sent');
       setForm({ name: '', email: '', phone: '', topic: '', message: '' });
     } catch {

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
@@ -155,6 +156,64 @@ function FeaturedSellers({ sellers }) {
   );
 }
 
+function NewsletterSection() {
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState('idle'); // idle | loading | success | error
+  const [msg, setMsg] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setState('loading');
+    try {
+      const res = await api.post('/notifications/newsletter/subscribe/', { email });
+      setMsg(res.data.message || 'Successfully subscribed!');
+      setState('success');
+      setEmail('');
+    } catch (err) {
+      const errMsg = err?.response?.data?.error || 'Something went wrong. Please try again.';
+      setMsg(errMsg);
+      setState('error');
+    }
+  };
+
+  return (
+    <section style={{ padding: 'clamp(3rem,6vw,6rem) 0', textAlign: 'center', backgroundColor: 'white' }}>
+      <div className="container">
+        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: 'clamp(1.3rem,2.5vw,2rem)', marginBottom: '0.65rem' }}>Join the Registry</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.75rem', lineHeight: 1.7, fontSize: '0.9rem' }}>
+            First to know about new arrivals, rare specimens, and expert care guides.
+          </p>
+          {state === 'success' ? (
+            <p style={{ color: '#16a34a', fontWeight: 600, fontSize: '0.9rem' }}>{msg}</p>
+          ) : (
+            <form style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', justifyContent: 'center' }} onSubmit={handleSubmit}>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="collector@example.com"
+                required
+                disabled={state === 'loading'}
+                style={{ padding: '0.85rem 1.3rem', borderRadius: '100px', border: '1.5px solid var(--border-subtle)', flex: '1 1 190px', minWidth: '170px', maxWidth: '260px', outline: 'none', fontSize: '0.875rem', transition: 'border-color 0.2s' }}
+                onFocus={e => { e.target.style.borderColor = 'var(--brand-gold)'; }}
+                onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)'; }}
+              />
+              <button type="submit" className="btn btn-primary" style={{ padding: '0.85rem 2rem', flexShrink: 0 }} disabled={state === 'loading'}>
+                {state === 'loading' ? 'Subscribing…' : 'Register'}
+              </button>
+            </form>
+          )}
+          {state === 'error' && (
+            <p style={{ marginTop: '0.75rem', color: '#dc2626', fontSize: '0.82rem' }}>{msg}</p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const fetchHomeData = async () => {
   const { data } = await api.get('/core/home/');
   return data;
@@ -242,24 +301,7 @@ export default function Home() {
       {!loading && <FeaturedSellers sellers={featuredSellers} />}
 
       {/* Newsletter */}
-      <section style={{ padding: 'clamp(3rem,6vw,6rem) 0', textAlign: 'center', backgroundColor: 'white' }}>
-        <div className="container">
-          <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: 'clamp(1.3rem,2.5vw,2rem)', marginBottom: '0.65rem' }}>Join the Registry</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.75rem', lineHeight: 1.7, fontSize: '0.9rem' }}>
-              First to know about new arrivals, rare specimens, and expert care guides.
-            </p>
-            <form style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', justifyContent: 'center' }} onSubmit={e => e.preventDefault()}>
-              <input type="email" placeholder="collector@example.com"
-                style={{ padding: '0.85rem 1.3rem', borderRadius: '100px', border: '1.5px solid var(--border-subtle)', flex: '1 1 190px', minWidth: '170px', maxWidth: '260px', outline: 'none', fontSize: '0.875rem', transition: 'border-color 0.2s' }}
-                onFocus={e => { e.target.style.borderColor = 'var(--brand-gold)'; }}
-                onBlur={e => { e.target.style.borderColor = 'var(--border-subtle)'; }}
-              />
-              <button type="submit" className="btn btn-primary" style={{ padding: '0.85rem 2rem', flexShrink: 0 }}>Register</button>
-            </form>
-          </div>
-        </div>
-      </section>
+      <NewsletterSection />
     </div>
   );
 }
