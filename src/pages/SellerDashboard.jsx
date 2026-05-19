@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import api from '../services/api';
 import {
   LayoutDashboard, Package, ShoppingBag, Settings, LogOut,
@@ -877,6 +878,7 @@ export default function SellerDashboard() {
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard size={20} /> },
       { id: 'products', label: 'Collection', icon: <Package size={20} /> },
       { id: 'orders', label: 'Fulfillment', icon: <ShoppingBag size={20} /> },
+      { id: 'bulk-upload', label: 'Bulk Upload', icon: <Upload size={20} /> },
       { id: 'gst', label: 'GST Invoices', icon: <FileText size={20} /> },
       { id: 'spotlight', label: 'Studio Identity', icon: <Palette size={20} /> },
       { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
@@ -2355,6 +2357,248 @@ export default function SellerDashboard() {
                     </div>
                   </div>
                 )}
+
+                {activeTab === 'bulk-upload' && (() => {
+                  const VARIANT_TYPES = ['Plant','Rhizome','Pot','Clump','Tissue Culture','Cutting','Bunch','Mat','Cup','Emersed','Submerged','Seedling','Bulb','Corm','Dry Start','Colony','Pair','Trio','Other'];
+                  const WEIGHT_CATS = ['light','heavy'];
+                  const emptyRow = () => ({
+                    product_name: '', scientific_name: '', origin: '',
+                    category_id: '', sub_category_id: '',
+                    variant_type: 'Plant', variant_name: 'Standard',
+                    base_price: '', stock: '',
+                    item_category: 'light', packed_weight_grams: '',
+                    box_length: '10', box_width: '10', box_height: '10',
+                    image_folder: '', sku: '',
+                  });
+
+                  const BulkUpload = () => {
+                    const [rows, setRows] = useState([emptyRow(), emptyRow()]);
+                    const [subcatMap, setSubcatMap] = useState({});
+                    const [downloading, setDownloading] = useState(false);
+
+                    useEffect(() => {
+                      // Build subcategory map from already-fetched categories
+                      const map = {};
+                      categories.forEach(cat => {
+                        if (cat.subcategories && cat.subcategories.length) {
+                          map[cat.id] = cat.subcategories;
+                        }
+                      });
+                      // If subcategories aren't nested, fetch them per category
+                      if (Object.keys(map).length === 0 && categories.length > 0) {
+                        Promise.all(
+                          categories.map(cat =>
+                            api.get(`/core/subcategories/?category=${cat.id}`)
+                              .then(r => ({ catId: cat.id, subs: r.data?.results || r.data || [] }))
+                              .catch(() => ({ catId: cat.id, subs: [] }))
+                          )
+                        ).then(results => {
+                          const m = {};
+                          results.forEach(({ catId, subs }) => { m[catId] = subs; });
+                          setSubcatMap(m);
+                        });
+                      } else {
+                        setSubcatMap(map);
+                      }
+                    }, []);
+
+                    const updateRow = (idx, field, value) => {
+                      setRows(prev => {
+                        const next = prev.map((r, i) => i === idx ? { ...r, [field]: value } : r);
+                        if (field === 'category_id') {
+                          next[idx].sub_category_id = '';
+                          const cat = categories.find(c => String(c.id) === String(value));
+                          next[idx].gst = cat ? cat.gst_percentage : '';
+                        }
+                        return next;
+                      });
+                    };
+
+                    const addRow = () => setRows(prev => [...prev, emptyRow()]);
+                    const removeRow = idx => setRows(prev => prev.filter((_, i) => i !== idx));
+                    const duplicateRow = idx => setRows(prev => {
+                      const copy = [...prev];
+                      copy.splice(idx + 1, 0, { ...prev[idx] });
+                      return copy;
+                    });
+
+                    const downloadExcel = () => {
+                      setDownloading(true);
+                      try {
+                        const headers = [
+                          'Product Name', 'Scientific Name (optional)', 'Origin (optional)',
+                          'Category', 'Sub-Category', 'Variant Type', 'Variant Name',
+                          'Base Price (₹)', 'Stock Qty',
+                          'Weight Category (light/heavy)', 'Packed Weight (grams)',
+                          'Box Length (cm)', 'Box Width (cm)', 'Box Height (cm)',
+                          'GST %', 'Image Folder Name', 'SKU (optional)',
+                        ];
+                        const data = rows.map(row => {
+                          const cat = categories.find(c => String(c.id) === String(row.category_id));
+                          const subs = subcatMap[row.category_id] || [];
+                          const sub = subs.find(s => String(s.id) === String(row.sub_category_id));
+                          return [
+                            row.product_name, row.scientific_name, row.origin,
+                            cat?.name || '', sub?.name || '',
+                            row.variant_type, row.variant_name,
+                            row.base_price, row.stock,
+                            row.item_category, row.packed_weight_grams,
+                            row.box_length, row.box_width, row.box_height,
+                            cat?.gst_percentage ?? '', row.image_folder, row.sku,
+                          ];
+                        });
+                        const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+                        ws['!cols'] = headers.map(() => ({ wch: 22 }));
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, 'Products');
+                        XLSX.writeFile(wb, 'Junglyst_Product_Upload.xlsx');
+                      } finally {
+                        setDownloading(false);
+                      }
+                    };
+
+                    const inputStyle = {
+                      width: '100%', padding: '0.45rem 0.6rem', border: '1px solid #e2e8f0',
+                      borderRadius: '8px', fontSize: '0.8rem', backgroundColor: 'white',
+                      outline: 'none', boxSizing: 'border-box',
+                    };
+                    const selectStyle = { ...inputStyle, cursor: 'pointer' };
+                    const colHead = (label, note) => (
+                      <th style={{ padding: '0.75rem 0.6rem', backgroundColor: '#1b2d2a', color: 'white', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: 'left', position: 'sticky', top: 0, zIndex: 1 }}>
+                        {label}{note && <span style={{ display: 'block', fontWeight: 400, opacity: 0.6, textTransform: 'none', fontSize: '0.6rem' }}>{note}</span>}
+                      </th>
+                    );
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                          <div>
+                            <h2 style={{ fontSize: '1.5rem', fontFamily: 'serif', margin: 0 }}>Bulk Product Upload</h2>
+                            <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>Fill the table below and download as Excel, or submit directly.</p>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={addRow}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}
+                            >
+                              <Plus size={15} /> Add Row
+                            </button>
+                            <button
+                              onClick={downloadExcel}
+                              disabled={downloading}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', backgroundColor: '#1b2d2a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}
+                            >
+                              <Download size={15} /> {downloading ? 'Preparing…' : 'Download Excel'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Table */}
+                        <div style={{ backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', overflow: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1800px' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ padding: '0.75rem 0.6rem', backgroundColor: '#1b2d2a', color: 'white', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', width: '36px', position: 'sticky', top: 0, zIndex: 1 }}>#</th>
+                                {colHead('Product Name')}
+                                {colHead('Scientific Name', 'optional')}
+                                {colHead('Origin', 'optional')}
+                                {colHead('Category')}
+                                {colHead('Sub-Category')}
+                                {colHead('Variant Type')}
+                                {colHead('Variant Name')}
+                                {colHead('Base Price ₹')}
+                                {colHead('Stock')}
+                                {colHead('Weight Cat.', 'light / heavy')}
+                                {colHead('Packed Wt', 'grams')}
+                                {colHead('Box L', 'cm')}
+                                {colHead('Box W', 'cm')}
+                                {colHead('Box H', 'cm')}
+                                {colHead('GST %', 'auto')}
+                                {colHead('Image Folder')}
+                                {colHead('SKU', 'optional')}
+                                <th style={{ padding: '0.75rem 0.6rem', backgroundColor: '#1b2d2a', color: 'white', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', width: '80px', position: 'sticky', top: 0, zIndex: 1 }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rows.map((row, idx) => {
+                                const cat = categories.find(c => String(c.id) === String(row.category_id));
+                                const subcats = subcatMap[row.category_id] || (cat?.subcategories) || [];
+                                const gstVal = cat ? cat.gst_percentage : '—';
+                                const rowBg = idx % 2 === 0 ? 'white' : '#fafbfa';
+                                const td = (children, opts = {}) => (
+                                  <td style={{ padding: '0.5rem 0.4rem', borderBottom: '1px solid #f1f5f4', verticalAlign: 'middle', backgroundColor: rowBg, ...opts.style }}>{children}</td>
+                                );
+                                return (
+                                  <tr key={idx}>
+                                    {td(<span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, paddingLeft: '0.25rem' }}>{idx + 1}</span>)}
+                                    {td(<input style={inputStyle} placeholder="e.g. Anubias Nana" value={row.product_name} onChange={e => updateRow(idx, 'product_name', e.target.value)} />)}
+                                    {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="Anubias barteri" value={row.scientific_name} onChange={e => updateRow(idx, 'scientific_name', e.target.value)} />)}
+                                    {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="West Africa" value={row.origin} onChange={e => updateRow(idx, 'origin', e.target.value)} />)}
+                                    {td(
+                                      <select style={selectStyle} value={row.category_id} onChange={e => updateRow(idx, 'category_id', e.target.value)}>
+                                        <option value="">Select…</option>
+                                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                      </select>
+                                    )}
+                                    {td(
+                                      <select style={selectStyle} value={row.sub_category_id} onChange={e => updateRow(idx, 'sub_category_id', e.target.value)} disabled={!row.category_id}>
+                                        <option value="">{row.category_id ? 'Select…' : '← Pick category'}</option>
+                                        {subcats.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                      </select>
+                                    )}
+                                    {td(
+                                      <select style={selectStyle} value={row.variant_type} onChange={e => updateRow(idx, 'variant_type', e.target.value)}>
+                                        {VARIANT_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                                      </select>
+                                    )}
+                                    {td(<input style={inputStyle} placeholder="Standard" value={row.variant_name} onChange={e => updateRow(idx, 'variant_name', e.target.value)} />)}
+                                    {td(<input style={inputStyle} type="number" min="0" placeholder="299" value={row.base_price} onChange={e => updateRow(idx, 'base_price', e.target.value)} />)}
+                                    {td(<input style={inputStyle} type="number" min="0" placeholder="10" value={row.stock} onChange={e => updateRow(idx, 'stock', e.target.value)} />)}
+                                    {td(
+                                      <select style={selectStyle} value={row.item_category} onChange={e => updateRow(idx, 'item_category', e.target.value)}>
+                                        {WEIGHT_CATS.map(w => <option key={w} value={w}>{w}</option>)}
+                                      </select>
+                                    )}
+                                    {td(<input style={inputStyle} type="number" min="1" max="30000" placeholder="250" value={row.packed_weight_grams} onChange={e => updateRow(idx, 'packed_weight_grams', e.target.value)} />)}
+                                    {td(<input style={{ ...inputStyle, width: '64px' }} type="number" min="1" placeholder="10" value={row.box_length} onChange={e => updateRow(idx, 'box_length', e.target.value)} />)}
+                                    {td(<input style={{ ...inputStyle, width: '64px' }} type="number" min="1" placeholder="10" value={row.box_width} onChange={e => updateRow(idx, 'box_width', e.target.value)} />)}
+                                    {td(<input style={{ ...inputStyle, width: '64px' }} type="number" min="1" placeholder="10" value={row.box_height} onChange={e => updateRow(idx, 'box_height', e.target.value)} />)}
+                                    {td(
+                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: cat ? '#166534' : '#94a3b8', backgroundColor: cat ? '#f0fdf4' : '#f8fafc', padding: '0.3rem 0.6rem', borderRadius: '6px', whiteSpace: 'nowrap' }}>
+                                        {cat ? `${gstVal}%` : '—'}
+                                      </span>
+                                    )}
+                                    {td(<input style={inputStyle} placeholder="folder-name" value={row.image_folder} onChange={e => updateRow(idx, 'image_folder', e.target.value)} />)}
+                                    {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="optional" value={row.sku} onChange={e => updateRow(idx, 'sku', e.target.value)} />)}
+                                    {td(
+                                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                        <button title="Duplicate row" onClick={() => duplicateRow(idx)} style={{ padding: '0.35rem 0.45rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', cursor: 'pointer', color: '#0369a1', fontSize: '0.65rem', fontWeight: 700 }}>+</button>
+                                        {rows.length > 1 && (
+                                          <button title="Remove row" onClick={() => removeRow(idx)} style={{ padding: '0.35rem 0.45rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', color: '#ef4444', fontSize: '0.65rem', fontWeight: 700 }}>✕</button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Footer tips */}
+                        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px', padding: '1.25rem 1.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: '0.78rem', color: '#166534', lineHeight: 1.6 }}>
+                            <strong>Tips:</strong> GST fills automatically from category. Sub-category unlocks after picking a category. Duplicate a row to list another variant of the same plant — just change Variant Type/Name. Download Excel to share or keep a record.
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  return <BulkUpload key="bulk-upload" />;
+                })()}
+
               </div>
             )}
           </main>
