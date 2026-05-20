@@ -94,7 +94,40 @@ export default function ShippingPolicy() {
       </Section>
 
       <Section n="3" title="Shipping Charges">
-        <p>Shipping charges are calculated at checkout based on the weight, dimensions, and delivery zone of your order. The exact amount is shown before payment. Orders above a threshold amount (as displayed on the Platform) may qualify for free shipping. Shipping charges are non-refundable except in cases where Junglyst or the Seller is at fault.</p>
+        <p>Shipping charges are calculated per seller based on the item category and order subtotal. The exact amount is shown at checkout before payment. Shipping charges are non-refundable except in cases where Junglyst or the Seller is at fault.</p>
+
+        <p style={{ marginTop: '1rem', fontWeight: 700, fontSize: '0.9rem' }}>Light items (aquatic plants, stems, mosses)</p>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Order Subtotal (per seller)</th>
+              <th style={thStyle}>Shipping Fee</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style={tdStyle}>Below ₹699</td><td style={tdStyle}>₹49</td></tr>
+            <tr><td style={tdAltStyle}>₹699 and above</td><td style={tdAltStyle}><strong style={{ color: '#10b981' }}>FREE</strong></td></tr>
+          </tbody>
+        </table>
+
+        <p style={{ marginTop: '1.5rem', fontWeight: 700, fontSize: '0.9rem' }}>Heavy items (rocks, substrate, soil, driftwood)</p>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Order Subtotal (per seller)</th>
+              <th style={thStyle}>Shipping Fee</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style={tdStyle}>Below ₹999</td><td style={tdStyle}>₹99</td></tr>
+            <tr><td style={tdAltStyle}>₹999 – ₹1,498</td><td style={tdAltStyle}>₹49</td></tr>
+            <tr><td style={tdStyle}>₹1,499 and above</td><td style={tdStyle}><strong style={{ color: '#10b981' }}>FREE</strong></td></tr>
+          </tbody>
+        </table>
+
+        <Notice type="info">
+          If your cart contains items from multiple sellers, shipping is calculated independently per seller. A mixed cart with both light and heavy items from the same seller will use the heavy rate for that seller's entire shipment.
+        </Notice>
       </Section>
 
       <Section n="4" title="Botanical Packaging Standards">

@@ -115,7 +115,7 @@ export default function Cart() {
 
             {/* Seller Groups */}
             {Object.entries(sellerGroups).map(([sellerId, group]) => {
-              const storeName = group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
+              const storeName = group.seller?.store_name || group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
               const freeThreshold = group.has_heavy ? 2499 : 999;
 
               return (
@@ -247,7 +247,7 @@ export default function Cart() {
             {/* Per-seller breakdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
               {Object.entries(sellerGroups).map(([id, group]) => {
-                const storeName = group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
+                const storeName = group.seller?.store_name || group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
                 return (
                   <div key={id} style={{ borderBottom: '1px dashed #f1f5f9', paddingBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>

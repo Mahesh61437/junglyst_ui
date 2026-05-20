@@ -12,12 +12,15 @@ import {
   Share2,
   ArrowLeft,
   ChevronRight,
+  ChevronDown,
   Star,
   Leaf,
   Award,
   Box,
   CheckCircle2,
-  ChevronLeft
+  ChevronLeft,
+  Clock,
+  Package,
 } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import { useCart } from '../context/CartContext';
@@ -89,6 +92,7 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState('Standard');
   const [isMobile, setIsMobile] = useState(false);
+  const [shippingOpen, setShippingOpen] = useState(false);
   // Guard against rapid double-taps / React Strict Mode double-fires calling add_item 2-3× at once
   const isAddingToCart = useRef(false);
   const { addToCart, addItemToCart, LIGHT_FREE_THRESHOLD, HEAVY_FREE_THRESHOLD, cart } = useCart();
@@ -809,6 +813,109 @@ export default function ProductDetails() {
                 return (
                   <div style={{ padding: '0.6rem 1rem', borderRadius: '10px', backgroundColor: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Truck size={14} /> Free shipping above ₹{threshold.toLocaleString('en-IN')} from this seller
+                  </div>
+                );
+              })()}
+
+              {/* ── Collapsible Shipping Info ── */}
+              {(() => {
+                const isHeavy = selectedVariant?.item_category === 'heavy';
+                const shippingDays = product?.seller?.seller_profile?.shipping_days || [];
+
+                // Compute next dispatch date + countdown
+                function getNextDispatch(days) {
+                  if (!days || days.length === 0) return null;
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const currentWeekday = (today.getDay() + 6) % 7;
+                  const sorted = [...new Set(days)].sort((a, b) => a - b);
+                  for (const d of sorted) {
+                    if (d >= currentWeekday) {
+                      const next = new Date(today);
+                      next.setDate(today.getDate() + (d - currentWeekday));
+                      return next;
+                    }
+                  }
+                  const next = new Date(today);
+                  next.setDate(today.getDate() + (7 - currentWeekday + sorted[0]));
+                  return next;
+                }
+
+                function formatDispatch(date) {
+                  const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                  const today = new Date(); today.setHours(0,0,0,0);
+                  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+                  if (date.getTime() === today.getTime()) return 'Today';
+                  if (date.getTime() === tomorrow.getTime()) return 'Tomorrow';
+                  return `${DAYS[date.getDay()]}, ${date.getDate()} ${MONTHS[date.getMonth()]}`;
+                }
+
+                const nextDispatch = getNextDispatch(shippingDays);
+                const dispatchLabel = nextDispatch ? formatDispatch(nextDispatch) : null;
+
+                // Countdown: cutoff is midnight of next dispatch day (ships anytime that day)
+                // "Book within X hrs Y mins" = time until end of dispatch day
+                let countdownText = null;
+                if (nextDispatch) {
+                  const cutoff = new Date(nextDispatch);
+                  cutoff.setHours(23, 59, 59, 999);
+                  const now = new Date();
+                  const msLeft = cutoff - now;
+                  if (msLeft > 0 && msLeft < 24 * 60 * 60 * 1000) {
+                    const h = Math.floor(msLeft / 3600000);
+                    const m = Math.floor((msLeft % 3600000) / 60000);
+                    countdownText = `Book within ${h}h ${m}m to ship ${dispatchLabel}`;
+                  } else if (dispatchLabel) {
+                    countdownText = `Next dispatch: ${dispatchLabel}`;
+                  }
+                }
+
+                return (
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShippingOpen(o => !o)}
+                      style={{ width: '100%', padding: '0.875rem 1.25rem', background: 'white', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.8rem', fontWeight: 700, color: '#1b2d2a' }}>
+                        <Truck size={15} color="#10b981" />
+                        Shipping & Dispatch
+                        {countdownText && (
+                          <span style={{ backgroundColor: '#fef9c3', color: '#92400e', fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Clock size={11} /> {countdownText}
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown size={16} color="#64748b" style={{ transform: shippingOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                    </button>
+                    {shippingOpen && (
+                      <div style={{ padding: '0 1.25rem 1.25rem', backgroundColor: '#f8faf9', borderTop: '1px solid #f1f5f9', fontSize: '0.78rem', color: '#475569' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', paddingTop: '1rem' }}>
+                          {isHeavy ? (
+                            <>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span><Package size={12} style={{display:'inline',marginRight:'4px'}}/>Below ₹999</span><span style={{fontWeight:700}}>₹99</span></div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span><Package size={12} style={{display:'inline',marginRight:'4px'}}/>₹999 – ₹1,498</span><span style={{fontWeight:700}}>₹49</span></div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span><Package size={12} style={{display:'inline',marginRight:'4px'}}/>₹1,499 and above</span><span style={{fontWeight:700,color:'#10b981'}}>FREE</span></div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span><Leaf size={12} style={{display:'inline',marginRight:'4px'}}/>Below ₹699</span><span style={{fontWeight:700}}>₹49</span></div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span><Leaf size={12} style={{display:'inline',marginRight:'4px'}}/>₹699 and above</span><span style={{fontWeight:700,color:'#10b981'}}>FREE</span></div>
+                            </>
+                          )}
+                          {dispatchLabel && (
+                            <div style={{ marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}><Clock size={12} /> Next dispatch</span>
+                              <span style={{ fontWeight: 700, color: '#1b2d2a' }}>{dispatchLabel}</span>
+                            </div>
+                          )}
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                            Charges shown are per seller. <a href="/shipping-policy" style={{ color: 'var(--brand-gold)', fontWeight: 700 }}>Full policy →</a>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}

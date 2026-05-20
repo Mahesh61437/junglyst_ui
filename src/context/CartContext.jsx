@@ -63,18 +63,19 @@ export const useCart = () => useContext(CartContext);
 const MAX_SELLERS = 3;
 const MAX_ITEM_QUANTITY = 10;
 
+// Light (plants only): ₹49 below ₹699, free ≥ ₹699
 const LIGHT_TIERS = [
-  { max: 699, fee: 99 },
-  { max: 999, fee: 49 },
+  { max: 699, fee: 49 },
   { max: Infinity, fee: 0 },
 ];
+// Heavy (rocks, substrate, soil etc.): ₹99 below ₹999, ₹49 below ₹1499, free ≥ ₹1499
 const HEAVY_TIERS = [
   { max: 999, fee: 99 },
-  { max: 2499, fee: 49 },
+  { max: 1499, fee: 49 },
   { max: Infinity, fee: 0 },
 ];
-const LIGHT_FREE_THRESHOLD = 999;
-const HEAVY_FREE_THRESHOLD = 2499;
+const LIGHT_FREE_THRESHOLD = 699;
+const HEAVY_FREE_THRESHOLD = 1499;
 
 function sellerShippingFee(subtotal, hasHeavy) {
   const tiers = hasHeavy ? HEAVY_TIERS : LIGHT_TIERS;
@@ -116,6 +117,8 @@ function calculateFinancials(items = [], deliveryZone = null) {
 
     if (!seller_groups[sellerId]) {
       const sellerProfile = product.seller?.seller_profile || {};
+      // shipping_days may come nested (core serializer) or flat (cart serializer)
+      const shippingDays = sellerProfile.shipping_days ?? product.seller?.shipping_days;
       seller_groups[sellerId] = {
         seller: product.seller || {},
         items: [],
@@ -123,7 +126,7 @@ function calculateFinancials(items = [], deliveryZone = null) {
         has_heavy: false,
         shipping_fee: 0,
         nudge: null,
-        shipping_window: buildShippingWindow(sellerProfile.shipping_days),
+        shipping_window: buildShippingWindow(shippingDays),
       };
     }
 
@@ -142,7 +145,7 @@ function calculateFinancials(items = [], deliveryZone = null) {
 
   for (const id of sellerIds) {
     const g = seller_groups[id];
-    const storeName = g.seller?.seller_profile?.store_name || g.seller?.full_name || 'this seller';
+    const storeName = g.seller?.store_name || g.seller?.seller_profile?.store_name || g.seller?.full_name || 'this seller';
     const blocked = deliveryZone === 'E';
 
     if (!blocked) {

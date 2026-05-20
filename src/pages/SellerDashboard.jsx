@@ -1556,6 +1556,35 @@ export default function SellerDashboard() {
                             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem' }}>Botanical Mandate / Bio <span style={{ color: '#ef4444' }}>*</span></label>
                             <textarea rows="5" value={spotlight.bio} onChange={e => setSpotlight({ ...spotlight, bio: e.target.value })} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', resize: 'none' }} />
                           </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Dispatch Days</label>
+                            <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.75rem' }}>Select the weekdays you ship orders. Buyers see the next available dispatch date on product pages.</p>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day, idx) => {
+                                const active = (spotlight.shipping_days || []).includes(idx);
+                                return (
+                                  <button
+                                    key={day}
+                                    type="button"
+                                    onClick={() => {
+                                      const current = spotlight.shipping_days || [];
+                                      const updated = active ? current.filter(d => d !== idx) : [...current, idx].sort((a,b)=>a-b);
+                                      setSpotlight({ ...spotlight, shipping_days: updated });
+                                    }}
+                                    style={{
+                                      padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', border: '2px solid',
+                                      backgroundColor: active ? (spotlight.brand_color || '#0A3029') : 'white',
+                                      color: active ? 'white' : '#64748b',
+                                      borderColor: active ? (spotlight.brand_color || '#0A3029') : '#e2e8f0',
+                                    }}
+                                  >{day}</button>
+                                );
+                              })}
+                            </div>
+                            {(spotlight.shipping_days || []).length === 0 && (
+                              <p style={{ fontSize: '0.72rem', color: '#f59e0b', marginTop: '0.5rem', fontWeight: 600 }}>No dispatch days set — buyers won't see a shipment window for your products.</p>
+                            )}
+                          </div>
                         </div>
                       </div>
 
