@@ -19,49 +19,49 @@ export default function FAQ() {
       {
         id: 'pay-1',
         question: 'What payment methods do you accept?',
-        answer: 'We accept UPI payments through Razorpay and Cashfree. Your transactions are fully secured and PCI-DSS compliant.'
+        answer: 'We accept all major payment methods through Razorpay — UPI (GPay, PhonePe, BHIM), debit cards, credit cards, and net banking. All transactions are fully secured and PCI-DSS compliant.'
       },
       {
         id: 'pay-2',
         question: 'Is my payment information secure?',
-        answer: 'Yes, all payments are encrypted and handled by industry-leading payment gateways (Razorpay & Cashfree). We never store your card details.'
+        answer: 'Yes. All payments are processed by Razorpay using industry-standard encryption. Junglyst never stores your card or UPI details on its servers.'
       },
       {
         id: 'pay-3',
-        question: 'Can I get a refund if my plant arrives damaged?',
-        answer: 'Absolutely. We offer a 100% refund or replacement if your specimen arrives damaged or doesn\'t meet our quality standards.  '
+        question: 'Can I get a refund if my plant arrives damaged or dead?',
+        answer: 'Yes. If your specimen arrives Dead on Arrival (DOA) — meaning it is completely deceased or destroyed, not just stressed from transit — raise a claim within 24 hours of delivery with an unboxing video or clear photographs as evidence. We will issue a replacement or full refund after assessment. Minor transit stress like slight wilting or yellowing does not qualify as DOA. See our Refund & Returns Policy for the complete details.'
       },
       {
         id: 'pay-4',
         question: 'Do you offer installment payment options?',
-        answer: 'Currently, we only accept full payment at checkout. Contact us to inquire about future installment options.'
+        answer: 'Currently, we only accept full payment at checkout via Razorpay. Installment or BNPL options are not available at this time.'
       }
     ],
     orders: [
       {
         id: 'ord-1',
         question: 'How can I track my order?',
-        answer: 'You can track your order in real-time from your account dashboard. Logged-in users can access their order tracking page. Guest users can track using their Order ID.'
+        answer: 'Once your order is dispatched, you will receive an email and SMS with your AWB tracking number and a direct NimbusPost tracking link. You can also track your order in real-time from "My Orders" in your Junglyst account. If you ordered from multiple sellers, each seller\'s shipment will have its own AWB and tracking link.'
       },
       {
         id: 'ord-2',
         question: 'How long does delivery take?',
-        answer: 'Most orders ship within 48 hours of confirmation. Delivery typically takes 3-7 days depending on your location and current shipping volume.'
+        answer: 'Sellers are required to dispatch confirmed orders within 48 hours. Estimated delivery after dispatch is 1–2 days for same-city orders, 2–4 days for most metros and adjacent states, and 4–6 days for whitelisted Zone D cities. Note: Junglyst does not ship to Zone E (remote / North-East / J&K) or non-whitelisted pincodes — you can check serviceability on any product page.'
       },
       {
         id: 'ord-3',
         question: 'What if I don\'t receive my order?',
-        answer: 'If your order doesn\'t arrive within the estimated delivery window, please contact our support team immediately. We\'ll investigate and send a replacement or issue a refund.'
+        answer: 'If your order hasn\'t arrived within the estimated delivery window and tracking hasn\'t updated, contact us at admin@junglyst.com with your order number and AWB. We will investigate with NimbusPost and arrange a replacement or refund as appropriate.'
       },
       {
         id: 'ord-4',
-        question: 'Can I cancel or modify my order?',
-        answer: 'No, order cannot be cancelled or modified once it\'s placed. Please review your order carefully before confirming. If you have any issues, contact our support team for assistance.'
+        question: 'Can I cancel my order?',
+        answer: 'Cancellations are possible before the Seller begins packing (i.e., while the order is in "Order Placed" or "Confirmed" status). Once the status moves to "Packing" or "Shipped", cancellation is no longer available. To cancel, go to "My Orders" in your account and use "Request Cancellation" if the option appears, or email admin@junglyst.com immediately with your order number.'
       },
       {
         id: 'ord-5',
-        question: 'What is your return policy?',
-        answer: 'We accept returns within 7 days of delivery if the specimen is damaged or doesn\'t match the description. The item must be in original packaging and in resellable condition. User should have the uncut unboxing video as proof. Contact our support team within 24 hours of delivery to initiate the process.'
+        question: 'What is your return and DOA policy?',
+        answer: 'Returns are accepted for Dead on Arrival (DOA) specimens, wrong items sent, severely damaged packaging, or significant species/size mismatch — provided you raise the claim within 24 hours (DOA/damage) or 48 hours (wrong item/mismatch) of delivery. You must submit a continuous unboxing video or clear photographs as proof. Change of mind, minor transit stress, and natural variation are not valid return reasons. See our full Refund, Returns & DOA Policy for all details.'
       }
     ]
   };

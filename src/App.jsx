@@ -32,6 +32,7 @@ import Failure from './pages/Failure';
 import MyOrders from './pages/MyOrders';
 import OrderTracking from './pages/OrderTracking';
 import TrackOrder from './pages/TrackOrder';
+import Competition from './pages/Competition';
 import RequireAuth from './components/RequireAuth';
 import ScrollToTop from './components/ScrollToTop';
 import { useEffect } from 'react';
@@ -93,6 +94,7 @@ function App() {
                 <Route path="orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
                 <Route path="orders/:id" element={<RequireAuth><OrderTracking /></RequireAuth>} />
                 <Route path="track" element={<TrackOrder />} />
+                <Route path="competition" element={<Competition />} />
               </Route>
               
               {/* Auth Portals (Standalone) */}

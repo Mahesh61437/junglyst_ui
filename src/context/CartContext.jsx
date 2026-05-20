@@ -39,16 +39,23 @@ function formatShipDate(date) {
   return `${DAY[date.getDay()]}, ${date.getDate()} ${MON[date.getMonth()]}`;
 }
 
-export function buildShippingWindow(shippingDays) {
+// Zone-based transit days after dispatch
+function transitDays(zone) {
+  if (zone === 'A') return { min: 1, max: 2 };
+  if (zone === 'B') return { min: 2, max: 3 };
+  if (zone === 'D_whitelisted') return { min: 4, max: 6 };
+  return { min: 3, max: 5 }; // C and unknown
+}
+
+export function buildShippingWindow(shippingDays, zone = null) {
   const next = getNextShippingDate(shippingDays);
   if (!next) return null;
-  const min = new Date(next); min.setDate(next.getDate() + 3);
-  const max = new Date(next); max.setDate(next.getDate() + 7);
+  const { min: minDays, max: maxDays } = transitDays(zone);
+  const min = new Date(next); min.setDate(next.getDate() + minDays);
+  const max = new Date(next); max.setDate(next.getDate() + maxDays);
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const minStr = `${min.getDate()} ${MON[min.getMonth()]}`;
-  const maxStr = min.getMonth() === max.getMonth()
-    ? `${max.getDate()} ${MON[max.getMonth()]}`
-    : `${max.getDate()} ${MON[max.getMonth()]}`;
+  const maxStr = `${max.getDate()} ${MON[max.getMonth()]}`;
   return {
     ships_on: formatShipDate(next),
     ships_date: next,
@@ -126,7 +133,7 @@ function calculateFinancials(items = [], deliveryZone = null) {
         has_heavy: false,
         shipping_fee: 0,
         nudge: null,
-        shipping_window: buildShippingWindow(shippingDays),
+        shipping_window: buildShippingWindow(shippingDays, deliveryZone),
       };
     }
 
@@ -158,8 +165,8 @@ function calculateFinancials(items = [], deliveryZone = null) {
     return acc + parseFloat(item.variant?.price || item.product?.price || 0) * item.quantity;
   }, 0);
   const total_items = adjustedItems.reduce((acc, item) => acc + item.quantity, 0);
-  const hasHeavy = Object.values(seller_groups).some(g => g.has_heavy);
-  shipping_total = deliveryZone === 'E' ? 0 : sellerShippingFee(subtotal, hasHeavy);
+  // Sum each seller's individual shipping fee (calculated per-seller above)
+  shipping_total = sellerIds.reduce((sum, id) => sum + (seller_groups[id].shipping_fee || 0), 0);
 
   return {
     items: adjustedItems,

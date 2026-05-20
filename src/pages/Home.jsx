@@ -1,13 +1,120 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
-import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 import api from '../services/api';
+
+const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
+
+function useCompetitionCountdown() {
+  const [timeLeft, setTimeLeft] = useState(getLeft);
+  function getLeft() {
+    const diff = COMPETITION_LAUNCH - Date.now();
+    if (diff <= 0) return null;
+    return {
+      days: Math.floor(diff / 86400000),
+      hours: Math.floor((diff % 86400000) / 3600000),
+      minutes: Math.floor((diff % 3600000) / 60000),
+      seconds: Math.floor((diff % 60000) / 1000),
+    };
+  }
+  useEffect(() => {
+    const t = setInterval(() => setTimeLeft(getLeft()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return timeLeft;
+}
+
+function CompetitionPromo() {
+  const timeLeft = useCompetitionCountdown();
+  if (!timeLeft) return null;
+
+  const pad = n => String(n).padStart(2, '0');
+
+  return (
+    <section style={{
+      background: 'linear-gradient(135deg, #060f0d 0%, #071823 50%, #060f0d 100%)',
+      padding: 'clamp(2.5rem,5vw,4.5rem) 1.5rem',
+      borderTop: '1px solid rgba(201,151,43,0.15)',
+      borderBottom: '1px solid rgba(201,151,43,0.15)',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Radial glow */}
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '700px', height: '300px', background: 'radial-gradient(ellipse, rgba(201,151,43,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+      <div className="container">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem', flexWrap: 'wrap' }}>
+
+          {/* Left: text */}
+          <div style={{ flex: '1 1 280px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', background: 'rgba(201,151,43,0.12)', border: '1px solid rgba(201,151,43,0.3)', borderRadius: '100px', padding: '0.35rem 0.85rem', marginBottom: '1rem' }}>
+              <Trophy size={12} color="#c9972b" />
+              <span style={{ fontSize: '0.65rem', color: '#c9972b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+                Now Open — 500 Slots Only
+              </span>
+            </div>
+            <h2 style={{
+              fontSize: 'clamp(1.5rem,3.5vw,2.75rem)',
+              margin: '0 0 0.75rem',
+              color: 'white',
+              fontFamily: 'var(--font-serif)',
+              lineHeight: 1.2,
+            }}>
+              Aquascape<br />Competition 2026
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontSize: '0.88rem', margin: '0 0 1.5rem', maxWidth: '380px' }}>
+              Show off the aquascape you've built. Submit photos, tell your story, and win <strong style={{ color: '#c9972b' }}>₹1,000</strong>. Winner announced on May 25, 2026.
+            </p>
+            <Link
+              to="/competition"
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 2rem', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+            >
+              Enter Now <ArrowRight size={15} />
+            </Link>
+          </div>
+
+          {/* Right: countdown */}
+          <div style={{ flex: '0 0 auto', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem' }}>
+              Closes in
+            </p>
+            <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center' }}>
+              {[
+                { val: timeLeft.days, label: 'Days' },
+                { val: timeLeft.hours, label: 'Hrs' },
+                { val: timeLeft.minutes, label: 'Min' },
+                { val: timeLeft.seconds, label: 'Sec' },
+              ].map(({ val, label }) => (
+                <div key={label} style={{ textAlign: 'center', minWidth: '60px' }}>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1px solid rgba(201,151,43,0.25)',
+                    borderRadius: '10px',
+                    padding: '0.75rem 0.5rem',
+                    marginBottom: '0.4rem',
+                  }}>
+                    <span style={{ display: 'block', fontSize: 'clamp(1.4rem,3vw,2.25rem)', fontWeight: 800, color: '#c9972b', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {pad(val)}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  );
+}
 
 // ─── Stats Bar ────────────────────────────────────────────────────────────────
 function StatsBar({ stats }) {
@@ -244,6 +351,9 @@ export default function Home() {
 
       {/* Platform stats — builds instant trust below the fold */}
       <StatsBar stats={stats} />
+
+      {/* Competition promotion — shown until launch date */}
+      <CompetitionPromo />
 
       {/* Products — direct path to purchase */}
       <section className="container" style={{ padding: 'clamp(3.5rem,7vw,6.5rem) 1.5rem' }}>

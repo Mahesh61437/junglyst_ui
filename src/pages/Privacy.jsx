@@ -18,7 +18,7 @@ export default function Privacy() {
     <PolicyLayout
       badge="Legal"
       title="Privacy Policy"
-      updated="May 7, 2026"
+      updated="May 20, 2026"
       summary="This policy explains what personal data Junglyst collects, how we use it, and your rights. We are committed to protecting your privacy in accordance with Indian law."
       relatedLinks={RELATED}
     >
