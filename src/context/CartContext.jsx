@@ -66,42 +66,66 @@ export function buildShippingWindow(shippingDays, zone = null) {
 const CartContext = createContext();
 export const useCart = () => useContext(CartContext);
 
-// ── Shipping fee constants (SHIP-002 spec) ───────────────────────────────────
+// ── Cart policy constants ─────────────────────────────────────────────────────
 const MAX_SELLERS = 3;
 const MAX_ITEM_QUANTITY = 10;
 
-// Light (plants only): ₹49 below ₹699, free ≥ ₹699
-const LIGHT_TIERS = [
-  { max: 699, fee: 49 },
-  { max: Infinity, fee: 0 },
-];
-// Heavy (rocks, substrate, soil etc.): ₹99 below ₹999, ₹49 below ₹1499, free ≥ ₹1499
-const HEAVY_TIERS = [
-  { max: 999, fee: 99 },
-  { max: 1499, fee: 49 },
-  { max: Infinity, fee: 0 },
-];
-const LIGHT_FREE_THRESHOLD = 699;
-const HEAVY_FREE_THRESHOLD = 1499;
+// Shipping fee and nudge are driven by per-seller DB config fetched from the API.
+// configs shape: { [sellerId]: { light?: TierConfig, heavy?: TierConfig } }
+// TierConfig: { tier1_max, tier1_fee, tier2_max, tier2_fee, show_nudge_products }
 
-function sellerShippingFee(subtotal, hasHeavy) {
-  const tiers = hasHeavy ? HEAVY_TIERS : LIGHT_TIERS;
-  for (const tier of tiers) {
-    if (subtotal < tier.max) return tier.fee;
-  }
+function sellerShippingFee(subtotal, config) {
+  if (!config) return 0;
+  if (subtotal < config.tier1_max) return config.tier1_fee;
+  if (subtotal < config.tier2_max) return config.tier2_fee;
   return 0;
 }
 
-function nudgeForSeller(subtotal, hasHeavy, sellerName) {
-  const threshold = hasHeavy ? HEAVY_FREE_THRESHOLD : LIGHT_FREE_THRESHOLD;
-  const remaining = threshold - subtotal;
-  if (remaining <= 0) return { type: 'free', message: `✓ Free shipping from ${sellerName}` };
-  if (remaining <= 200) return { type: 'nudge', message: `Add ₹${Math.ceil(remaining)} more from ${sellerName} for free shipping` };
-  return null;
+function nudgeForSeller(subtotal, config, sellerName) {
+  if (!config) return { type: 'free', message: `✓ Free shipping from ${sellerName}`, show_products: false };
+
+  const currentFee = sellerShippingFee(subtotal, config);
+
+  if (currentFee === 0) {
+    return { type: 'free', message: `✓ Free shipping from ${sellerName}`, show_products: false, current_fee: 0 };
+  }
+
+  let message = null;
+  let secondary_message = null;
+  let to_next_tier = null;
+  let next_fee = null;
+
+  // In tier-1 (highest fee): show how much to add to reach tier-2
+  if (subtotal < config.tier1_max && config.tier2_fee < config.tier1_fee) {
+    to_next_tier = Math.ceil(config.tier1_max - subtotal);
+    next_fee = config.tier2_fee;
+    message = `Add ₹${to_next_tier} from ${sellerName} to drop shipping ₹${config.tier1_fee} → ₹${config.tier2_fee}`;
+  }
+
+  // Show distance to free shipping
+  const to_free = Math.ceil(config.tier2_max - subtotal);
+  if (to_free > 0) {
+    if (!message) {
+      message = `Add ₹${to_free} from ${sellerName} for free shipping`;
+    } else {
+      secondary_message = `Add ₹${to_free} for free shipping`;
+    }
+  }
+
+  return {
+    type: to_next_tier ? 'tier_upgrade' : 'free_shipping',
+    message,
+    secondary_message,
+    current_fee: currentFee,
+    to_next_tier,
+    next_fee,
+    to_free: to_free > 0 ? to_free : 0,
+    show_products: config.show_nudge_products || false,
+  };
 }
 
 // ── Main financials engine ────────────────────────────────────────────────────
-function calculateFinancials(items = [], deliveryZone = null) {
+function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
   if (!Array.isArray(items)) return _empty();
 
   // 1. Clamp quantities to stock / policy max
@@ -146,7 +170,7 @@ function calculateFinancials(items = [], deliveryZone = null) {
     if (cat === 'heavy') seller_groups[sellerId].has_heavy = true;
   }
 
-  // 3. Per-seller nudge + min-order flag; shipping is calculated once for the whole cart
+  // 3. Per-seller shipping + nudge using DB-driven configs
   let shipping_total = 0;
   const sellerIds = Object.keys(seller_groups);
 
@@ -154,10 +178,15 @@ function calculateFinancials(items = [], deliveryZone = null) {
     const g = seller_groups[id];
     const storeName = g.seller?.store_name || g.seller?.seller_profile?.store_name || g.seller?.full_name || 'this seller';
     const blocked = deliveryZone === 'E';
+    const cat = g.has_heavy ? 'heavy' : 'light';
+    const sellerConfig = (configs[id] || {})[cat] || null;
 
     if (!blocked) {
-      g.shipping_fee = sellerShippingFee(g.subtotal, g.has_heavy);
-      g.nudge = nudgeForSeller(g.subtotal, g.has_heavy, storeName);
+      g.shipping_fee = sellerShippingFee(g.subtotal, sellerConfig);
+      g.nudge = nudgeForSeller(g.subtotal, sellerConfig, storeName);
+    } else {
+      g.shipping_fee = 0;
+      g.nudge = null;
     }
   }
 
@@ -210,9 +239,24 @@ export const CartProvider = ({ children }) => {
   const [pincodeChecking, setPincodeChecking] = useState(false);
   const [pincodeResult, setPincodeResult] = useState(null);
   const deliveryZoneRef = useRef(null);
+  // Shipping configs keyed by seller_id → { light: TierConfig, heavy: TierConfig }
+  const shippingConfigsRef = useRef({});
 
   const recalc = useCallback((items, zone) => {
-    setCart(calculateFinancials(items, zone));
+    setCart(calculateFinancials(items, zone, shippingConfigsRef.current));
+  }, []);
+
+  const fetchShippingConfigs = useCallback(async (items) => {
+    const sellerIds = [...new Set(
+      items.map(i => i.product?.seller?.id).filter(Boolean)
+    )];
+    if (sellerIds.length === 0) return;
+    try {
+      const res = await api.get(`/cart/shipping-configs/?seller_ids=${sellerIds.join(',')}`);
+      shippingConfigsRef.current = res.data || {};
+    } catch {
+      // fail silently — shipping defaults to 0 when configs unavailable
+    }
   }, []);
 
   const checkPincode = useCallback(async (pincode) => {
@@ -225,7 +269,7 @@ export const CartProvider = ({ children }) => {
       deliveryZoneRef.current = zone;
       setDeliveryZoneState(zone);
       setPincodeResult(data);
-      setCart(prev => calculateFinancials(prev.items, zone));
+      setCart(prev => calculateFinancials(prev.items, zone, shippingConfigsRef.current));
       return data;
     } catch {
       return null;
@@ -252,18 +296,23 @@ export const CartProvider = ({ children }) => {
       localStorage.removeItem('junglyst_cart');
       const finalData = await CartService.getCart();
       if (finalData.id) setCartId(finalData.id);
-      recalc(normalizeItems(finalData.items || []), deliveryZoneRef.current);
+      const freshItems = normalizeItems(finalData.items || []);
+      await fetchShippingConfigs(freshItems);
+      recalc(freshItems, deliveryZoneRef.current);
     } catch (error) {
       console.error('Cart sync failed:', error);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, recalc]);
+  }, [isAuthenticated, recalc, fetchShippingConfigs]);
 
   useEffect(() => {
     const init = async () => {
       const localItems = JSON.parse(localStorage.getItem('junglyst_cart') || '[]');
-      if (localItems.length > 0) recalc(localItems, null);
+      if (localItems.length > 0) {
+        await fetchShippingConfigs(localItems);
+        recalc(localItems, null);
+      }
       if (isAuthenticated) {
         await syncCartWithBackend();
       } else {
@@ -271,7 +320,7 @@ export const CartProvider = ({ children }) => {
       }
     };
     init();
-  }, [isAuthenticated, syncCartWithBackend, recalc]);
+  }, [isAuthenticated, syncCartWithBackend, recalc, fetchShippingConfigs]);
 
   useEffect(() => {
     if (cart.items.length > 0 || !loading) {
@@ -311,7 +360,7 @@ export const CartProvider = ({ children }) => {
         const localVariant = variantData ? { ...variantData, id: variantId ?? variantData.id } : (variantId ? { id: variantId } : null);
         newItems.push({ id: `temp-${Date.now()}`, product: localProduct, variant: localVariant, quantity });
       }
-      return calculateFinancials(newItems, deliveryZoneRef.current);
+      return calculateFinancials(newItems, deliveryZoneRef.current, shippingConfigsRef.current);
     });
 
     if (isAuthenticated) {
@@ -319,8 +368,9 @@ export const CartProvider = ({ children }) => {
         const updatedCart = await CartService.addToCart(productId, quantity, variantId);
         if (updatedCart.id) setCartId(updatedCart.id);
         const newItems = normalizeItems(updatedCart.items || []);
+        await fetchShippingConfigs(newItems);
         // SHIP-003: real check after backend confirms
-        const realGroups = Object.keys(calculateFinancials(newItems, null).seller_groups);
+        const realGroups = Object.keys(calculateFinancials(newItems, null, shippingConfigsRef.current).seller_groups);
         if (realGroups.length > MAX_SELLERS) {
           const addedItem = newItems.find(i =>
             i.product?.id === productId && (!variantId || i.variant?.id === variantId)
@@ -355,7 +405,7 @@ export const CartProvider = ({ children }) => {
     setCart(prev => {
       const newItems = [...prev.items];
       newItems[itemIndex] = { ...newItems[itemIndex], quantity: newQuantity };
-      return calculateFinancials(newItems, deliveryZoneRef.current);
+      return calculateFinancials(newItems, deliveryZoneRef.current, shippingConfigsRef.current);
     });
     if (isAuthenticated) {
       try {
@@ -370,7 +420,7 @@ export const CartProvider = ({ children }) => {
   const removeItem = async (itemIndex) => {
     const item = cart.items[itemIndex];
     if (!item) return;
-    setCart(prev => calculateFinancials(prev.items.filter((_, i) => i !== itemIndex), deliveryZoneRef.current));
+    setCart(prev => calculateFinancials(prev.items.filter((_, i) => i !== itemIndex), deliveryZoneRef.current, shippingConfigsRef.current));
     if (isAuthenticated && !item.id?.toString().startsWith('temp-')) {
       try {
         const updatedCart = await CartService.updateItem(item.id, 0);
@@ -405,8 +455,6 @@ export const CartProvider = ({ children }) => {
       fetchCart: syncCartWithBackend,
       MAX_SELLERS,
       MAX_ITEM_QUANTITY,
-      LIGHT_FREE_THRESHOLD,
-      HEAVY_FREE_THRESHOLD,
     }}>
       {children}
     </CartContext.Provider>
