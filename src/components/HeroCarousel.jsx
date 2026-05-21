@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin, Trophy, Clock } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
+
+const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
+
+const COMPETITION_SLIDE = {
+  id: '__competition',
+  banner_url: 'https://images.unsplash.com/photo-1570166308836-9a88fdab7028?w=1600&q=80',
+  brand_color: '#060f0d',
+  slug: '__competition',
+};
 
 // Fallback slides shown when no sellers are marked is_featured yet.
 // Replace/remove once real promoted sellers exist in the DB.
@@ -14,13 +23,117 @@ const FALLBACK_SLIDES = [
     bio: 'Farm-direct specimens of unparalleled vitality, sourced from Kerala\'s finest private greenhouse.',
     brand_color: '#0A3029',
     location_city: 'Kerala',
-    slug: null, // no real store page yet
+    slug: null,
   },
 ];
 
 function buildSlides(sellers) {
-  if (sellers && sellers.length > 0) return sellers;
-  return FALLBACK_SLIDES;
+  const base = (sellers && sellers.length > 0) ? sellers : FALLBACK_SLIDES;
+  // Prepend competition slide only if the competition is still open
+  if (Date.now() < COMPETITION_LAUNCH.getTime()) {
+    return [COMPETITION_SLIDE, ...base];
+  }
+  return base;
+}
+
+function useCountdown(target) {
+  const calc = () => {
+    const diff = target - Date.now();
+    if (diff <= 0) return null;
+    return {
+      days: Math.floor(diff / 86400000),
+      hours: Math.floor((diff % 86400000) / 3600000),
+      minutes: Math.floor((diff % 3600000) / 60000),
+      seconds: Math.floor((diff % 60000) / 1000),
+    };
+  };
+  const [t, setT] = useState(calc);
+  useEffect(() => {
+    const id = setInterval(() => setT(calc()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return t;
+}
+
+function CompetitionSlideContent({ transitioning }) {
+  const tl = useCountdown(COMPETITION_LAUNCH);
+  const pad = n => String(n).padStart(2, '0');
+
+  return (
+    <div style={{
+      maxWidth: '640px',
+      opacity: transitioning ? 0 : 1,
+      transform: transitioning ? 'translateY(12px)' : 'translateY(0)',
+      transition: 'opacity 0.5s, transform 0.5s',
+    }}>
+      {/* Eyebrow badge */}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(201,151,43,0.15)', border: '1px solid rgba(201,151,43,0.4)', borderRadius: '100px', padding: '0.35rem 0.85rem', marginBottom: '1.4rem' }}>
+        <Trophy size={13} color="#c9972b" />
+        <span style={{ color: '#c9972b', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em' }}>
+          Aquascape Competition 2026
+        </span>
+      </div>
+
+      {/* Headline */}
+      <h1 style={{
+        fontSize: 'clamp(2.2rem, 5.5vw, 4rem)',
+        fontFamily: 'var(--font-serif)',
+        color: 'white',
+        lineHeight: 1.08,
+        marginBottom: '1rem',
+        letterSpacing: '-0.02em',
+      }}>
+        Build.<br />Photograph.<br />Win.
+      </h1>
+
+      {/* Sub-copy */}
+      <p style={{ fontSize: 'clamp(0.88rem, 1.6vw, 1rem)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.7, marginBottom: '1.75rem', maxWidth: '440px' }}>
+        Submit photos of your aquascape. The most stunning build wins{' '}
+        <strong style={{ color: '#c9972b', fontWeight: 700 }}>₹1,000 cash</strong>.
+        500 slots only — winner announced on launch day.
+      </p>
+
+      {/* Live countdown */}
+      {tl && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <Clock size={13} color="rgba(255,255,255,0.4)" />
+          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Closes in</span>
+          {[
+            { val: tl.days, label: 'days' },
+            { val: tl.hours, label: 'hrs' },
+            { val: tl.minutes, label: 'min' },
+            { val: tl.seconds, label: 'sec' },
+          ].map(({ val, label }, i) => (
+            <React.Fragment key={label}>
+              {i > 0 && <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.8rem' }}>:</span>}
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ display: 'block', fontSize: 'clamp(1.1rem, 2.2vw, 1.5rem)', fontWeight: 800, color: 'white', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {pad(val)}
+                </span>
+                <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</span>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      {/* CTAs */}
+      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <Link
+          to="/competition"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', padding: '0.875rem 2.25rem', borderRadius: '100px', backgroundColor: '#c9972b', color: '#0a1f1c', fontWeight: 800, fontSize: '0.85rem', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase' }}
+        >
+          Enter Competition <ArrowRight size={15} />
+        </Link>
+        <Link
+          to="/competition"
+          style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600, fontSize: '0.8rem', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' }}
+        >
+          View Details
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export default function HeroCarousel({ sellers = [] }) {
@@ -47,7 +160,8 @@ export default function HeroCarousel({ sellers = [] }) {
   }, [current, slides.length]);
 
   const slide = slides[current] || slides[0];
-  const isReal = Boolean(slide?.slug); // real sellers always have a slug; fallbacks have slug: null
+  const isCompetition = slide?.id === '__competition';
+  const isReal = Boolean(slide?.slug) && !isCompetition; // real sellers always have a slug
   const storeLink = isReal ? `/store/${slide.slug}` : '/shop';
 
   return (
@@ -76,6 +190,10 @@ export default function HeroCarousel({ sellers = [] }) {
 
       {/* Content */}
       <div className="container" style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', alignItems: 'center' }}>
+
+        {slide.id === '__competition' ? (
+          <CompetitionSlideContent transitioning={transitioning} />
+        ) : (
         <div style={{ maxWidth: '620px', opacity: transitioning ? 0 : 1, transform: transitioning ? 'translateY(12px)' : 'translateY(0)', transition: 'opacity 0.5s, transform 0.5s' }}>
 
           {/* Eyebrow */}
@@ -120,9 +238,10 @@ export default function HeroCarousel({ sellers = [] }) {
             )}
           </div>
         </div>
+        )}
 
-        {/* Logo badge — bottom-right of content area */}
-        {(slide.logo_url || slide.icon_url) && (
+        {/* Logo badge — bottom-right of content area (seller slides only) */}
+        {!isCompetition && (slide.logo_url || slide.icon_url) && (
           <div style={{ position: 'absolute', bottom: '2.5rem', right: '1rem', width: '72px', height: '72px', borderRadius: '18px', backgroundColor: 'white', padding: '6px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', opacity: transitioning ? 0 : 1, transition: 'opacity 0.5s' }}>
             <img src={getImageUrl(slide.icon_url || slide.logo_url)} alt={slide.store_name}
               onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
