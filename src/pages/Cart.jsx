@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackCheckoutInitiated } from '../utils/analytics';
-import { ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Calendar, Truck } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ShieldCheck, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Calendar, Truck, Leaf } from 'lucide-react';
+import SellerNudgeProducts from '../components/SellerNudgeProducts';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
@@ -116,7 +117,6 @@ export default function Cart() {
             {/* Seller Groups */}
             {Object.entries(sellerGroups).map(([sellerId, group]) => {
               const storeName = group.seller?.store_name || group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
-              const freeThreshold = group.has_heavy ? 2499 : 999;
 
               return (
                 <div key={sellerId} style={{ marginBottom: '3.5rem' }}>
@@ -134,22 +134,34 @@ export default function Cart() {
                     </span>
                   </div>
 
-
-                  {/* Free shipping nudge */}
+                  {/* Shipping nudge — primary + secondary tier messages */}
                   {group.nudge && (
                     <div style={{
                       backgroundColor: group.nudge.type === 'free' ? '#ecfdf5' : '#f0f9ff',
                       border: `1px solid ${group.nudge.type === 'free' ? '#6ee7b7' : '#bae6fd'}`,
-                      borderRadius: '10px', padding: '0.65rem 1rem', marginBottom: '0.75rem',
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '0.75rem',
                     }}>
-                      {group.nudge.type === 'free'
-                        ? <CheckCircle size={14} color="#10b981" />
-                        : <Package size={14} color="#0284c7" />
-                      }
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: group.nudge.type === 'free' ? '#065f46' : '#075985' }}>
-                        {group.nudge.message}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {group.nudge.type === 'free'
+                          ? <CheckCircle size={14} color="#10b981" />
+                          : <Package size={14} color="#0284c7" />
+                        }
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: group.nudge.type === 'free' ? '#065f46' : '#075985' }}>
+                          {group.nudge.message}
+                        </span>
+                      </div>
+                      {group.nudge.secondary_message && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
+                          <Package size={14} color="#0284c7" style={{ opacity: 0.6 }} />
+                          <span style={{ fontSize: '0.73rem', fontWeight: 600, color: '#0369a1' }}>
+                            {group.nudge.secondary_message}
+                          </span>
+                        </div>
+                      )}
+                      {/* Seller product suggestions */}
+                      {group.nudge.show_products && group.nudge.type !== 'free' && (
+                        <SellerNudgeProducts sellerId={sellerId} sellerName={storeName} />
+                      )}
                     </div>
                   )}
 

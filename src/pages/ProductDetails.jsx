@@ -95,7 +95,7 @@ export default function ProductDetails() {
   const [shippingOpen, setShippingOpen] = useState(false);
   // Guard against rapid double-taps / React Strict Mode double-fires calling add_item 2-3× at once
   const isAddingToCart = useRef(false);
-  const { addToCart, addItemToCart, LIGHT_FREE_THRESHOLD, HEAVY_FREE_THRESHOLD, cart } = useCart();
+  const { addItemToCart, cart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
 
@@ -787,32 +787,32 @@ export default function ProductDetails() {
                 </button>
               </div>
 
-              {/* Free-shipping live nudge */}
+              {/* Free-shipping live nudge — driven by per-seller DB config via CartContext */}
               {(() => {
                 const sellerId = product?.seller?.id;
                 if (!sellerId) return null;
-                const isHeavy = selectedVariant?.item_category === 'heavy';
-                const threshold = isHeavy ? HEAVY_FREE_THRESHOLD : LIGHT_FREE_THRESHOLD;
                 const sellerGroup = cart?.seller_groups?.[sellerId];
-                const currentSubtotal = sellerGroup ? sellerGroup.subtotal : 0;
-                const remaining = threshold - currentSubtotal;
-                if (remaining <= 0) {
+                if (!sellerGroup) return null;
+                const nudge = sellerGroup.nudge;
+                if (!nudge) return null;
+
+                if (nudge.type === 'free') {
                   return (
                     <div style={{ padding: '0.6rem 1rem', borderRadius: '10px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Truck size={14} /> Free shipping from this seller unlocked!
                     </div>
                   );
                 }
-                if (remaining <= 200) {
+                if (nudge.to_free > 0 && nudge.to_free <= 200) {
                   return (
                     <div style={{ padding: '0.6rem 1rem', borderRadius: '10px', backgroundColor: '#fef9c3', color: '#854d0e', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Truck size={14} /> Add ₹{Math.ceil(remaining)} more from this seller for free shipping
+                      <Truck size={14} /> Add ₹{nudge.to_free} more from this seller for free shipping
                     </div>
                   );
                 }
                 return (
                   <div style={{ padding: '0.6rem 1rem', borderRadius: '10px', backgroundColor: '#f1f5f9', color: '#64748b', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Truck size={14} /> Free shipping above ₹{threshold.toLocaleString('en-IN')} from this seller
+                    <Truck size={14} /> {nudge.message || 'Free shipping available from this seller'}
                   </div>
                 );
               })()}

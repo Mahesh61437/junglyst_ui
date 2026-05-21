@@ -767,7 +767,9 @@ export default function SuperAdminDashboard() {
     }
   } = data;
 
-  const filteredSellers = sellers.filter(s =>
+  // Only show sellers awaiting authorization in the verification section
+  const pendingSellers = sellers.filter(s => !s.is_verified);
+  const filteredSellers = pendingSellers.filter(s =>
     (s.store_name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
     (s.name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
     (s.email?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
@@ -789,6 +791,9 @@ export default function SuperAdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <button onClick={() => navigate('/super-admin/gst')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               GST INVOICES
+            </button>
+            <button onClick={() => navigate('/super-admin/shipping-fees')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+              SHIPPING FEES
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <button
@@ -985,11 +990,16 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
-        {/* Sellers Directory */}
+        {/* Pending Seller Authorizations */}
         <section>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Sellers Directory</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Pending Seller Authorizations</h2>
+              {pendingSellers.length > 0 && (
+                <span style={{ padding: '0.15rem 0.6rem', borderRadius: '50px', backgroundColor: '#fef3c7', color: '#92400e', fontSize: '0.7rem', fontWeight: 800 }}>
+                  {pendingSellers.length} pending
+                </span>
+              )}
               <button
                 onClick={() => setIsSellerTableMinimized(!isSellerTableMinimized)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', padding: '0.2rem' }}
@@ -1033,17 +1043,9 @@ export default function SuperAdminDashboard() {
                     </div>
                     {expandedSeller === seller.id && (
                       <div style={{ padding: '0 1.25rem 1.25rem 1.25rem', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>Status</span>
-                          {seller.is_verified ? (
-                            <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Verified</span>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
-                              <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Authorize</button>
-                              <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Reject</button>
-                            </div>
-                          )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.3rem 0.75rem', borderRadius: '6px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Authorize</button>
+                          <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.3rem 0.75rem', borderRadius: '6px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Reject</button>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                           <User size={14} /> <span style={{ color: 'var(--text-primary)' }}>{seller.name}</span>
@@ -1069,7 +1071,7 @@ export default function SuperAdminDashboard() {
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller / Store</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Contact</th>
-                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Status</th>
+                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Action</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700, textAlign: 'right' }}>Total Orders</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700, textAlign: 'right' }}>Total Revenue</th>
                     </tr>
@@ -1086,22 +1088,17 @@ export default function SuperAdminDashboard() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}><Phone size={12} /> {seller.phone || 'N/A'}</div>
                         </td>
                         <td style={{ padding: '1.25rem' }}>
-                          {seller.is_verified ? (
-                            <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Verified</span>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
-                              <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Authorize</button>
-                              <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Reject</button>
-                            </div>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.35rem 0.9rem', borderRadius: '6px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Authorize</button>
+                            <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.35rem 0.9rem', borderRadius: '6px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Reject</button>
+                          </div>
                         </td>
                         <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 600 }}>{seller.total_orders}</td>
                         <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 700, color: 'var(--brand-green)' }}>₹{seller.total_revenue.toLocaleString()}</td>
                       </tr>
                     ))}
                     {filteredSellers.length === 0 && (
-                      <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No sellers found.</td></tr>
+                      <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{pendingSellers.length === 0 ? 'No pending seller applications.' : 'No sellers match your search.'}</td></tr>
                     )}
                   </tbody>
                 </table>
