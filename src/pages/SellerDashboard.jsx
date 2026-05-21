@@ -194,6 +194,7 @@ export default function SellerDashboard() {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [bulkShipping, setBulkShipping] = useState(false);
   const [packageUploading, setPackageUploading] = useState({});
+  const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'pending' | 'shipped' | 'delivered'
 
   const presets = [
     // Botanical Greens
@@ -1823,9 +1824,79 @@ export default function SellerDashboard() {
                   );
                 })()}
 
-                {activeTab === 'orders' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {/* Bulk ship toolbar */}
+                {activeTab === 'orders' && (() => {
+                  const PENDING_STATUSES   = ['placed', 'confirmed', 'packing'];
+                  const SHIPPED_STATUSES   = ['shipped', 'in_transit', 'out_for_delivery'];
+                  const DELIVERED_STATUSES = ['delivered'];
+
+                  const pendingCount   = orders.filter(o => PENDING_STATUSES.includes(o.status)).length;
+                  const shippedCount   = orders.filter(o => SHIPPED_STATUSES.includes(o.status)).length;
+                  const deliveredCount = orders.filter(o => DELIVERED_STATUSES.includes(o.status)).length;
+
+                  let filteredOrders = [...orders];
+                  if (orderFilter === 'pending')   filteredOrders = filteredOrders.filter(o => PENDING_STATUSES.includes(o.status));
+                  if (orderFilter === 'shipped')   filteredOrders = filteredOrders.filter(o => SHIPPED_STATUSES.includes(o.status));
+                  if (orderFilter === 'delivered') filteredOrders = filteredOrders.filter(o => DELIVERED_STATUSES.includes(o.status));
+                  // Sort desc by placed time
+                  filteredOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                  // Group by calendar date
+                  const groups = {};
+                  filteredOrders.forEach(o => {
+                    const d = new Date(o.created_at);
+                    const key = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(o);
+                  });
+                  const groupedByDate = Object.entries(groups).sort((a, b) => new Date(b[1][0].created_at) - new Date(a[1][0].created_at));
+
+                  const filterTabs = [
+                    { key: 'all',       label: 'All Orders', count: orders.length,  color: '#6366f1' },
+                    { key: 'pending',   label: 'Pending',    count: pendingCount,   color: '#f59e0b' },
+                    { key: 'shipped',   label: 'Shipped',    count: shippedCount,   color: '#3b82f6' },
+                    { key: 'delivered', label: 'Delivered',  count: deliveredCount, color: '#10b981' },
+                  ];
+
+                  const statusColors = {
+                    placed:           { bg: '#dbeafe', fg: '#1d4ed8' },
+                    confirmed:        { bg: '#fef9c3', fg: '#854d0e' },
+                    packing:          { bg: '#fff7ed', fg: '#c2410c' },
+                    shipped:          { bg: '#d1fae5', fg: '#065f46' },
+                    in_transit:       { bg: '#d1fae5', fg: '#065f46' },
+                    out_for_delivery: { bg: '#dcfce7', fg: '#14532d' },
+                    delivered:        { bg: '#dcfce7', fg: '#14532d' },
+                    delivery_failed:  { bg: '#fee2e2', fg: '#991b1b' },
+                    doa_raised:       { bg: '#fce7f3', fg: '#9d174d' },
+                    cancelled:        { bg: '#fee2e2', fg: '#991b1b' },
+                  };
+
+                  return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                    {/* ── Status filter tabs ── */}
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {filterTabs.map(tab => (
+                        <button
+                          key={tab.key}
+                          onClick={() => setOrderFilter(tab.key)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.55rem 1.1rem', borderRadius: '10px',
+                            border: orderFilter === tab.key ? `2px solid ${tab.color}` : '1.5px solid #e2e8f0',
+                            backgroundColor: orderFilter === tab.key ? `${tab.color}18` : 'white',
+                            color: orderFilter === tab.key ? '#1b2d2a' : '#6b7280',
+                            fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.18s',
+                          }}
+                        >
+                          {tab.label}
+                          <span style={{ backgroundColor: tab.color, color: 'white', borderRadius: '50px', padding: '0.1rem 0.5rem', fontSize: '0.68rem', fontWeight: 800 }}>
+                            {tab.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* ── Bulk ship toolbar ── */}
                     {selectedOrders.size > 0 && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.5rem', backgroundColor: '#1b2d2a', borderRadius: '16px', color: 'white' }}>
                         <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{selectedOrders.size} sub-order{selectedOrders.size > 1 ? 's' : ''} selected</span>
@@ -1843,50 +1914,63 @@ export default function SellerDashboard() {
                       </div>
                     )}
 
-                    <div style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #edf2ed', overflow: 'hidden' }}>
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', minWidth: isMobile ? '100%' : '860px', borderCollapse: 'collapse' }}>
-                          <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
-                            <tr>
-                              <th style={{ padding: '1.25rem 1rem 1.25rem 1.5rem', width: '40px' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={orders.length > 0 && selectedOrders.size === orders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length && orders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).length > 0}
-                                  onChange={e => {
-                                    const shippable = orders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm);
-                                    setSelectedOrders(e.target.checked ? new Set(shippable.map(o => o.id)) : new Set());
-                                  }}
-                                  style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#1b2d2a' }}
-                                />
-                              </th>
-                              <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Sub-Order</th>
-                              {!isMobile && ['Status', 'Dispatch', 'Items', 'Amount', 'Buyer', 'Actions'].map(h => (
-                                <th key={h} style={{ padding: '1.25rem 1.5rem', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>{h}</th>
-                              ))}
-                              {isMobile && <th style={{ padding: '1.25rem 1.5rem', width: '40px' }}></th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {orders.length > 0 ? orders.map(o => {
-                              const shipment = o.shipment;
-                              const isExpanded = expandedOrderId === o.id;
-                              const canConfirm = o.status === 'placed';
-                              const hasPhotos = (o.packaging_photos || []).length > 0;
-                              const hasDims = o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
-                              const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && hasDims;
-                              const isShipped = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
-                              const statusColors = {
-                                placed: { bg: '#dbeafe', fg: '#1d4ed8' },
-                                confirmed: { bg: '#fef9c3', fg: '#854d0e' },
-                                packing: { bg: '#fff7ed', fg: '#c2410c' },
-                                shipped: { bg: '#d1fae5', fg: '#065f46' },
-                                in_transit: { bg: '#d1fae5', fg: '#065f46' },
-                                out_for_delivery: { bg: '#dcfce7', fg: '#14532d' },
-                                delivered: { bg: '#dcfce7', fg: '#14532d' },
-                                delivery_failed: { bg: '#fee2e2', fg: '#991b1b' },
-                                doa_raised: { bg: '#fce7f3', fg: '#9d174d' },
-                                cancelled: { bg: '#fee2e2', fg: '#991b1b' },
-                              };
+                    {/* ── Date-grouped orders ── */}
+                    {groupedByDate.length === 0 ? (
+                      <div style={{ backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
+                        <ShoppingBag size={48} style={{ opacity: 0.2, marginBottom: '1.5rem', display: 'block', margin: '0 auto 1.5rem' }} />
+                        <p>No {orderFilter !== 'all' ? orderFilter : ''} orders found.</p>
+                      </div>
+                    ) : groupedByDate.map(([dateLabel, dayOrders]) => (
+                      <div key={dateLabel}>
+                        {/* Date separator */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', backgroundColor: '#f1f5f9', borderRadius: '50px', padding: '0.3rem 0.85rem' }}>
+                            <Calendar size={12} color="#64748b" />
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                              {dateLabel}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>
+                            {dayOrders.length} order{dayOrders.length > 1 ? 's' : ''}
+                          </span>
+                          <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }} />
+                        </div>
+
+                        <div style={{ backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', overflow: 'hidden', marginBottom: '0.5rem' }}>
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', minWidth: isMobile ? '100%' : '860px', borderCollapse: 'collapse' }}>
+                              <thead style={{ backgroundColor: '#fcfdfc', textAlign: 'left' }}>
+                                <tr>
+                                  <th style={{ padding: '0.875rem 0.75rem 0.875rem 1.25rem', width: '40px' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={dayOrders.some(o => {
+                                        const cs = ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
+                                        return cs;
+                                      }) && dayOrders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).every(o => selectedOrders.has(o.id))}
+                                      onChange={e => {
+                                        const shippable = dayOrders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm);
+                                        setSelectedOrders(prev => { const next = new Set(prev); shippable.forEach(o => e.target.checked ? next.add(o.id) : next.delete(o.id)); return next; });
+                                      }}
+                                      style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#1b2d2a' }}
+                                    />
+                                  </th>
+                                  <th style={{ padding: '0.875rem 1.25rem', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Sub-Order</th>
+                                  {!isMobile && ['Status', 'Dispatch', 'Items', 'Amount', 'Buyer', 'Actions'].map(h => (
+                                    <th key={h} style={{ padding: '0.875rem 1.25rem', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>{h}</th>
+                                  ))}
+                                  {isMobile && <th style={{ padding: '0.875rem 1.25rem', width: '40px' }}></th>}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {dayOrders.map(o => {
+                                  const shipment = o.shipment;
+                                  const isExpanded = expandedOrderId === o.id;
+                                  const canConfirm = o.status === 'placed';
+                                  const hasPhotos = (o.packaging_photos || []).length > 0;
+                                  const hasDims = o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
+                                  const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && hasDims;
+                                  const isShipped = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
                               const sc = statusColors[o.status] || { bg: '#f3f4f6', fg: '#4b5563' };
                               const dispatchUrgent = o.dispatch_hours_remaining !== null && o.dispatch_hours_remaining <= 12;
                               return (
@@ -2149,20 +2233,16 @@ export default function SellerDashboard() {
                                   )}
                                 </React.Fragment>
                               );
-                            }) : (
-                              <tr>
-                                <td colSpan="8" style={{ padding: '5rem', textAlign: 'center', color: '#94a3b8' }}>
-                                  <ShoppingBag size={48} style={{ opacity: 0.2, marginBottom: '1.5rem', display: 'block', margin: '0 auto 1.5rem' }} />
-                                  <p>No fulfillments pending in your sanctuary.</p>
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                            })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                )}
+                  );
+                })()}
 
                 {activeTab === 'settings' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px' }}>

@@ -87,7 +87,7 @@ function CompetitionSlideContent({ transitioning }) {
       </h1>
 
       {/* Sub-copy */}
-      <p style={{ fontSize: 'clamp(0.88rem, 1.6vw, 1rem)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.7, marginBottom: '1.75rem', maxWidth: '440px' }}>
+      <p style={{ fontSize: 'clamp(0.88rem, 1.6vw, 1rem)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.7, marginBottom: '1rem', maxWidth: '440px' }}>
         Submit photos of your aquascape. The most stunning build wins{' '}
         <strong style={{ color: '#c9972b', fontWeight: 700 }}>₹1,000 cash</strong>.
         500 slots only — winner announced on launch day.
@@ -95,7 +95,7 @@ function CompetitionSlideContent({ transitioning }) {
 
       {/* Live countdown */}
       {tl && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
           <Clock size={13} color="rgba(255,255,255,0.4)" />
           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Closes in</span>
           {[
