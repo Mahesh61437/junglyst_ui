@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackCheckoutInitiated } from '../utils/analytics';
-import { ArrowLeft, ShoppingBag, ShieldCheck, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Calendar, Truck } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ShieldCheck, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Calendar, Truck, Leaf } from 'lucide-react';
 import SellerNudgeProducts from '../components/SellerNudgeProducts';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
