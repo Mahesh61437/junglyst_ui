@@ -754,6 +754,23 @@ export default function SellerDashboard() {
     }
   };
 
+  const pollSubOrderForAWB = useCallback(async (subOrderId, attemptsLeft = 8) => {
+    if (attemptsLeft <= 0) return;
+    await new Promise(resolve => setTimeout(resolve, 7000));
+    try {
+      const res = await api.get(`/orders/seller/sub-orders/${subOrderId}/`);
+      setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
+      // Keep polling until both AWB and label_url are present
+      const hasAWB = !!res.data.awb_number;
+      const hasLabel = !!res.data.shipment?.label_url;
+      if ((!hasAWB || !hasLabel) && attemptsLeft > 1) {
+        pollSubOrderForAWB(subOrderId, attemptsLeft - 1);
+      }
+    } catch {
+      // silent — not critical
+    }
+  }, []);
+
   const handleShipNow = async (subOrderIds) => {
     if (!subOrderIds || subOrderIds.length === 0) return;
     setBulkShipping(true);
@@ -766,6 +783,8 @@ export default function SellerDashboard() {
         const res = await api.post(`/orders/seller/sub-orders/${id}/ship/`);
         setOrders(prev => prev.map(o => o.id === id ? res.data : o));
         successCount++;
+        // Celery books courier async — poll until AWB + label appear (up to ~48 s)
+        pollSubOrderForAWB(id);
       } catch (err) {
         const msg = err.response?.data?.error || 'Shipment initiation failed.';
         errorMessages.push(msg);
@@ -773,7 +792,7 @@ export default function SellerDashboard() {
     }
     setBulkShipping(false);
     setSelectedOrders(new Set());
-    if (successCount > 0) setSuccess(`${successCount} shipment${successCount > 1 ? 's' : ''} initiated — labels will be ready shortly.`);
+    if (successCount > 0) setSuccess(`${successCount} shipment${successCount > 1 ? 's' : ''} initiated — courier booking in progress.`);
     if (errorMessages.length > 0) setFormError(errorMessages.join(' | '));
   };
 
