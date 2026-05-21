@@ -10,7 +10,7 @@ import { ShoppingCart, Loader2 } from 'lucide-react';
  * Fetches up to 6 products from that seller not already in the cart
  * and displays them as compact add-to-cart cards.
  */
-export default function SellerNudgeProducts({ sellerId, sellerName }) {
+export default function SellerNudgeProducts({ sellerId, sellerName, sellerSlug }) {
   const { addItemToCart } = useCart();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,9 +45,40 @@ export default function SellerNudgeProducts({ sellerId, sellerName }) {
 
   return (
     <div style={{ marginTop: '0.75rem' }}>
-      <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '0.5rem' }}>
-        Add more from {sellerName}
-      </p>
+      <div className="nudge-header">
+        <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', margin: 0 }}>
+          Add more from {sellerName}
+        </p>
+        {sellerSlug && (
+          <Link to={`/store/${sellerSlug}`} className="explore-store-btn" style={{ 
+            fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', 
+            textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.05em',
+            padding: '0.5rem 1rem', backgroundColor: '#fffbeb', borderRadius: '8px', 
+            border: '1px solid #fde68a', display: 'inline-block'
+          }}>
+            Explore Store →
+          </Link>
+        )}
+      </div>
+      <style>{`
+        .nudge-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.75rem;
+        }
+        @media (max-width: 640px) {
+          .nudge-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+          .explore-store-btn {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      `}</style>
       <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
         {products.map(p => (
           <div

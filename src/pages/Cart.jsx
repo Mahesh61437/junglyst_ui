@@ -160,7 +160,7 @@ export default function Cart() {
                       )}
                       {/* Seller product suggestions */}
                       {group.nudge.show_products && group.nudge.type !== 'free' && (
-                        <SellerNudgeProducts sellerId={sellerId} sellerName={storeName} />
+                        <SellerNudgeProducts sellerId={sellerId} sellerName={storeName} sellerSlug={group.seller?.slug || group.seller?.seller_profile?.slug} />
                       )}
                     </div>
                   )}

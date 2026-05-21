@@ -1828,15 +1828,18 @@ export default function SellerDashboard() {
                   const PENDING_STATUSES   = ['placed', 'confirmed', 'packing'];
                   const SHIPPED_STATUSES   = ['shipped', 'in_transit', 'out_for_delivery'];
                   const DELIVERED_STATUSES = ['delivered'];
+                  const FAILED_STATUSES    = ['delivery_failed', 'doa_raised', 'cancelled'];
 
                   const pendingCount   = orders.filter(o => PENDING_STATUSES.includes(o.status)).length;
                   const shippedCount   = orders.filter(o => SHIPPED_STATUSES.includes(o.status)).length;
                   const deliveredCount = orders.filter(o => DELIVERED_STATUSES.includes(o.status)).length;
+                  const failedCount    = orders.filter(o => FAILED_STATUSES.includes(o.status)).length;
 
                   let filteredOrders = [...orders];
                   if (orderFilter === 'pending')   filteredOrders = filteredOrders.filter(o => PENDING_STATUSES.includes(o.status));
                   if (orderFilter === 'shipped')   filteredOrders = filteredOrders.filter(o => SHIPPED_STATUSES.includes(o.status));
                   if (orderFilter === 'delivered') filteredOrders = filteredOrders.filter(o => DELIVERED_STATUSES.includes(o.status));
+                  if (orderFilter === 'failed')    filteredOrders = filteredOrders.filter(o => FAILED_STATUSES.includes(o.status));
                   // Sort desc by placed time
                   filteredOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -1855,6 +1858,7 @@ export default function SellerDashboard() {
                     { key: 'pending',   label: 'Pending',    count: pendingCount,   color: '#f59e0b' },
                     { key: 'shipped',   label: 'Shipped',    count: shippedCount,   color: '#3b82f6' },
                     { key: 'delivered', label: 'Delivered',  count: deliveredCount, color: '#10b981' },
+                    ...(failedCount > 0 ? [{ key: 'failed', label: 'Failed / Issues', count: failedCount, color: '#ef4444' }] : []),
                   ];
 
                   const statusColors = {

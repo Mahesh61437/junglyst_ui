@@ -33,7 +33,7 @@ import TrustBadges from '../components/TrustBadges';
 import { getImageUrl } from '../utils/imageUtils';
 import api from '../services/api';
 
-function MoreFromSeller({ sellerId, sellerName, currentProductId }) {
+function MoreFromSeller({ sellerId, sellerName, sellerSlug, currentProductId }) {
   const [items, setItems] = useState([]);
   useEffect(() => {
     if (!sellerId) return;
@@ -51,9 +51,11 @@ function MoreFromSeller({ sellerId, sellerName, currentProductId }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-serif)', margin: 0 }}>More from {sellerName}</h2>
-        <Link to={`/shop?seller=${sellerId}`} style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-          View All →
-        </Link>
+        {sellerSlug && (
+          <Link to={`/store/${sellerSlug}`} style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            View All →
+          </Link>
+        )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.25rem' }}>
         {items.map(p => {
@@ -985,7 +987,7 @@ export default function ProductDetails() {
 
         {/* Branded Bottom Flow */}
         <div style={{ marginTop: '8rem', display: 'flex', flexDirection: 'column', gap: '6rem' }}>
-          <MoreFromSeller sellerId={product.seller?.id} sellerName={product.seller?.seller_profile?.store_name || product.seller?.username} currentProductId={product.id} />
+          <MoreFromSeller sellerId={product.seller?.id} sellerName={product.seller?.seller_profile?.store_name || product.seller?.username} sellerSlug={product.seller?.seller_profile?.slug} currentProductId={product.id} />
           <Recommendations category={product.category?.name || product.category} currentProductId={product.id} />
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0 }} />
           <ReviewSection productId={product.id} />
