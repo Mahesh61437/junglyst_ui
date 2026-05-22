@@ -172,7 +172,7 @@ export default function SellerDashboard() {
   const [bankError, setBankError] = useState(null);
 
   // Pickup address state
-  const [pickupForm, setPickupForm] = useState({ pickup_address: '', location_city: '', location_state: '', location_pincode: '' });
+  const [pickupForm, setPickupForm] = useState({ phone: '', pickup_address: '', location_city: '', location_state: '', location_pincode: '' });
   const [pickupEditing, setPickupEditing] = useState(false);
   const [pickupSaving, setPickupSaving] = useState(false);
   const [pickupSuccess, setPickupSuccess] = useState(null);
@@ -369,6 +369,7 @@ export default function SellerDashboard() {
       if (pickupData?.data) {
         const pd = pickupData.data;
         setPickupForm({
+          phone: pd.phone || '',
           pickup_address: pd.pickup_address || '',
           location_city: pd.location_city || '',
           location_state: pd.location_state || '',
@@ -424,8 +425,15 @@ export default function SellerDashboard() {
 
   const handlePickupSave = async (e) => {
     e.preventDefault();
-    if (!pickupForm.location_city.trim() || !pickupForm.location_pincode.trim()) {
-      setPickupError('City and Pincode are required.');
+    // Client-side required check before hitting the server
+    const missing = [];
+    if (!pickupForm.phone.trim()) missing.push('Phone number');
+    if (!pickupForm.pickup_address.trim()) missing.push('Street address');
+    if (!pickupForm.location_city.trim()) missing.push('City');
+    if (!pickupForm.location_state.trim()) missing.push('State');
+    if (!pickupForm.location_pincode.trim()) missing.push('Pincode');
+    if (missing.length) {
+      setPickupError(`Required: ${missing.join(', ')}`);
       return;
     }
     setPickupSaving(true);
@@ -434,6 +442,7 @@ export default function SellerDashboard() {
     try {
       const res = await api.patch('/sellers/pickup-address/', pickupForm);
       setPickupForm({
+        phone: res.data.phone || '',
         pickup_address: res.data.pickup_address || '',
         location_city: res.data.location_city || '',
         location_state: res.data.location_state || '',
@@ -441,10 +450,17 @@ export default function SellerDashboard() {
       });
       setShiprocketLocation(res.data.shiprocket_pickup_location || '');
       setPickupEditing(false);
-      setPickupSuccess('Pickup address saved. It will be registered with Shiprocket on the next shipment.');
-      setTimeout(() => setPickupSuccess(null), 6000);
+      setPickupSuccess('Pickup address saved. Shiprocket will send an OTP to verify your phone on the next shipment.');
+      setTimeout(() => setPickupSuccess(null), 8000);
     } catch (err) {
-      setPickupError(err.response?.data?.error || 'Failed to save pickup address.');
+      const errData = err.response?.data;
+      if (errData?.errors) {
+        // Surface the first field error from the backend
+        const firstMsg = Object.values(errData.errors)[0];
+        setPickupError(firstMsg);
+      } else {
+        setPickupError(errData?.error || 'Failed to save pickup address.');
+      }
     } finally {
       setPickupSaving(false);
     }
@@ -2574,12 +2590,14 @@ export default function SellerDashboard() {
                           {pickupForm.location_city ? (
                             <>
                               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem' }}>
-                                {pickupForm.pickup_address && (
-                                  <div style={{ gridColumn: '1 / -1', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
-                                    <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>Street Address</p>
-                                    <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{pickupForm.pickup_address}</p>
-                                  </div>
-                                )}
+                                <div style={{ gridColumn: '1 / -1', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>Pickup Phone</p>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a', fontFamily: 'monospace' }}>{pickupForm.phone || '—'}</p>
+                                </div>
+                                <div style={{ gridColumn: '1 / -1', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>Street Address</p>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{pickupForm.pickup_address || '—'}</p>
+                                </div>
                                 <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
                                   <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>City</p>
                                   <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{pickupForm.location_city}</p>
@@ -2621,21 +2639,42 @@ export default function SellerDashboard() {
                             <div style={{ padding: '2.5rem', textAlign: 'center', borderRadius: '16px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
                               <Truck size={32} style={{ marginBottom: '0.75rem', opacity: 0.4 }} />
                               <p style={{ margin: 0, fontSize: '0.9rem' }}>No pickup address saved yet.</p>
-                              <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem' }}>Add your address so couriers know where to collect your orders.</p>
+                              <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem' }}>Add your mobile number and address so Shiprocket can verify and collect orders from you.</p>
                             </div>
                           )}
                         </div>
                       ) : (
                         <form onSubmit={handlePickupSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                          {/* Phone — used by Shiprocket for OTP verification */}
                           <div>
                             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>
-                              Street Address <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span>
+                              Mobile Number <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <input
+                              type="tel"
+                              value={pickupForm.phone}
+                              onChange={e => setPickupForm(f => ({ ...f, phone: e.target.value.replace(/[^\d+\- ]/g, '').slice(0, 15) }))}
+                              placeholder="e.g. 9876543210"
+                              required
+                              style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem', maxWidth: '280px' }}
+                            />
+                            <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: '#64748b' }}>
+                              Shiprocket will send an OTP to this number to verify your pickup address.
+                            </p>
+                          </div>
+
+                          {/* Street Address */}
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>
+                              Street Address <span style={{ color: '#ef4444' }}>*</span>
                             </label>
                             <input
                               type="text"
                               value={pickupForm.pickup_address}
                               onChange={e => setPickupForm(f => ({ ...f, pickup_address: e.target.value }))}
                               placeholder="e.g. 12, Greenfield Layout, MG Road"
+                              required
                               style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
                             />
                           </div>
@@ -2656,13 +2695,14 @@ export default function SellerDashboard() {
                             </div>
                             <div>
                               <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>
-                                State <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span>
+                                State <span style={{ color: '#ef4444' }}>*</span>
                               </label>
                               <input
                                 type="text"
                                 value={pickupForm.location_state}
                                 onChange={e => setPickupForm(f => ({ ...f, location_state: e.target.value }))}
                                 placeholder="e.g. Karnataka"
+                                required
                                 style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
                               />
                             </div>
@@ -2686,7 +2726,7 @@ export default function SellerDashboard() {
                           <div style={{ padding: '0.85rem 1rem', backgroundColor: '#f0f9ff', borderRadius: '10px', border: '1px solid #bae6fd', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
                             <Info size={15} color="#0284c7" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
                             <span style={{ fontSize: '0.75rem', color: '#0369a1', lineHeight: 1.5 }}>
-                              Updating your address will reset your Shiprocket pickup registration. It will be re-registered automatically on your next shipment.
+                              All fields are required for Shiprocket courier pickup. Shiprocket will call or send an OTP to your mobile number to activate this address. Once verified, all your shipments will be collected from here.
                             </span>
                           </div>
 
