@@ -62,6 +62,7 @@ function CompetitionSlideContent({ transitioning }) {
   return (
     <div style={{
       maxWidth: '640px',
+      textAlign: 'center',
       opacity: transitioning ? 0 : 1,
       transform: transitioning ? 'translateY(12px)' : 'translateY(0)',
       transition: 'opacity 0.5s, transform 0.5s',
@@ -87,7 +88,7 @@ function CompetitionSlideContent({ transitioning }) {
       </h1>
 
       {/* Sub-copy */}
-      <p style={{ fontSize: 'clamp(0.88rem, 1.6vw, 1rem)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.7, marginBottom: '1rem', maxWidth: '440px' }}>
+      <p style={{ fontSize: 'clamp(0.88rem, 1.6vw, 1rem)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.7, marginBottom: '1rem', maxWidth: '440px', margin: '0 auto 1rem' }}>
         Submit photos of your aquascape. The most stunning build wins{' '}
         <strong style={{ color: '#c9972b', fontWeight: 700 }}>₹1,000 cash</strong>.
         500 slots only — winner announced on launch day.
@@ -95,7 +96,7 @@ function CompetitionSlideContent({ transitioning }) {
 
       {/* Live countdown */}
       {tl && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <Clock size={13} color="rgba(255,255,255,0.4)" />
           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Closes in</span>
           {[
@@ -118,7 +119,7 @@ function CompetitionSlideContent({ transitioning }) {
       )}
 
       {/* CTAs */}
-      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
         <Link
           to="/competition"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', padding: '0.875rem 2.25rem', borderRadius: '100px', backgroundColor: '#c9972b', color: '#0a1f1c', fontWeight: 800, fontSize: '0.85rem', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase' }}
@@ -182,14 +183,16 @@ export default function HeroCarousel({ sellers = [] }) {
         }} />
       ))}
 
-      {/* Gradient overlay */}
+      {/* Gradient overlay — competition slide gets a solid dark cover; seller slides reveal image on right */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 2,
-        background: 'linear-gradient(105deg, rgba(10,31,28,0.92) 0%, rgba(10,31,28,0.55) 55%, rgba(10,31,28,0.2) 100%)',
+        background: isCompetition
+          ? 'linear-gradient(135deg, rgba(6,15,13,0.97) 0%, rgba(7,24,35,0.92) 50%, rgba(6,15,13,0.85) 100%)'
+          : 'linear-gradient(105deg, rgba(10,31,28,0.92) 0%, rgba(10,31,28,0.55) 55%, rgba(10,31,28,0.2) 100%)',
       }} />
 
       {/* Content */}
-      <div className="container" style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', alignItems: 'center' }}>
+      <div className="container" style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', alignItems: 'center', justifyContent: isCompetition ? 'center' : 'flex-start' }}>
 
         {slide.id === '__competition' ? (
           <CompetitionSlideContent transitioning={transitioning} />
