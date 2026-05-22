@@ -170,6 +170,15 @@ export default function SellerDashboard() {
   const [bankSaving, setBankSaving] = useState(false);
   const [bankSuccess, setBankSuccess] = useState(null);
   const [bankError, setBankError] = useState(null);
+
+  // Pickup address state
+  const [pickupForm, setPickupForm] = useState({ pickup_address: '', location_city: '', location_state: '', location_pincode: '' });
+  const [pickupEditing, setPickupEditing] = useState(false);
+  const [pickupSaving, setPickupSaving] = useState(false);
+  const [pickupSuccess, setPickupSuccess] = useState(null);
+  const [pickupError, setPickupError] = useState(null);
+  const [shiprocketLocation, setShiprocketLocation] = useState('');
+
   const [metrics, setMetrics] = useState({
     total_revenue: 0,
     total_orders: 0,
@@ -316,7 +325,7 @@ export default function SellerDashboard() {
       }
 
       // ── Background path: orders, profile metrics, categories (lazy) ──
-      const [ordsData, profileData, catsData, bankData] = await Promise.all([
+      const [ordsData, profileData, catsData, bankData, pickupData] = await Promise.all([
         api.get('/orders/seller/sub-orders/?no_pagination=true').catch(err => {
           console.error("Failed to fetch seller sub-orders:", err);
           return { data: [] };
@@ -326,6 +335,7 @@ export default function SellerDashboard() {
           ? api.get('/core/categories/').catch(() => ({ data: { results: [] } }))
           : Promise.resolve({ data: { results: categories } }),  // use cached
         api.get('/sellers/bank-details/').catch(() => ({ data: null })),
+        api.get('/sellers/pickup-address/').catch(() => ({ data: null })),
       ]);
 
       const ordsArray = Array.isArray(ordsData.data?.results) ? ordsData.data.results : (Array.isArray(ordsData.data) ? ordsData.data : []);
@@ -354,6 +364,17 @@ export default function SellerDashboard() {
         const bd = bankData.data;
         setBankForm(prev => ({ ...prev, payout_type: bd.payout_type || 'upi', account_holder_name: bd.account_holder_name || '' }));
         setBankMasked({ payout_account_masked: bd.payout_account_masked || '', ifsc_code_masked: bd.ifsc_code_masked || '', has_bank_details: bd.has_bank_details || false });
+      }
+
+      if (pickupData?.data) {
+        const pd = pickupData.data;
+        setPickupForm({
+          pickup_address: pd.pickup_address || '',
+          location_city: pd.location_city || '',
+          location_state: pd.location_state || '',
+          location_pincode: pd.location_pincode || '',
+        });
+        setShiprocketLocation(pd.shiprocket_pickup_location || '');
       }
     } catch (error) {
       console.error("Dashboard fetch failed:", error);
@@ -398,6 +419,45 @@ export default function SellerDashboard() {
       setBankError(err.response?.data?.error || 'Failed to save payout details. Please try again.');
     } finally {
       setBankSaving(false);
+    }
+  };
+
+  const handlePickupSave = async (e) => {
+    e.preventDefault();
+    if (!pickupForm.location_city.trim() || !pickupForm.location_pincode.trim()) {
+      setPickupError('City and Pincode are required.');
+      return;
+    }
+    setPickupSaving(true);
+    setPickupError(null);
+    setPickupSuccess(null);
+    try {
+      const res = await api.patch('/sellers/pickup-address/', pickupForm);
+      setPickupForm({
+        pickup_address: res.data.pickup_address || '',
+        location_city: res.data.location_city || '',
+        location_state: res.data.location_state || '',
+        location_pincode: res.data.location_pincode || '',
+      });
+      setShiprocketLocation(res.data.shiprocket_pickup_location || '');
+      setPickupEditing(false);
+      setPickupSuccess('Pickup address saved. It will be registered with Shiprocket on the next shipment.');
+      setTimeout(() => setPickupSuccess(null), 6000);
+    } catch (err) {
+      setPickupError(err.response?.data?.error || 'Failed to save pickup address.');
+    } finally {
+      setPickupSaving(false);
+    }
+  };
+
+  const handleResetShiprocketLocation = async () => {
+    try {
+      const res = await api.patch('/sellers/pickup-address/', { reset_shiprocket_location: true });
+      setShiprocketLocation(res.data.shiprocket_pickup_location || '');
+      setPickupSuccess('Shiprocket pickup location cleared. It will be re-registered on the next shipment.');
+      setTimeout(() => setPickupSuccess(null), 6000);
+    } catch (err) {
+      setPickupError('Failed to reset pickup location.');
     }
   };
 
@@ -2473,6 +2533,177 @@ export default function SellerDashboard() {
                               style={{ padding: '0.9rem 1.75rem', borderRadius: '12px', border: 'none', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: bankSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: bankSaving ? 0.7 : 1 }}
                             >
                               {bankSaving ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : <><Save size={15} /> Save Securely</>}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+
+                    {/* Pickup Address */}
+                    <div style={{ backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed', padding: isMobile ? '2rem 1.5rem' : '4rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', gap: '1rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', margin: 0 }}>Pickup Address</h3>
+                          <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.4rem', marginBottom: 0 }}>
+                            Your address where the courier will collect shipments. Used to register your pickup location with Shiprocket.
+                          </p>
+                        </div>
+                        {!pickupEditing && (
+                          <button
+                            onClick={() => { setPickupEditing(true); setPickupError(null); setPickupSuccess(null); }}
+                            style={{ flexShrink: 0, padding: '0.6rem 1.25rem', borderRadius: '12px', border: '1.5px solid #1b2d2a', backgroundColor: 'white', color: '#1b2d2a', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Pencil size={14} /> {pickupForm.location_city ? 'Update' : 'Add'}
+                          </button>
+                        )}
+                      </div>
+
+                      {pickupSuccess && (
+                        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7', color: '#166534', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <CheckCircle2 size={16} /> {pickupSuccess}
+                        </div>
+                      )}
+                      {pickupError && (
+                        <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#b91c1c', padding: '1rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <AlertCircle size={16} /> {pickupError}
+                        </div>
+                      )}
+
+                      {!pickupEditing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          {pickupForm.location_city ? (
+                            <>
+                              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem' }}>
+                                {pickupForm.pickup_address && (
+                                  <div style={{ gridColumn: '1 / -1', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                    <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>Street Address</p>
+                                    <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{pickupForm.pickup_address}</p>
+                                  </div>
+                                )}
+                                <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>City</p>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{pickupForm.location_city}</p>
+                                </div>
+                                <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>State</p>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a' }}>{pickupForm.location_state || '—'}</p>
+                                </div>
+                                <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfdfc' }}>
+                                  <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 0.4rem' }}>Pincode</p>
+                                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#1b2d2a', fontFamily: 'monospace' }}>{pickupForm.location_pincode}</p>
+                                </div>
+                              </div>
+
+                              {/* Shiprocket registration status */}
+                              <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: `1px solid ${shiprocketLocation ? '#dcfce7' : '#fef3c7'}`, backgroundColor: shiprocketLocation ? '#f0fdf4' : '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                  <Truck size={16} color={shiprocketLocation ? '#16a34a' : '#d97706'} />
+                                  <div>
+                                    <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: shiprocketLocation ? '#15803d' : '#92400e' }}>
+                                      {shiprocketLocation ? `Registered with Shiprocket as "${shiprocketLocation}"` : 'Not yet registered with Shiprocket'}
+                                    </p>
+                                    <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: shiprocketLocation ? '#16a34a' : '#d97706' }}>
+                                      {shiprocketLocation ? 'Auto-registered on first shipment. Reset if you change your address.' : 'Will be auto-registered when you ship your first order.'}
+                                    </p>
+                                  </div>
+                                </div>
+                                {shiprocketLocation && (
+                                  <button
+                                    onClick={handleResetShiprocketLocation}
+                                    style={{ padding: '0.5rem 1rem', borderRadius: '10px', border: '1.5px solid #d97706', backgroundColor: 'white', color: '#92400e', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                  >
+                                    Reset Location
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ padding: '2.5rem', textAlign: 'center', borderRadius: '16px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
+                              <Truck size={32} style={{ marginBottom: '0.75rem', opacity: 0.4 }} />
+                              <p style={{ margin: 0, fontSize: '0.9rem' }}>No pickup address saved yet.</p>
+                              <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem' }}>Add your address so couriers know where to collect your orders.</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <form onSubmit={handlePickupSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>
+                              Street Address <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={pickupForm.pickup_address}
+                              onChange={e => setPickupForm(f => ({ ...f, pickup_address: e.target.value }))}
+                              placeholder="e.g. 12, Greenfield Layout, MG Road"
+                              style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>
+                                City <span style={{ color: '#ef4444' }}>*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={pickupForm.location_city}
+                                onChange={e => setPickupForm(f => ({ ...f, location_city: e.target.value }))}
+                                placeholder="e.g. Bangalore"
+                                required
+                                style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>
+                                State <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={pickupForm.location_state}
+                                onChange={e => setPickupForm(f => ({ ...f, location_state: e.target.value }))}
+                                placeholder="e.g. Karnataka"
+                                style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.75rem', color: '#64748b' }}>
+                              Pincode <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={pickupForm.location_pincode}
+                              onChange={e => setPickupForm(f => ({ ...f, location_pincode: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                              placeholder="e.g. 560001"
+                              required
+                              maxLength={6}
+                              style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.95rem', maxWidth: '240px' }}
+                            />
+                          </div>
+
+                          <div style={{ padding: '0.85rem 1rem', backgroundColor: '#f0f9ff', borderRadius: '10px', border: '1px solid #bae6fd', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                            <Info size={15} color="#0284c7" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+                            <span style={{ fontSize: '0.75rem', color: '#0369a1', lineHeight: 1.5 }}>
+                              Updating your address will reset your Shiprocket pickup registration. It will be re-registered automatically on your next shipment.
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              onClick={() => { setPickupEditing(false); setPickupError(null); }}
+                              style={{ padding: '0.9rem 1.75rem', borderRadius: '12px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={pickupSaving}
+                              style={{ padding: '0.9rem 1.75rem', borderRadius: '12px', border: 'none', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: pickupSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: pickupSaving ? 0.7 : 1 }}
+                            >
+                              {pickupSaving ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : <><Save size={15} /> Save Address</>}
                             </button>
                           </div>
                         </form>
