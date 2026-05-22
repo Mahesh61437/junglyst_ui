@@ -94,11 +94,6 @@ button {
 }
 
 .navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: var(--nav-z-index);
   background-color: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(15px);
   border-bottom: 1px solid var(--border-subtle);
@@ -106,14 +101,7 @@ button {
 }
 
 .main-content {
-  padding-top: var(--nav-height-desktop);
   min-height: 100vh;
-}
-
-@media (max-width: 1024px) {
-  .main-content {
-    padding-top: var(--nav-height-mobile);
-  }
 }
 
 .container {
@@ -441,11 +429,11 @@ button {
 @media (max-width: 1024px) {
   .notif-dropdown {
     position: fixed !important;
-    top: var(--nav-height-mobile) !important;
+    top: var(--header-total-height, var(--nav-height-mobile)) !important;
     left: 8px !important;
     right: 8px !important;
     width: auto !important;
-    max-height: calc(100vh - var(--nav-height-mobile) - 16px) !important;
+    max-height: calc(100vh - var(--header-total-height, var(--nav-height-mobile)) - 16px) !important;
     border-radius: 16px !important;
   }
 }
