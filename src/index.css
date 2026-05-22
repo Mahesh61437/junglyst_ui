@@ -94,6 +94,8 @@ button {
 }
 
 .navbar {
+  position: relative;
+  z-index: 100;
   background-color: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(15px);
   border-bottom: 1px solid var(--border-subtle);
