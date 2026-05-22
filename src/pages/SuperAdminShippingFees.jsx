@@ -16,8 +16,18 @@ const inputStyle = {
   boxSizing: 'border-box',
 };
 
-function emptyForm(sellerId, category) {
-  return { seller_id: sellerId || '', item_category: category || 'light', tier1_max: '', tier1_fee: '', tier2_max: '', tier2_fee: '', show_nudge_products: false };
+function emptyForm(sellerId, category, defaults = {}) {
+  const cat = category || 'light';
+  const d = defaults[cat] || {};
+  return {
+    seller_id: sellerId || '',
+    item_category: cat,
+    tier1_max: d.tier1_max ?? '',
+    tier1_fee: d.tier1_fee ?? '',
+    tier2_max: d.tier2_max ?? '',
+    tier2_fee: d.tier2_fee ?? '',
+    show_nudge_products: false,
+  };
 }
 
 function TierSummary({ cfg }) {
@@ -40,6 +50,7 @@ export default function SuperAdminShippingFees() {
 
   const [sellers, setSellers] = useState([]);
   const [configs, setConfigs] = useState([]);        // flat list of SellerShippingConfig
+  const [shippingDefaults, setShippingDefaults] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -64,12 +75,14 @@ export default function SuperAdminShippingFees() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sellerRes, configRes] = await Promise.all([
+      const [sellerRes, configRes, defaultsRes] = await Promise.all([
         api.get('/sellers/profiles/'),
         api.get('/sellers/shipping-configs/'),
+        api.get('/sellers/shipping-configs/defaults/'),
       ]);
       setSellers(sellerRes.data || []);
       setConfigs(configRes.data || []);
+      setShippingDefaults(defaultsRes.data || {});
     } catch (e) {
       console.error('Failed to load data', e);
     } finally {
@@ -90,7 +103,7 @@ export default function SuperAdminShippingFees() {
   );
 
   const openCreate = (seller, category) => {
-    setForm(emptyForm(String(seller.user), category));
+    setForm(emptyForm(String(seller.user), category, shippingDefaults));
     setFormError('');
     setModal({ mode: 'create' });
   };
@@ -303,7 +316,7 @@ export default function SuperAdminShippingFees() {
                 ) : (
                   <select
                     value={form.item_category}
-                    onChange={e => setForm(f => ({ ...f, item_category: e.target.value }))}
+                    onChange={e => setForm(f => ({ ...emptyForm(f.seller_id, e.target.value, shippingDefaults) }))}
                     style={{ ...inputStyle, backgroundColor: 'white', cursor: 'pointer' }}
                   >
                     <option value="light">Light (plants, moss, isopods)</option>
@@ -318,7 +331,7 @@ export default function SuperAdminShippingFees() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
                     <label style={labelStyle}>Subtotal &lt; (₹)</label>
-                    <input type="number" min="0" value={form.tier1_max} onChange={e => setForm(f => ({ ...f, tier1_max: e.target.value }))} style={inputStyle} placeholder="e.g. 699" />
+                    <input type="number" min="0" value={form.tier1_max} onChange={e => setForm(f => ({ ...f, tier1_max: e.target.value }))} style={inputStyle} placeholder={`e.g. ${shippingDefaults[form.item_category]?.tier1_max ?? ''}`} />
                   </div>
                   <div>
                     <label style={labelStyle}>Fee (₹)</label>
@@ -333,7 +346,7 @@ export default function SuperAdminShippingFees() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
                     <label style={labelStyle}>Subtotal &lt; (₹)</label>
-                    <input type="number" min="0" value={form.tier2_max} onChange={e => setForm(f => ({ ...f, tier2_max: e.target.value }))} style={inputStyle} placeholder="e.g. 999" />
+                    <input type="number" min="0" value={form.tier2_max} onChange={e => setForm(f => ({ ...f, tier2_max: e.target.value }))} style={inputStyle} placeholder={`e.g. ${shippingDefaults[form.item_category]?.tier2_max ?? ''}`} />
                   </div>
                   <div>
                     <label style={labelStyle}>Fee (₹)</label>
