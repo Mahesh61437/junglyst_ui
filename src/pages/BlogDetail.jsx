@@ -2,6 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Calendar, Clock, User } from 'lucide-react';
 import { blogs } from '../data/blogs';
 import SEO from '../components/SEO';
+import BlogFeaturedProducts from '../components/BlogFeaturedProducts';
 
 export default function BlogDetail() {
   const { slug } = useParams();
@@ -166,6 +167,13 @@ export default function BlogDetail() {
             </div>
           </div>
           
+          {/* Featured Products related to this blog */}
+          <BlogFeaturedProducts
+            tags={blog.productTags || []}
+            blogTitle={blog.title}
+            limit={4}
+          />
+
           {/* Related Blogs */}
           {relatedBlogs.length > 0 && (
             <div style={{ marginTop: '6rem' }}>

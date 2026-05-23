@@ -214,7 +214,7 @@ export default function ProductDetails() {
         if (data.variants && data.variants.length > 0) {
           setSelectedVariant(data.variants[0]);
         }
-        trackProductViewed({ productId: id, name: data.name, price: data.variants?.[0]?.price || data.price, category: data.category, seller: data.seller?.seller_profile?.store_name || data.seller?.full_name });
+        trackProductViewed({ productId: id, name: data.name, price: data.variants?.[0]?.price || data.price, category: data.category, seller: data.seller?.seller_profile?.store_name });
       } catch (error) {
         console.error("Failed to fetch product:", error);
       } finally {
@@ -295,7 +295,9 @@ export default function ProductDetails() {
   const originalPrice = selectedVariant?.compare_at_price || product.compareAtPrice || product.compare_at_price || Math.round(displayPrice * 1.15);
   const discount = originalPrice > displayPrice ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100) : 0;
 
-  const sellerAvatar = product.seller?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${product.seller?.full_name || product.seller?.username}&backgroundColor=1b2d2a&fontFamily=serif`;
+  const sellerProfile = product.seller?.seller_profile || {};
+  const sellerStoreName = sellerProfile.store_name || 'Verified Seller';
+  const sellerIcon = getImageUrl(sellerProfile.icon_url);
 
   return (
     <div style={{ backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '8rem' }}>
@@ -573,7 +575,7 @@ export default function ProductDetails() {
                     <div style={{ position: 'relative' }}>
                       <div style={{ maxHeight: showFullDesc ? 'none' : '450px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
                         <div className="product-description-html" dangerouslySetInnerHTML={{ __html: product.description || "A pristine specimen selected for its exceptional vigor and spectral vibrancy." }} />
-                        {!product.description && <p>Each {name} has been meticulously inspected by our studio team, ensuring that leaf health, root distribution, and metabolic activity are at their peak before being cleared for acquisition.</p>}
+                        {!product.description && <p>Each {name} has been meticulously inspected by our studio team, ensuring that leaf health, root distribution, and metabolic activity are at their peak before being shipped to you.</p>}
                       </div>
                       {!showFullDesc && (
                         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '60px', background: 'linear-gradient(transparent, white)' }} />
@@ -628,13 +630,13 @@ export default function ProductDetails() {
           <div className="col-meta" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <header>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--brand-gold)', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-                {product.seller?.seller_profile?.slug ? (
-                  <Link to={`/store/${product.seller.seller_profile.slug}`} style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Award size={14} /> {product.seller?.seller_profile?.store_name || product.seller?.full_name || 'Botanical Studio'}
+                {sellerProfile.slug ? (
+                  <Link to={`/store/${sellerProfile.slug}`} style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Award size={14} /> {sellerStoreName}
                   </Link>
                 ) : (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Award size={14} /> {product.seller?.seller_profile?.store_name || product.seller?.full_name || 'Botanical Studio'}
+                    <Award size={14} /> {sellerStoreName}
                   </span>
                 )}
                 <span style={{ color: 'var(--border-subtle)' }}>•</span>
@@ -663,7 +665,7 @@ export default function ProductDetails() {
                   <span style={{ fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 700, marginLeft: '0.5rem' }}>{product.rating || '4.8'}</span>
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                  1,240 Verified Acquisitions
+                  1,240 Verified Orders
                 </div>
               </div>
             </header>
@@ -931,7 +933,7 @@ export default function ProductDetails() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Verified Seller</span>
-                    <span style={{ fontWeight: 700, color: 'var(--brand-gold)' }}>{product.seller?.username || product.seller?.name || 'Aquatic Exotica'}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--brand-gold)' }}>{sellerStoreName}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Guarantee</span>
@@ -963,21 +965,32 @@ export default function ProductDetails() {
 
             {/* Seller Story Bridge */}
             <div style={{ display: 'flex', gap: '1.5rem', padding: '1.75rem', borderRadius: '20px', backgroundColor: 'var(--bg-deep)', color: 'white' }}>
-              <div style={{ flexShrink: 0, width: '110px', height: '110px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--brand-gold)', backgroundColor: 'white' }}>
-                <img src={sellerAvatar} alt="Grower" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ flexShrink: 0, width: '110px', height: '110px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--brand-gold)', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {sellerIcon ? (
+                  <img
+                    src={sellerIcon}
+                    alt={sellerStoreName}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:var(--bg-deep);color:var(--brand-gold);font-family:var(--font-serif);font-size:2.25rem;font-weight:600">${sellerStoreName.charAt(0).toUpperCase()}</div>`; }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-deep)', color: 'var(--brand-gold)', fontFamily: 'var(--font-serif)', fontSize: '2.25rem', fontWeight: 600 }}>
+                    {sellerStoreName.charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-                  {product.seller?.role === 'grower' ? 'Master Grower' : 'Verified Partner'}
+                  Verified Seller
                 </div>
                 <h4 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: '#fff' }}>
-                  {product.seller?.full_name || product.seller?.username} • {product.seller?.seller_profile?.store_name || 'Botanical Studio'}
+                  {sellerStoreName}
                 </h4>
                 <p style={{ fontSize: '0.8rem', lineHeight: 1.6, opacity: 0.85 }}>
-                  {product.seller?.seller_profile?.bio || `Dedicated botanical specialist from ${product.seller?.location || 'India'}, committed to the preservation and distribution of premium specimens.`}
+                  {sellerProfile.bio || `Curated specimens from a verified seller, committed to quality and reliable delivery.`}
                 </p>
-                {product.seller?.seller_profile?.slug && (
-                  <Link to={`/store/${product.seller.seller_profile.slug}`} style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 800, marginTop: '0.5rem', textDecoration: 'none' }}>VIEW CATALOG →</Link>
+                {sellerProfile.slug && (
+                  <Link to={`/store/${sellerProfile.slug}`} style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 800, marginTop: '0.5rem', textDecoration: 'none' }}>VIEW CATALOG →</Link>
                 )}
               </div>
             </div>
@@ -987,7 +1000,7 @@ export default function ProductDetails() {
 
         {/* Branded Bottom Flow */}
         <div style={{ marginTop: '8rem', display: 'flex', flexDirection: 'column', gap: '6rem' }}>
-          <MoreFromSeller sellerId={product.seller?.id} sellerName={product.seller?.seller_profile?.store_name || product.seller?.username} sellerSlug={product.seller?.seller_profile?.slug} currentProductId={product.id} />
+          <MoreFromSeller sellerId={product.seller?.id} sellerName={sellerStoreName} sellerSlug={sellerProfile.slug} currentProductId={product.id} />
           <Recommendations category={product.category?.name || product.category} currentProductId={product.id} />
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0 }} />
           <ReviewSection productId={product.id} />

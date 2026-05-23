@@ -32,12 +32,13 @@ export default function SellerStore() {
     expertise: 'Curating life with precision and passion.',
     location: 'India',
     heroImage: '/assets/default-banner.jpg',
+    iconUrl: '',
     logoUrl: '/assets/default-logo.jpg',
     brandColor: '#1b2d2a',
     rating: 5.0,
     reviews: 0,
     founded: 2024,
-    badges: ['Verified Sanctuary', 'Master Grower', 'Eco-Pioneer']
+    badges: ['Verified Seller', 'Master Grower', 'Eco-Pioneer']
   });
   const [profileFound, setProfileFound] = useState(true);
 
@@ -52,15 +53,16 @@ export default function SellerStore() {
           setSellerInfo({
             name: profile.store_name,
             tagline: profile.tagline || 'Rare Botanical Specimens & Collector Rarities',
-            expertise: profile.bio || 'Sharing rare specimens from our private sanctuary.',
+            expertise: profile.bio || 'Sharing rare specimens from our studio.',
             location: profile.location_city || 'India',
             heroImage: getImageUrl(profile.banner_url) || '/assets/default-banner.jpg',
-            logoUrl: getImageUrl(profile.logo_url) || '/assets/default-logo.jpg',
+            iconUrl: getImageUrl(profile.icon_url) || '',
+            logoUrl: getImageUrl(profile.logo_url) || '',
             brandColor: profile.brand_color || '#1b2d2a',
             rating: parseFloat(profile.rating) || 5.0,
             reviews: parseInt(profile.total_sales) || 0,
             founded: new Date(profile.created_at).getFullYear(),
-            badges: profile.identity_verified ? ['Identity Verified', 'Verified Sanctuary', 'Master Grower'] : ['Verified Sanctuary', 'Purity Verified', 'Premium Logistics'],
+            badges: profile.identity_verified ? ['Identity Verified', 'Verified Seller', 'Master Grower'] : ['Verified Seller', 'Purity Verified', 'Premium Logistics'],
             expertise_tags: profile.expertise_tags || [],
             infrastructure: profile.infrastructure_details || '',
             experience: profile.experience_years || 0,
@@ -102,7 +104,7 @@ export default function SellerStore() {
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           style={{ width: '40px', height: '40px', border: '3px solid var(--bg-secondary)', borderTopColor: sellerInfo.brandColor, borderRadius: '50%', marginBottom: '2rem' }}
         />
-        <p style={{ fontFamily: 'var(--font-serif)', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Revealing the Sanctuary...</p>
+        <p style={{ fontFamily: 'var(--font-serif)', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Loading store...</p>
       </div>
     );
   }
@@ -111,8 +113,8 @@ export default function SellerStore() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)', padding: '2rem', textAlign: 'center' }}>
         <Leaf size={64} color="var(--brand-gold)" style={{ marginBottom: '2rem' }} />
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '3rem', marginBottom: '1rem' }}>Sanctuary Not Found</h1>
-        <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 3rem', fontSize: '1.1rem' }}>This studio may have relocated or changed its identity.</p>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '3rem', marginBottom: '1rem' }}>Store Not Found</h1>
+        <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 3rem', fontSize: '1.1rem' }}>This store may have moved or changed its name.</p>
         <Link to="/shop" className="btn btn-primary">Return to Marketplace</Link>
       </div>
     );
@@ -159,7 +161,7 @@ export default function SellerStore() {
               textDecoration: 'none', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase',
               letterSpacing: '0.2em', marginBottom: '2rem'
             }}>
-              <ArrowLeft size={14} /> All Sanctuaries
+              <ArrowLeft size={14} /> All Stores
             </Link>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1.5rem' }}>
@@ -174,23 +176,30 @@ export default function SellerStore() {
               ))}
             </div>
 
-            {/* Logo + Store name */}
+            {/* Brand icon + Store name */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.5rem' }}>
               <div style={{
                 width: '64px', height: '64px', flexShrink: 0,
-                backgroundColor: 'white', borderRadius: '50%',
-                padding: '0.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                backgroundColor: sellerInfo.brandColor || '#1b2d2a', borderRadius: '50%',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden'
               }}>
-                <img
-                  src={sellerInfo.logoUrl || '/assets/default-logo.jpg'}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
-                  alt="Logo"
-                  onError={(e) => { e.target.src = '/assets/default-logo.jpg' }}
-                />
+                {sellerInfo.iconUrl ? (
+                  <img
+                    src={sellerInfo.iconUrl}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                    alt={sellerInfo.name}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span style="color:white;font-family:var(--font-serif);font-size:1.5rem;font-weight:600">${(sellerInfo.name || '?').charAt(0).toUpperCase()}</span>`; }}
+                  />
+                ) : (
+                  <span style={{ color: 'white', fontFamily: 'var(--font-serif)', fontSize: '1.5rem', fontWeight: 600 }}>
+                    {(sellerInfo.name || '?').charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
               <div>
-                <p style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#9ca3af', margin: 0 }}>Studio Profile</p>
+                <p style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#9ca3af', margin: 0 }}>Store Profile</p>
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', margin: 0, lineHeight: 1.1 }}>{sellerInfo.name}</h2>
               </div>
             </div>
@@ -267,7 +276,7 @@ export default function SellerStore() {
       <div className="container">
         <div style={{ textAlign: 'center', marginBottom: 'clamp(3rem, 6vw, 6rem)' }}>
           <h2 style={{ fontSize: 'clamp(2rem, 6vw, 4rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.75rem' }}>Seasonal Selections</h2>
-          <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af' }}>LATEST {products.length} SPECIMENS FROM THE SANCTUARY</p>
+          <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af' }}>LATEST {products.length} SPECIMENS FROM THE STORE</p>
         </div>
 
         {products.length > 0 ? (

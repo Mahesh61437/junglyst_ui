@@ -67,7 +67,7 @@ export default function SellerOnboardingPreview({ formData }) {
               </div>
             </div>
             <div>
-              <p style={{ fontSize: '0.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#E5C48B', marginBottom: '0.2rem' }}>Acquisitions</p>
+              <p style={{ fontSize: '0.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#E5C48B', marginBottom: '0.2rem' }}>Orders</p>
               <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>0</span>
             </div>
             <div>

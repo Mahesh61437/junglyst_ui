@@ -186,7 +186,7 @@ export default function OrderTracking() {
     return (
       <div className="container" style={{ padding: '10rem 1rem', textAlign: 'center' }}>
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem' }}>Protocol Error</h2>
-        <p style={{ color: '#64748b', margin: '2rem 0' }}>The requested acquisition could not be located in our archives.</p>
+        <p style={{ color: '#64748b', margin: '2rem 0' }}>We couldn't find that order.</p>
         <Link to="/orders" className="btn btn-primary">Back to My Orders</Link>
       </div>
     );
@@ -232,7 +232,7 @@ export default function OrderTracking() {
           <section style={{ backgroundColor: 'white', padding: 'clamp(1.5rem,4vw,3.5rem)', borderRadius: '32px', border: '1px solid #f1f5f9', marginBottom: '3rem' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'clamp(2rem,5vw,4rem)', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                   <h1 style={{ fontSize: 'clamp(1.5rem,4vw,2.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.5rem' }}>Acquisition Tracking</h1>
+                   <h1 style={{ fontSize: 'clamp(1.5rem,4vw,2.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.5rem' }}>Order Tracking</h1>
                    <p style={{ color: '#64748b', fontWeight: 600 }}>Protocol Reference: #{order.order_number}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -338,7 +338,7 @@ export default function OrderTracking() {
               <div style={{ marginTop: '3rem', padding: '1.5rem', backgroundColor: '#fcfdfc', borderRadius: '16px', display: 'flex', gap: '1rem' }}>
                  <ShieldCheck size={20} color="#10b981" style={{ flexShrink: 0 }} />
                  <div>
-                    <h5 style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.25rem' }}>Acquisition Guarantee</h5>
+                    <h5 style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.25rem' }}>Order Guarantee</h5>
                     <p style={{ fontSize: '0.7rem', color: '#64748b', lineHeight: 1.5 }}>Your botanical investment is secured under our vitality guarantee. Any issues in transit will be managed by our concierge.</p>
                  </div>
               </div>

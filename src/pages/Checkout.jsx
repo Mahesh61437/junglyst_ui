@@ -727,7 +727,7 @@ export default function Checkout() {
                 transition: 'opacity 0.2s'
               }}
             >
-              {loading ? 'Processing...' : 'COMPLETE ACQUISITION'} {!loading && <ChevronRight size={20} />}
+              {loading ? 'Processing...' : 'PLACE ORDER'} {!loading && <ChevronRight size={20} />}
             </button>
 
             <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>

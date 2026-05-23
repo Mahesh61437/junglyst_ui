@@ -33,7 +33,7 @@ function SpotlightHero({ sellers }) {
           The Curator Registry
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.6)', maxWidth: '480px', margin: '0 auto', lineHeight: 1.7 }}>
-          Our sanctuary is refreshing its list of verified growers. Check back soon.
+          We're refreshing our list of verified growers. Check back soon.
         </p>
       </div>
     </section>
@@ -83,7 +83,7 @@ function SpotlightHero({ sellers }) {
             letterSpacing: '0.3em', color: 'var(--brand-gold)', marginBottom: '1.25rem', display: 'block'
           }}
         >
-          Featured Sanctuary
+          Featured Store
         </motion.span>
 
         <motion.h1
@@ -237,20 +237,27 @@ function SellerCard({ seller }) {
             transform: hovered ? 'scale(1.05)' : 'scale(1)'
           }}
         />
-        {/* Logo */}
+        {/* Brand icon */}
         <div style={{
           position: 'absolute', bottom: '-24px', left: '1.25rem',
           width: '52px', height: '52px', borderRadius: '14px',
-          backgroundColor: 'white', padding: '5px',
+          backgroundColor: seller.brand_color || 'var(--bg-deep)',
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)', overflow: 'hidden',
-          border: '2px solid white'
+          border: '2px solid white',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
-          <img
-            src={getImageUrl(seller.icon_url || seller.logo_url) || '/assets/default-logo.jpg'}
-            alt={seller.store_name}
-            onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
-          />
+          {seller.icon_url ? (
+            <img
+              src={getImageUrl(seller.icon_url)}
+              alt={seller.store_name}
+              onError={e => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span style="color:white;font-family:var(--font-serif);font-size:1.25rem;font-weight:600">${(seller.store_name || '?').charAt(0).toUpperCase()}</span>`; }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span style={{ color: 'white', fontFamily: 'var(--font-serif)', fontSize: '1.25rem', fontWeight: 600 }}>
+              {(seller.store_name || '?').charAt(0).toUpperCase()}
+            </span>
+          )}
         </div>
         {/* Featured badge */}
         {seller.is_featured && (
