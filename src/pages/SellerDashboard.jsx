@@ -8,7 +8,7 @@ import {
   ChevronRight, Menu, ExternalLink, Store, ShieldCheck,
   Save, Info, Image as ImageIcon, Palette, Upload, Loader2,
   Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft, Download, ChevronDown, ChevronUp, FileText, Calendar, IndianRupee,
-  Truck, CheckSquare, Square, ImagePlus, Eye
+  Truck, CheckSquare, Square, ImagePlus, Eye, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -23,6 +23,39 @@ import { OrderService } from '../services/OrderService';
 import { getImageUrl } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
 import Pagination from '../components/Pagination';
+
+// Compress an image file client-side before upload.
+// Resizes to maxDimension (longest edge) and re-encodes as JPEG at the given quality.
+// A 10 MB phone photo typically shrinks to ~200–400 KB — 20-50× faster to upload.
+const compressImage = (file, maxDimension = 1200, quality = 0.82) =>
+  new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        if (width >= height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })),
+        'image/jpeg',
+        quality,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); }; // fallback: use original
+    img.src = objectUrl;
+  });
 
 // Error Boundary for the Dashboard
 class DashboardErrorBoundary extends React.Component {
@@ -76,6 +109,7 @@ export default function SellerDashboard() {
   const [success, setSuccess] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [confirmDialog, setConfirmDialog] = useState(null);
+  const [confirmingOrderId, setConfirmingOrderId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 1024);
   const navigate = useNavigate();
@@ -178,6 +212,17 @@ export default function SellerDashboard() {
   const [pickupSuccess, setPickupSuccess] = useState(null);
   const [pickupError, setPickupError] = useState(null);
   const [shiprocketLocation, setShiprocketLocation] = useState('');
+  // 'unknown' | 'no_address' | 'pending' | 'active' | 'auth_failed' | 'not_applicable'
+  const [shiprocketStatus, setShiprocketStatus] = useState('unknown');
+  const [shiprocketStatusMsg, setShiprocketStatusMsg] = useState('');
+  const [shiprocketRefreshing, setShiprocketRefreshing] = useState(false);
+  // OTP self-verification state
+  const [otpInput, setOtpInput] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpPhoneHint, setOtpPhoneHint] = useState('');
+  const [otpError, setOtpError] = useState(null);
+  const [otpSent, setOtpSent] = useState(false);
 
   const [metrics, setMetrics] = useState({
     total_revenue: 0,
@@ -376,6 +421,8 @@ export default function SellerDashboard() {
           location_pincode: pd.location_pincode || '',
         });
         setShiprocketLocation(pd.shiprocket_pickup_location || '');
+        setShiprocketStatus(pd.shiprocket_status || 'unknown');
+        setShiprocketStatusMsg(pd.shiprocket_status_message || '');
       }
     } catch (error) {
       console.error("Dashboard fetch failed:", error);
@@ -449,13 +496,19 @@ export default function SellerDashboard() {
         location_pincode: res.data.location_pincode || '',
       });
       setShiprocketLocation(res.data.shiprocket_pickup_location || '');
+      setShiprocketStatus(res.data.shiprocket_status || 'pending');
+      setShiprocketStatusMsg(res.data.shiprocket_status_message || '');
+      // Reset OTP widget — the address was re-registered so any prior OTP is stale
+      setOtpSent(false);
+      setOtpInput('');
+      setOtpPhoneHint('');
+      setOtpError(null);
       setPickupEditing(false);
-      setPickupSuccess('Pickup address saved. Shiprocket will send an OTP to verify your phone on the next shipment.');
-      setTimeout(() => setPickupSuccess(null), 8000);
+      setPickupSuccess(res.data.message || 'Pickup address saved.');
+      setTimeout(() => setPickupSuccess(null), 10000);
     } catch (err) {
       const errData = err.response?.data;
       if (errData?.errors) {
-        // Surface the first field error from the backend
         const firstMsg = Object.values(errData.errors)[0];
         setPickupError(firstMsg);
       } else {
@@ -466,14 +519,92 @@ export default function SellerDashboard() {
     }
   };
 
+  const handleRefreshShiprocketStatus = async () => {
+    setShiprocketRefreshing(true);
+    setPickupError(null);
+    try {
+      const res = await api.post('/sellers/pickup-address/register/');
+      setShiprocketLocation(res.data.shiprocket_pickup_location || '');
+      setShiprocketStatus(res.data.shiprocket_status || 'pending');
+      setShiprocketStatusMsg(res.data.shiprocket_status_message || '');
+      if (res.data.shiprocket_status === 'active') {
+        setPickupSuccess('✅ Pickup location verified! Your address will now appear on shipping labels.');
+        setTimeout(() => setPickupSuccess(null), 8000);
+      }
+    } catch (err) {
+      setPickupError('Could not refresh status. Please try again.');
+    } finally {
+      setShiprocketRefreshing(false);
+    }
+  };
+
   const handleResetShiprocketLocation = async () => {
     try {
       const res = await api.patch('/sellers/pickup-address/', { reset_shiprocket_location: true });
       setShiprocketLocation(res.data.shiprocket_pickup_location || '');
-      setPickupSuccess('Shiprocket pickup location cleared. It will be re-registered on the next shipment.');
+      setShiprocketStatus('pending');
+      setShiprocketStatusMsg('');
+      setOtpSent(false);
+      setOtpInput('');
+      setOtpPhoneHint('');
+      setOtpError(null);
+      setPickupSuccess('Pickup location reset. Save your address again to re-register.');
       setTimeout(() => setPickupSuccess(null), 6000);
     } catch (err) {
       setPickupError('Failed to reset pickup location.');
+    }
+  };
+
+  const handleSendOtp = async () => {
+    setOtpSending(true);
+    setOtpError(null);
+    try {
+      const res = await api.post('/sellers/pickup-address/otp/');
+      if (res.data.status === 'already_active') {
+        // Already verified — refresh status display
+        setShiprocketStatus('active');
+        setShiprocketStatusMsg(res.data.message || '');
+        setPickupSuccess('✅ Your pickup location is already verified!');
+        setTimeout(() => setPickupSuccess(null), 6000);
+      } else if (res.data.status === 'sent') {
+        setOtpSent(true);
+        setOtpPhoneHint(res.data.phone_hint || '');
+        setOtpInput('');
+      } else {
+        setOtpError(res.data.message || 'Could not send OTP. Please try again.');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || err.response?.data?.error || 'Failed to send OTP. Please try again.');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpInput || otpInput.length !== 6) {
+      setOtpError('Please enter the 6-digit OTP.');
+      return;
+    }
+    setOtpVerifying(true);
+    setOtpError(null);
+    try {
+      const res = await api.patch('/sellers/pickup-address/otp/', { otp: otpInput });
+      if (res.data.status === 'active') {
+        setShiprocketStatus('active');
+        setShiprocketStatusMsg(res.data.message || '');
+        setShiprocketLocation(res.data.shiprocket_pickup_location || '');
+        setOtpSent(false);
+        setOtpInput('');
+        setPickupSuccess(res.data.message || '✅ Pickup address verified! You can now book couriers.');
+        setTimeout(() => setPickupSuccess(null), 10000);
+      } else {
+        setOtpError(res.data.message || 'OTP verification failed. Please check and try again.');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Verification failed. Please try again.';
+      setOtpError(msg);
+    } finally {
+      setOtpVerifying(false);
     }
   };
 
@@ -791,6 +922,9 @@ export default function SellerDashboard() {
 
   const [shipmentDims, setShipmentDims] = useState({});  // { [subOrderId]: { weight, length, breadth, height } }
   const [dimsSubmitting, setDimsSubmitting] = useState({});
+  const [manualAwbForm, setManualAwbForm] = useState({});   // { [subOrderId]: { show, awb, courier } }
+  const [manualAwbSubmitting, setManualAwbSubmitting] = useState({});
+  const [rebookSubmitting, setRebookSubmitting] = useState({});
 
   const handleSaveShipmentDetails = async (subOrderId) => {
     const dims = shipmentDims[subOrderId] || {};
@@ -821,27 +955,30 @@ export default function SellerDashboard() {
   };
 
   const handleConfirmSubOrder = async (subOrderId) => {
+    setConfirmingOrderId(subOrderId);
     try {
       const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/confirm/`);
       setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
       setSuccess('Order confirmed — 48h dispatch clock started.');
     } catch (e) {
       setFormError(e.response?.data?.error || 'Failed to confirm order.');
+    } finally {
+      setConfirmingOrderId(null);
     }
   };
 
-  const pollSubOrderForAWB = useCallback(async (subOrderId, attemptsLeft = 8) => {
+  const pollSubOrderForAWB = useCallback(async (subOrderId, attemptsLeft = 25) => {
+    // Poll up to 25×7s ≈ 175 s — covers 3 Celery retries at 60 s each.
     if (attemptsLeft <= 0) return;
     await new Promise(resolve => setTimeout(resolve, 7000));
     try {
       const res = await api.get(`/orders/seller/sub-orders/${subOrderId}/`);
       setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
-      // Keep polling until both AWB and label_url are present
-      const hasAWB = !!res.data.awb_number;
-      const hasLabel = !!res.data.shipment?.label_url;
-      if ((!hasAWB || !hasLabel) && attemptsLeft > 1) {
-        pollSubOrderForAWB(subOrderId, attemptsLeft - 1);
-      }
+      const { awb_number, status: st, shipment } = res.data;
+      // Stop polling on terminal states
+      if (st === 'booking_failed') return;  // failure captured — UI will show retry
+      if (awb_number && shipment?.label_url) return;  // fully booked + label ready
+      if (attemptsLeft > 1) pollSubOrderForAWB(subOrderId, attemptsLeft - 1);
     } catch {
       // silent — not critical
     }
@@ -849,6 +986,13 @@ export default function SellerDashboard() {
 
   const handleShipNow = async (subOrderIds) => {
     if (!subOrderIds || subOrderIds.length === 0) return;
+    // Block shipping if seller's Shiprocket pickup location is not verified
+    if (shiprocketStatus !== 'active' && shiprocketStatus !== 'unknown' && shiprocketStatus !== 'not_applicable') {
+      setFormError(
+        'Your pickup address is not yet verified with Shiprocket. Go to Settings → Pickup Address and complete the OTP verification to enable courier booking.'
+      );
+      return;
+    }
     setBulkShipping(true);
     setFormError('');
     setSuccess('');
@@ -874,11 +1018,44 @@ export default function SellerDashboard() {
     if (errorMessages.length > 0) setFormError(errorMessages.join(' | '));
   };
 
+  const handleRebook = async (subOrderId) => {
+    setRebookSubmitting(prev => ({ ...prev, [subOrderId]: true }));
+    try {
+      const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/ship/`);
+      setOrders(prev => prev.map(o => o.id === subOrderId ? { ...o, ...res.data, status: 'booked' } : o));
+      pollSubOrderForAWB(subOrderId);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Rebook failed. Try entering AWB manually.';
+      setFormError(msg);
+    }
+    setRebookSubmitting(prev => ({ ...prev, [subOrderId]: false }));
+  };
+
+  const handleManualAwbSubmit = async (subOrderId) => {
+    const form = manualAwbForm[subOrderId] || {};
+    const awb = (form.awb || '').trim();
+    if (!awb) return;
+    setManualAwbSubmitting(prev => ({ ...prev, [subOrderId]: true }));
+    try {
+      const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/ship/`, {
+        awb_number: awb,
+        courier_name: (form.courier || '').trim() || 'Manual',
+      });
+      setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
+      setManualAwbForm(prev => ({ ...prev, [subOrderId]: { show: false, awb: '', courier: '' } }));
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Could not save AWB. Please try again.';
+      setFormError(msg);
+    }
+    setManualAwbSubmitting(prev => ({ ...prev, [subOrderId]: false }));
+  };
+
   const handlePackageImageUpload = async (subOrderId, file) => {
     if (!file) return;
     setPackageUploading(prev => ({ ...prev, [subOrderId]: true }));
     try {
-      const imageUrl = await ProductService.uploadImage(file, 'package');
+      const compressed = await compressImage(file);
+      const imageUrl = await ProductService.uploadImage(compressed, 'package');
       const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/upload-photo/`, { photo_url: imageUrl });
       setOrders(prev => prev.map(o =>
         o.id === subOrderId ? { ...o, packaging_photos: res.data.packaging_photos, status: res.data.status } : o
@@ -1929,7 +2106,7 @@ export default function SellerDashboard() {
                   // Delivered : final state
                   // Failed    : delivery failed, cancelled, RTO
                   const isPending   = o => ['placed', 'confirmed', 'packing'].includes(o.status);
-                  const isBooking   = o => o.status === 'booked';
+                  const isBooking   = o => ['booked', 'booking_failed'].includes(o.status);
                   const isShipped   = o => ['shipped', 'in_transit', 'out_for_delivery'].includes(o.status);
                   const isDelivered = o => o.status === 'delivered';
                   const isFailed    = o => ['delivery_failed', 'doa_raised', 'cancelled'].includes(o.status);
@@ -1972,6 +2149,7 @@ export default function SellerDashboard() {
                     confirmed:        { bg: '#fef9c3', fg: '#854d0e',  label: 'Confirmed' },
                     packing:          { bg: '#fff7ed', fg: '#c2410c',  label: 'Packing' },
                     booked:           { bg: '#ede9fe', fg: '#6d28d9',  label: 'Courier Booked' },
+                    booking_failed:   { bg: '#fee2e2', fg: '#b91c1c',  label: 'Booking Failed' },
                     shipped:          { bg: '#d1fae5', fg: '#065f46',  label: 'Picked Up' },
                     in_transit:       { bg: '#dbeafe', fg: '#1d4ed8',  label: 'In Transit' },
                     out_for_delivery: { bg: '#dcfce7', fg: '#14532d',  label: 'Out for Delivery' },
@@ -2083,6 +2261,7 @@ export default function SellerDashboard() {
                                   const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && hasDims;
                                   const isInTransit = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
                                   const isCourierBooked = o.status === 'booked';
+                                  const isBookingFailed = o.status === 'booking_failed';
                               const sc = statusColors[o.status] || { bg: '#f3f4f6', fg: '#4b5563', label: o.status.replace(/_/g, ' ') };
                               const dispatchUrgent = o.dispatch_hours_remaining !== null && o.dispatch_hours_remaining <= 12;
                               return (
@@ -2136,12 +2315,14 @@ export default function SellerDashboard() {
                                           )}
                                         </td>
                                         <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.8rem' }}>
-                                          {o.dispatch_hours_remaining !== null && !isCourierBooked && !isInTransit ? (
+                                          {o.dispatch_hours_remaining !== null && !isCourierBooked && !isBookingFailed && !isInTransit ? (
                                             <span style={{ fontWeight: 700, color: dispatchUrgent ? '#dc2626' : '#64748b' }}>
                                               {o.dispatch_hours_remaining > 0 ? `${o.dispatch_hours_remaining}h left` : 'Overdue'}
                                             </span>
                                           ) : isCourierBooked ? (
                                             <span style={{ fontSize: '0.75rem', color: '#8b5cf6', fontWeight: 600 }}>Awaiting pickup</span>
+                                          ) : isBookingFailed ? (
+                                            <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontWeight: 600 }}>Action needed</span>
                                           ) : <span style={{ color: '#94a3b8' }}>—</span>}
                                         </td>
                                         <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
@@ -2159,9 +2340,10 @@ export default function SellerDashboard() {
                                             {canConfirm && (
                                               <button
                                                 onClick={() => handleConfirmSubOrder(o.id)}
-                                                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                                disabled={confirmingOrderId === o.id}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: confirmingOrderId === o.id ? '#93c5fd' : '#3b82f6', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: confirmingOrderId === o.id ? 'not-allowed' : 'pointer' }}
                                               >
-                                                Confirm
+                                                {confirmingOrderId === o.id ? 'Confirming…' : 'Confirm'}
                                               </button>
                                             )}
                                             {canShip && (
@@ -2182,6 +2364,26 @@ export default function SellerDashboard() {
                                               <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: '8px', backgroundColor: '#ede9fe', color: '#7c3aed', fontSize: '0.7rem', fontWeight: 700 }}>
                                                 <CheckCircle2 size={11} /> Booked · Awaiting Pickup
                                               </span>
+                                            )}
+                                            {isBookingFailed && (
+                                              <>
+                                                <button
+                                                  onClick={() => handleRebook(o.id)}
+                                                  disabled={rebookSubmitting[o.id]}
+                                                  title="Retry automatic courier booking"
+                                                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                  {rebookSubmitting[o.id] ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={11} />}
+                                                  {rebookSubmitting[o.id] ? 'Retrying…' : 'Retry'}
+                                                </button>
+                                                <button
+                                                  onClick={() => setManualAwbForm(prev => ({ ...prev, [o.id]: { ...(prev[o.id] || {}), show: !prev[o.id]?.show } }))}
+                                                  title="Enter AWB number manually"
+                                                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: '8px', backgroundColor: 'white', color: '#374151', border: '1px solid #d1d5db', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                  <FileText size={11} /> Enter AWB
+                                                </button>
+                                              </>
                                             )}
                                             {shipment?.label_url && (
                                               <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}>
@@ -2213,7 +2415,7 @@ export default function SellerDashboard() {
                                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem', backgroundColor: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #edf2ed' }}>
                                             <div>
                                               <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Dispatch</p>
-                                              {o.dispatch_hours_remaining !== null && !isShipped ? (
+                                              {o.dispatch_hours_remaining !== null && !isInTransit ? (
                                                 <span style={{ fontWeight: 700, fontSize: '0.8rem', color: dispatchUrgent ? '#dc2626' : '#64748b' }}>
                                                   {o.dispatch_hours_remaining > 0 ? `${o.dispatch_hours_remaining}h left` : 'Overdue'}
                                                 </span>
@@ -2230,8 +2432,8 @@ export default function SellerDashboard() {
                                             </div>
                                             <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
                                               {canConfirm && (
-                                                <button onClick={() => handleConfirmSubOrder(o.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', flex: 1, justifyContent: 'center' }}>
-                                                  Confirm Order
+                                                <button onClick={() => handleConfirmSubOrder(o.id)} disabled={confirmingOrderId === o.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: confirmingOrderId === o.id ? '#93c5fd' : '#3b82f6', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: confirmingOrderId === o.id ? 'not-allowed' : 'pointer', flex: 1, justifyContent: 'center' }}>
+                                                  {confirmingOrderId === o.id ? 'Confirming…' : 'Confirm Order'}
                                                 </button>
                                               )}
                                               {canShip && (
@@ -2271,7 +2473,7 @@ export default function SellerDashboard() {
                                           <div style={{ minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
                                             {/* Package weight + dimensions */}
-                                            {!isShipped && (
+                                            {!isInTransit && (
                                               <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '12px', border: hasDims ? '1px solid #d1fae5' : '1px solid #fde68a' }}>
                                                 <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>
                                                   Package Weight & Dimensions {!hasDims && <span style={{ color: '#d97706' }}>*required before shipping</span>}
@@ -2320,13 +2522,13 @@ export default function SellerDashboard() {
                                             {/* Packaging photos */}
                                             <div>
                                               <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.5rem' }}>
-                                                Packaging Photos {!isShipped && !hasPhotos && <span style={{ color: '#ef4444' }}>*required</span>}
+                                                Packaging Photos {!isInTransit && !hasPhotos && <span style={{ color: '#ef4444' }}>*required</span>}
                                               </p>
                                               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                                 {(o.packaging_photos || []).map((url, i) => (
                                                   <img key={i} src={url} alt={`Package ${i + 1}`} style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2ed' }} />
                                                 ))}
-                                                {!isShipped && (o.packaging_photos || []).length < 3 && (
+                                                {!isInTransit && (o.packaging_photos || []).length < 3 && (
                                                   <label style={{
                                                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                                                     gap: '0.25rem', width: '72px', height: '72px', borderRadius: '8px', border: '2px dashed #d1fae5',
@@ -2354,8 +2556,59 @@ export default function SellerDashboard() {
                                               </div>
                                             )}
 
+                                            {/* Booking failure panel */}
+                                            {isBookingFailed && (
+                                              <div style={{ padding: '0.9rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', fontSize: '0.75rem' }}>
+                                                <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                  <AlertTriangle size={13} /> Courier booking failed
+                                                </p>
+                                                {o.booking_failure_reason && (
+                                                  <p style={{ margin: '0 0 0.75rem', color: '#7f1d1d', fontSize: '0.7rem' }}>{o.booking_failure_reason}</p>
+                                                )}
+                                                {/* Manual AWB inline form */}
+                                                {manualAwbForm[o.id]?.show ? (
+                                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                                    <p style={{ margin: 0, fontWeight: 700, color: '#374151', fontSize: '0.7rem' }}>Enter AWB manually:</p>
+                                                    <input
+                                                      type="text"
+                                                      placeholder="AWB / Tracking number *"
+                                                      value={manualAwbForm[o.id]?.awb || ''}
+                                                      onChange={e => setManualAwbForm(prev => ({ ...prev, [o.id]: { ...prev[o.id], awb: e.target.value } }))}
+                                                      style={{ padding: '0.45rem 0.7rem', borderRadius: '7px', border: '1px solid #d1d5db', fontSize: '0.8rem', outline: 'none' }}
+                                                    />
+                                                    <input
+                                                      type="text"
+                                                      placeholder="Courier name (optional)"
+                                                      value={manualAwbForm[o.id]?.courier || ''}
+                                                      onChange={e => setManualAwbForm(prev => ({ ...prev, [o.id]: { ...prev[o.id], courier: e.target.value } }))}
+                                                      style={{ padding: '0.45rem 0.7rem', borderRadius: '7px', border: '1px solid #d1d5db', fontSize: '0.8rem', outline: 'none' }}
+                                                    />
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                      <button
+                                                        onClick={() => handleManualAwbSubmit(o.id)}
+                                                        disabled={manualAwbSubmitting[o.id] || !manualAwbForm[o.id]?.awb?.trim()}
+                                                        style={{ padding: '0.45rem 1rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                                                      >
+                                                        {manualAwbSubmitting[o.id] ? 'Saving…' : 'Save AWB'}
+                                                      </button>
+                                                      <button
+                                                        onClick={() => setManualAwbForm(prev => ({ ...prev, [o.id]: { ...prev[o.id], show: false } }))}
+                                                        style={{ padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: 'white', color: '#6b7280', border: '1px solid #d1d5db', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                                      >
+                                                        Cancel
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <p style={{ margin: 0, color: '#6b7280', fontSize: '0.7rem' }}>
+                                                    Use <strong>Retry</strong> to attempt automatic booking again, or <strong>Enter AWB</strong> to book your own courier and enter the tracking number.
+                                                  </p>
+                                                )}
+                                              </div>
+                                            )}
+
                                             {/* Pre-ship checklist summary */}
-                                            {!isShipped && ['confirmed', 'packing'].includes(o.status) && (
+                                            {!isInTransit && ['confirmed', 'packing'].includes(o.status) && (
                                               <div style={{ padding: '0.75rem', borderRadius: '10px', backgroundColor: canShip ? '#f0fdf4' : '#fefce8', border: `1px solid ${canShip ? '#bbf7d0' : '#fde68a'}`, fontSize: '0.75rem' }}>
                                                 <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: canShip ? '#15803d' : '#92400e' }}>{canShip ? '✓ Ready to ship' : 'Complete before shipping:'}</p>
                                                 {!hasPhotos && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Upload at least 1 packaging photo</p>}
@@ -2649,28 +2902,134 @@ export default function SellerDashboard() {
                                 </div>
                               </div>
 
-                              {/* Shiprocket registration status */}
-                              <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: `1px solid ${shiprocketLocation ? '#dcfce7' : '#fef3c7'}`, backgroundColor: shiprocketLocation ? '#f0fdf4' : '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                  <Truck size={16} color={shiprocketLocation ? '#16a34a' : '#d97706'} />
-                                  <div>
-                                    <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: shiprocketLocation ? '#15803d' : '#92400e' }}>
-                                      {shiprocketLocation ? `Registered with Shiprocket as "${shiprocketLocation}"` : 'Not yet registered with Shiprocket'}
-                                    </p>
-                                    <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: shiprocketLocation ? '#16a34a' : '#d97706' }}>
-                                      {shiprocketLocation ? 'Auto-registered on first shipment. Reset if you change your address.' : 'Will be auto-registered when you ship your first order.'}
-                                    </p>
+                              {/* Shiprocket verification status + OTP widget */}
+                              {(() => {
+                                const isActive  = shiprocketStatus === 'active';
+                                const isPending = shiprocketStatus === 'pending' || shiprocketStatus === 'unknown';
+                                const noAddr    = shiprocketStatus === 'no_address';
+
+                                if (isActive) {
+                                  return (
+                                    <div style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #dcfce7', backgroundColor: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                        <CheckCircle2 size={16} color="#16a34a" />
+                                        <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: '#15803d' }}>
+                                          ✅ Pickup verified — "{shiprocketLocation}"
+                                        </p>
+                                      </div>
+                                      <button
+                                        onClick={handleResetShiprocketLocation}
+                                        style={{ padding: '0.4rem 0.85rem', borderRadius: '8px', border: '1.5px solid #d1d5db', backgroundColor: 'white', color: '#6b7280', fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer' }}
+                                      >
+                                        Reset
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
+                                if (noAddr) {
+                                  return (
+                                    <div style={{ padding: '0.875rem 1.125rem', borderRadius: '12px', border: '1px solid #fca5a5', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                      <AlertTriangle size={15} color="#b91c1c" style={{ flexShrink: 0 }} />
+                                      <p style={{ margin: 0, fontSize: '0.73rem', color: '#b91c1c', lineHeight: 1.4 }}>Fill in all pickup address fields above to enable courier booking.</p>
+                                    </div>
+                                  );
+                                }
+
+                                // isPending — show self-serve OTP panel
+                                return (
+                                  <div style={{ borderRadius: '14px', border: '1.5px solid #fde68a', backgroundColor: '#fffbeb', overflow: 'hidden' }}>
+                                    {/* Header row */}
+                                    <div style={{ padding: '0.875rem 1.125rem', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+                                      <AlertCircle size={15} color="#d97706" style={{ marginTop: '0.1rem', flexShrink: 0 }} />
+                                      <div style={{ flex: 1 }}>
+                                        <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: '#92400e' }}>
+                                          ⏳ Pickup address needs OTP verification
+                                        </p>
+                                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.7rem', color: '#b45309', lineHeight: 1.5 }}>
+                                          {shiprocketStatusMsg || 'Your pickup address is registered with Shiprocket but needs phone OTP verification before couriers can be booked.'}
+                                        </p>
+                                        <p style={{ margin: '0.25rem 0 0', fontSize: '0.68rem', fontWeight: 700, color: '#b45309' }}>
+                                          ⚠️ Courier booking is blocked until verified.
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* OTP action area */}
+                                    <div style={{ padding: '1rem 1.125rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                                      {!otpSent ? (
+                                        /* Step 1 — Request OTP */
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                          <p style={{ margin: 0, fontSize: '0.73rem', color: '#78350f', flex: 1 }}>
+                                            Shiprocket will send a 6-digit OTP to{' '}
+                                            <strong style={{ fontFamily: 'monospace' }}>
+                                              {pickupForm.phone
+                                                ? pickupForm.phone.replace(/^(\d{6})(\d{4})$/, '••••••$2')
+                                                : 'your registered phone'}
+                                            </strong>.
+                                            {!pickupForm.phone && ' Update your phone number first by clicking Edit.'}
+                                          </p>
+                                          <button
+                                            onClick={handleSendOtp}
+                                            disabled={otpSending || !pickupForm.phone}
+                                            style={{ padding: '0.55rem 1.1rem', borderRadius: '10px', border: 'none', backgroundColor: '#d97706', color: 'white', fontWeight: 700, fontSize: '0.75rem', cursor: (otpSending || !pickupForm.phone) ? 'not-allowed' : 'pointer', opacity: (otpSending || !pickupForm.phone) ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                          >
+                                            {otpSending ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+                                            {otpSending ? 'Sending…' : 'Send OTP to My Phone'}
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        /* Step 2 — Enter OTP */
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                          <p style={{ margin: 0, fontSize: '0.73rem', color: '#78350f' }}>
+                                            OTP sent{otpPhoneHint ? ` to your phone ending in …${otpPhoneHint}` : ' to your phone'}. Enter it below to verify your pickup address.
+                                          </p>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                            <input
+                                              type="text"
+                                              inputMode="numeric"
+                                              pattern="[0-9]*"
+                                              maxLength={6}
+                                              value={otpInput}
+                                              onChange={e => { setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError(null); }}
+                                              placeholder="• • • • • •"
+                                              style={{ width: '130px', padding: '0.7rem 1rem', borderRadius: '10px', border: `1.5px solid ${otpError ? '#f87171' : '#d97706'}`, fontSize: '1.1rem', fontFamily: 'monospace', letterSpacing: '0.25em', textAlign: 'center', backgroundColor: 'white', outline: 'none' }}
+                                            />
+                                            <button
+                                              onClick={handleVerifyOtp}
+                                              disabled={otpVerifying || otpInput.length !== 6}
+                                              style={{ padding: '0.7rem 1.25rem', borderRadius: '10px', border: 'none', backgroundColor: otpInput.length === 6 ? '#16a34a' : '#d1d5db', color: otpInput.length === 6 ? 'white' : '#9ca3af', fontWeight: 700, fontSize: '0.8rem', cursor: (otpVerifying || otpInput.length !== 6) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'background-color 0.15s' }}
+                                            >
+                                              {otpVerifying ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle2 size={13} />}
+                                              {otpVerifying ? 'Verifying…' : 'Verify OTP'}
+                                            </button>
+                                            <button
+                                              onClick={handleSendOtp}
+                                              disabled={otpSending}
+                                              style={{ padding: '0.7rem 0.85rem', borderRadius: '10px', border: '1.5px solid #d97706', backgroundColor: 'white', color: '#92400e', fontWeight: 600, fontSize: '0.72rem', cursor: otpSending ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', opacity: otpSending ? 0.6 : 1 }}
+                                            >
+                                              {otpSending ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={11} />}
+                                              Resend
+                                            </button>
+                                          </div>
+                                          {otpError && (
+                                            <p style={{ margin: 0, fontSize: '0.72rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                              <AlertTriangle size={12} /> {otpError}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {/* Show error on the send step too */}
+                                      {!otpSent && otpError && (
+                                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                          <AlertTriangle size={12} /> {otpError}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                                {shiprocketLocation && (
-                                  <button
-                                    onClick={handleResetShiprocketLocation}
-                                    style={{ padding: '0.5rem 1rem', borderRadius: '10px', border: '1.5px solid #d97706', backgroundColor: 'white', color: '#92400e', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                                  >
-                                    Reset Location
-                                  </button>
-                                )}
-                              </div>
+                                );
+                              })()}
                             </>
                           ) : (
                             <div style={{ padding: '2.5rem', textAlign: 'center', borderRadius: '16px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
