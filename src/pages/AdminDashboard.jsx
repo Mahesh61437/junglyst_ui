@@ -209,7 +209,7 @@ export default function AdminDashboard() {
                     type="email" 
                     value={newAllowed.email}
                     onChange={(e) => setNewAllowed({...newAllowed, email: e.target.value})}
-                    placeholder="curator@sanctuary.com"
+                    placeholder="seller@example.com"
                     style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}
                   />
                 </div>

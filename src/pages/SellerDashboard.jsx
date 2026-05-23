@@ -36,7 +36,7 @@ class DashboardErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div style={{ padding: '10rem 2rem', textAlign: 'center', backgroundColor: '#fff5f5', minHeight: '100vh' }}>
-          <h1 style={{ color: '#c53030', marginBottom: '1rem' }}>Sanctuary Integrity Compromised</h1>
+          <h1 style={{ color: '#c53030', marginBottom: '1rem' }}>Something went wrong</h1>
           <p style={{ color: '#742a2a', marginBottom: '2rem' }}>A botanical error has occurred: {this.state.error?.message}</p>
           <button onClick={() => window.location.reload()} style={{ padding: '1rem 2rem', backgroundColor: '#c53030', color: 'white', border: 'none', borderRadius: '8px' }}>Repair Access</button>
         </div>
@@ -146,7 +146,7 @@ export default function SellerDashboard() {
     id: null,
     store_name: 'My Botanical Studio',
     expertise: 'Master Grower',
-    bio: 'Sharing rare specimens from my private sanctuary.',
+    bio: 'Sharing rare specimens from my private studio.',
     logo_url: '',
     icon_url: '',
     banner_url: '',
@@ -379,7 +379,7 @@ export default function SellerDashboard() {
       }
     } catch (error) {
       console.error("Dashboard fetch failed:", error);
-      setError("The botanical archives are currently inaccessible. Please refresh or check your sanctuary credentials.");
+      setError("We couldn't load your dashboard. Please refresh or check your sign-in.");
     } finally {
       setLoading(false);
     }
@@ -504,7 +504,7 @@ export default function SellerDashboard() {
 
     if (!spotlight.store_name) {
       setFieldErrors({ store_name: "Studio Name is required" });
-      setFormError("Please provide a name for your sanctuary.");
+      setFormError("Please provide a name for your store.");
       return;
     }
 
@@ -690,7 +690,7 @@ export default function SellerDashboard() {
       name: `Exotic Specimen #${randomId}`,
       scientific_name: `Plantae exotica v.${randomId}`,
       category_id: String(cat.id),
-      tagline: "A rare and beautiful specimen for your botanical sanctuary.",
+      tagline: "A rare and beautiful specimen for your collection.",
       origin: "Southeast Asia",
       description: "This specimen has been meticulously acclimated in our private greenhouse. It exhibits vibrant coloration and robust root growth. Perfect for advanced collectors seeking a centerpiece for their display.",
       care_level: 'Easy', care_level_max: 'Medium',
@@ -723,7 +723,7 @@ export default function SellerDashboard() {
 
     setConfirmDialog({
       title: "Archive Specimen",
-      message: "Are you sure you want to archive this specimen? It will no longer be visible to buyers in the sanctuary.",
+      message: "Are you sure you want to archive this specimen? It will no longer be visible to buyers in the store.",
       confirmLabel: "ARCHIVE SPECIMEN",
       onConfirm: async () => {
         setSaving(true);
@@ -768,7 +768,7 @@ export default function SellerDashboard() {
 
     setConfirmDialog({
       title: "Unarchive Specimen",
-      message: "Restore this specimen to the sanctuary? It will become visible to buyers again.",
+      message: "Restore this specimen to the store? It will become visible to buyers again.",
       confirmLabel: "RESTORE SPECIMEN",
       onConfirm: async () => {
         setSaving(true);
@@ -896,7 +896,7 @@ export default function SellerDashboard() {
     return (
       <div style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid #edf2ed', borderTopColor: '#1b2d2a', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 2rem' }}></div>
-        <p style={{ fontFamily: 'serif', color: '#64748b' }}>Authenticating your sanctuary access...</p>
+        <p style={{ fontFamily: 'serif', color: '#64748b' }}>Signing you in...</p>
       </div>
     );
   }
@@ -1178,7 +1178,7 @@ export default function SellerDashboard() {
             {loading ? (
               <div style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
                 <div style={{ width: '40px', height: '40px', border: '3px solid #edf2ed', borderTopColor: '#1b2d2a', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 2rem' }}></div>
-                <p style={{ fontFamily: 'serif', color: '#64748b' }}>Revealing your sanctuary...</p>
+                <p style={{ fontFamily: 'serif', color: '#64748b' }}>Loading your dashboard...</p>
               </div>
             ) : error ? (
               <div style={{ padding: '10rem 1.5rem', textAlign: 'center' }}>
@@ -1367,7 +1367,7 @@ export default function SellerDashboard() {
                           </div>
                           <div style={{ color: 'white' }}>
                             <h2 style={{ fontSize: '2rem', fontFamily: 'serif', margin: 0 }}>{spotlight.store_name}</h2>
-                            <p style={{ fontSize: '0.9rem', opacity: 0.8, margin: '0.25rem 0 0' }}>{spotlight.expertise || 'Collector Sanctuary'}</p>
+                            <p style={{ fontSize: '0.9rem', opacity: 0.8, margin: '0.25rem 0 0' }}>{spotlight.expertise || 'Verified Seller'}</p>
                           </div>
                         </div>
                       </div>
@@ -1561,7 +1561,7 @@ export default function SellerDashboard() {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.25rem' }}>Sanctuary Theme Presets</label>
+                            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.25rem' }}>Store Theme Presets</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                               {presets.map(p => (
                                 <button
@@ -2792,7 +2792,7 @@ export default function SellerDashboard() {
                       <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif', marginBottom: '1rem', color: '#ef4444' }}>Danger Zone</h3>
                       <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '2rem', marginTop: 0 }}>Permanently deactivate your grower status and archive all listings.</p>
                       <button style={{ backgroundColor: 'white', color: '#ef4444', border: '1px solid #fee2e2', padding: '1rem 2rem', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                        Deactivate Sanctuary
+                        Deactivate Store
                       </button>
                     </div>
                   </div>

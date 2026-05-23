@@ -203,7 +203,7 @@ export default function HeroCarousel({ sellers = [] }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <ShieldCheck size={14} color="var(--brand-gold)" />
             <span style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-              {isReal ? 'Featured Sanctuary' : 'Welcome to Junglyst'}
+              {isReal ? 'Featured Store' : 'Welcome to Junglyst'}
             </span>
             {slide.location_city && (
               <>
@@ -232,7 +232,7 @@ export default function HeroCarousel({ sellers = [] }) {
           {/* CTAs */}
           <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <Link to={storeLink} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.875rem 2.25rem', borderRadius: '100px', backgroundColor: 'white', color: 'var(--bg-deep)', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none', letterSpacing: '0.04em' }}>
-              {isReal ? 'Visit Sanctuary' : 'Shop Now'} <ArrowRight size={15} />
+              {isReal ? 'Visit Store' : 'Shop Now'} <ArrowRight size={15} />
             </Link>
             {isReal && (
               <Link to="/sellers" style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600, fontSize: '0.8rem', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
@@ -243,12 +243,18 @@ export default function HeroCarousel({ sellers = [] }) {
         </div>
         )}
 
-        {/* Logo badge — bottom-right of content area (seller slides only) */}
-        {!isCompetition && (slide.logo_url || slide.icon_url) && (
-          <div style={{ position: 'absolute', bottom: '2.5rem', right: '1rem', width: '72px', height: '72px', borderRadius: '18px', backgroundColor: 'white', padding: '6px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', opacity: transitioning ? 0 : 1, transition: 'opacity 0.5s' }}>
-            <img src={getImageUrl(slide.icon_url || slide.logo_url)} alt={slide.store_name}
-              onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} />
+        {/* Brand icon badge — bottom-right of content area (seller slides only) */}
+        {!isCompetition && slide.store_name && (
+          <div style={{ position: 'absolute', bottom: '2.5rem', right: '1rem', width: '72px', height: '72px', borderRadius: '18px', backgroundColor: slide.brand_color || 'var(--bg-deep)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.35)', opacity: transitioning ? 0 : 1, transition: 'opacity 0.5s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {slide.icon_url ? (
+              <img src={getImageUrl(slide.icon_url)} alt={slide.store_name}
+                onError={e => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span style="color:white;font-family:var(--font-serif);font-size:1.75rem;font-weight:600">${(slide.store_name || '?').charAt(0).toUpperCase()}</span>`; }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ color: 'white', fontFamily: 'var(--font-serif)', fontSize: '1.75rem', fontWeight: 600 }}>
+                {(slide.store_name || '?').charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
         )}
       </div>

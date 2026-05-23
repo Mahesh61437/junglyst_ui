@@ -513,7 +513,7 @@ export default function Navbar() {
                     <Package size={18} /> My Orders
                   </Link>
                   <Link to="/profile" state={{ tab: 'history' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Package size={18} /> Acquisition History
+                    <Package size={18} /> Order History
                   </Link>
                   <Link to="/profile" state={{ tab: 'wishlist' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <Heart size={18} /> Curated Wishlist

@@ -195,7 +195,7 @@ export default function Profile() {
       // alert("Profile credentials updated successfully.");
     } catch (error) {
       console.error("Failed to update profile:", error);
-      alert("Failed to sync updates with the sanctuary.");
+      alert("Failed to save your changes.");
     } finally {
       setLoading(false);
     }
@@ -208,8 +208,8 @@ export default function Profile() {
           <div style={{ backgroundColor: 'var(--bg-secondary)', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2.5rem', color: 'var(--brand-gold)' }}>
             <ShieldCheck size={32} />
           </div>
-          <h1 style={{ fontSize: '3.5rem', marginBottom: '1.5rem' }}>Sanctuary Access</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '3.5rem', fontSize: '1.125rem', maxWidth: '500px', margin: '0 auto 3.5rem' }}>Please authenticate to access your personal botanical sanctuary and order history.</p>
+          <h1 style={{ fontSize: '3.5rem', marginBottom: '1.5rem' }}>Account Access</h1>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '3.5rem', fontSize: '1.125rem', maxWidth: '500px', margin: '0 auto 3.5rem' }}>Please sign in to access your profile and order history.</p>
           <Link to="/login" className="btn btn-primary" style={{ padding: '1.125rem 3.5rem' }}>Sign In</Link>
         </div>
       </div>
@@ -349,7 +349,7 @@ export default function Profile() {
                 </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Home Sanctuary</label>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Home Address</label>
                 {isEditing ? (
                   <input
                     type="text"
@@ -526,7 +526,7 @@ export default function Profile() {
         {activeTab === 'history' && (
           <div className="fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-              <h3 style={{ fontSize: '2.5rem', fontFamily: 'var(--font-serif)' }}>Acquisition History</h3>
+              <h3 style={{ fontSize: '2.5rem', fontFamily: 'var(--font-serif)' }}>Order History</h3>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{orders.length} ARCHIVED ORDERS</span>
             </div>
             {loading ? (
@@ -624,7 +624,7 @@ export default function Profile() {
             ) : (
               <div style={{ padding: '8rem 2rem', textAlign: 'center', backgroundColor: 'white', borderRadius: '48px', border: '1px solid var(--border-subtle)' }}>
                 <ShoppingBag size={64} strokeWidth={1} style={{ marginBottom: '2rem', opacity: 0.1 }} />
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontFamily: 'var(--font-serif)', marginBottom: '2rem' }}>The archive is empty. No botanical acquisitions recorded.</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontFamily: 'var(--font-serif)', marginBottom: '2rem' }}>No orders yet.</p>
                 <Link to="/shop" className="btn btn-primary" style={{ padding: '1rem 3rem' }}>Explore Collection</Link>
               </div>
             )}
@@ -662,7 +662,7 @@ export default function Profile() {
             ) : (
               <div style={{ padding: '8rem 2rem', textAlign: 'center', backgroundColor: 'white', borderRadius: '48px', border: '1px solid var(--border-subtle)' }}>
                 <Heart size={64} strokeWidth={1} style={{ marginBottom: '2rem', opacity: 0.1, color: '#ef4444' }} />
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontFamily: 'var(--font-serif)', marginBottom: '2rem' }}>No specimens have been curated for future acquisition.</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontFamily: 'var(--font-serif)', marginBottom: '2rem' }}>No items saved yet.</p>
                 <Link to="/shop" className="btn btn-outline" style={{ padding: '1rem 3rem' }}>Begin Curation</Link>
               </div>
             )}
@@ -677,7 +677,7 @@ export default function Profile() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {[
-                { title: 'New Arrival: Bucephalandra Black Cobra', time: '2 hours ago', type: 'new', msg: 'The legendary Black Cobra specimens from our recent Borneo import are now available for acquisition.' },
+                { title: 'New Arrival: Bucephalandra Black Cobra', time: '2 hours ago', type: 'new', msg: 'The legendary Black Cobra specimens from our recent Borneo import are now available.' },
                 { title: 'Order Dispatched: #ACQ-2045', time: '1 day ago', type: 'order', msg: 'Your tropical specimen box has been cleared for priority shipping and is currently in transit.' },
                 { title: 'Seasonal Insight: Monsoon Care', time: '3 days ago', type: 'insight', msg: 'Review our latest curator notes on managing high-humidity environments during the monsoon season.' }
               ].map((note, i) => (

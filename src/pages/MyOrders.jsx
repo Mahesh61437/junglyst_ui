@@ -133,7 +133,7 @@ export default function MyOrders() {
   if (loading) {
     return (
       <div className="container" style={{ padding: '8rem 1rem', textAlign: 'center' }}>
-        <div style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 800 }}>Retrieving Acquisition History...</div>
+        <div style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 800 }}>Loading your orders...</div>
       </div>
     );
   }
@@ -142,7 +142,7 @@ export default function MyOrders() {
     <div className="container" style={{ padding: '6rem 1rem 10rem', maxWidth: '860px' }}>
       <div style={{ marginBottom: '3.5rem' }}>
         <h1 style={{ fontSize: '3rem', fontFamily: 'var(--font-serif)', marginBottom: '0.75rem' }}>Order History</h1>
-        <p style={{ color: '#64748b', fontSize: '1rem' }}>Tracking your botanical acquisitions.</p>
+        <p style={{ color: '#64748b', fontSize: '1rem' }}>Tracking your orders.</p>
       </div>
 
       {orders.length === 0 ? (
@@ -150,7 +150,7 @@ export default function MyOrders() {
           <div style={{ color: '#e2e8f0', marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}>
             <ShoppingBag size={64} strokeWidth={1} />
           </div>
-          <h3 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>No Acquisitions Yet</h3>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>No Orders Yet</h3>
           <p style={{ color: '#64748b', marginBottom: '3rem' }}>Your collection is waiting for its first rare specimen.</p>
           <Link to="/shop" className="btn btn-primary" style={{ padding: '1rem 3rem', borderRadius: '100px' }}>Explore Gallery</Link>
         </div>

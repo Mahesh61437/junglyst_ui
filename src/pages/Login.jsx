@@ -433,7 +433,7 @@ export default function Login() {
         )}
 
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          New to the sanctuary? <Link to="/signup" style={{ color: 'var(--brand-gold)', fontWeight: 800, textDecoration: 'none' }}>Join Junglyst</Link>
+          New to Junglyst? <Link to="/signup" style={{ color: 'var(--brand-gold)', fontWeight: 800, textDecoration: 'none' }}>Create an account</Link>
         </p>
       </div>
     </div>

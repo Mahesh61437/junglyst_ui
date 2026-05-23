@@ -96,7 +96,7 @@ export default function Success() {
             </div>
           </div>
           <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '1rem', color: '#1b2d2a' }}>
-            Acquisition Secured
+            Order Confirmed
           </h1>
           <p style={{ fontSize: '1rem', color: '#64748b', lineHeight: 1.8 }}>
             Your specimen collection has been successfully registered.
@@ -275,7 +275,7 @@ export default function Success() {
               { icon: Package, title: 'Preparation', desc: 'Quarantine & health screening', status: 'in-progress', color: 'var(--brand-gold)' },
               { icon: Clock, title: 'Processing', desc: 'Thermal packaging setup', status: 'pending', color: '#94a3b8' },
               { icon: Truck, title: 'Dispatch', desc: 'Climate-controlled transit', status: 'pending', color: '#94a3b8' },
-              { icon: Leaf, title: 'Delivery', desc: 'Arrival at sanctuary', status: 'pending', color: '#94a3b8' },
+              { icon: Leaf, title: 'Delivery', desc: 'Arrival at your doorstep', status: 'pending', color: '#94a3b8' },
             ].map((step, idx) => (
               <div key={idx} style={{ textAlign: 'center', position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>

@@ -10,6 +10,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&q=80&w=800",
     author: "Dr. James Chen",
     publishedDate: "2026-05-10",
+    productTags: ["bucephalandra", "anubias", "cryptocoryne", "moss", "java fern"],
     content: `
       <h2>The Bucephalandra Compendium: A Complete Care Guide</h2>
       
@@ -59,6 +60,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1463123081488-789f998ac9c4?auto=format&fit=crop&q=80&w=800",
     author: "Sarah Martinez",
     publishedDate: "2026-05-08",
+    productTags: ["fern", "java fern", "moss", "cork bark", "sphagnum"],
     content: `
       <h2>Mastering Fern Propagation in Terrariums</h2>
       
@@ -100,6 +102,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=800",
     author: "Marcus Thompson",
     publishedDate: "2026-05-05",
+    productTags: ["cryptocoryne", "echinodorus", "rotala", "stem plant", "anubias"],
     content: `
       <h2>Substrate Layering 101: The Foundation of Your Aquascape</h2>
       
@@ -145,6 +148,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1583505494967-c55814e1d52a?auto=format&fit=crop&q=80&w=800",
     author: "David Wong",
     publishedDate: "2026-05-03",
+    productTags: ["moss", "anubias", "bucephalandra", "java fern", "cryptocoryne"],
     content: `
       <h2>Hardscape Design Principles: Creating Visual Harmony</h2>
       
@@ -183,6 +187,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?auto=format&fit=crop&q=80&w=800",
     author: "Emma Rodriguez",
     publishedDate: "2026-05-01",
+    productTags: ["pothos", "peperomia", "philodendron", "anthurium", "calathea"],
     content: `
       <h2>Tropical Plant Care Mastery: Bringing the Jungle Indoors</h2>
       
@@ -224,6 +229,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1546026423-cc4642628d2b?auto=format&fit=crop&q=80&w=800",
     author: "Dr. Robert Chen",
     publishedDate: "2026-04-28",
+    productTags: ["rotala", "stem plant", "java fern", "anubias", "cryptocoryne"],
     content: `
       <h2>Understanding the Nitrogen Cycle: The Invisible Engine</h2>
       
@@ -259,6 +265,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1497206365907-0e84242e2189?auto=format&fit=crop&q=80&w=800",
     author: "Lisa Park",
     publishedDate: "2026-04-25",
+    productTags: ["terrarium", "moss", "peperomia", "fern", "cryptanthus"],
     content: `
       <h2>Building Your First Terrarium: A Complete Guide</h2>
       
@@ -303,6 +310,7 @@ export const blogs = [
     image: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=800",
     author: "Michael Foster",
     publishedDate: "2026-04-22",
+    productTags: ["anubias", "java fern", "cryptocoryne", "moss", "java moss"],
     content: `
       <h2>Low-Light Aquatic Plants: Beauty Without Demanding Light</h2>
       
@@ -328,6 +336,306 @@ export const blogs = [
       
       <h3>Troubleshooting Common Issues</h3>
       <p>Yellowing leaves suggest nutrient deficiency. Black spots indicate possible mold or fungal issues. Melting occurs when stressed by rapid parameter changes.</p>
+    `
+  },
+  {
+    id: 9,
+    slug: 'aquascaping-beginners-guide',
+    title: "Aquascaping for Absolute Beginners",
+    description: "Your first planted tank, demystified — tank size, gear checklist, layout, and the first 30 days.",
+    category: "Aquascaping",
+    difficulty: "Easy",
+    readTime: "12 min read",
+    image: "https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?auto=format&fit=crop&q=80&w=800",
+    author: "Aarav Mehta",
+    publishedDate: "2026-04-18",
+    productTags: ["anubias", "java fern", "cryptocoryne", "bucephalandra", "moss"],
+    content: `
+      <h2>Aquascaping for Absolute Beginners</h2>
+
+      <p>Aquascaping is the art of arranging plants, rocks, and wood inside an aquarium to create a living landscape. If you have never kept a planted tank before, this guide walks you through every decision — from picking the right tank to your first water change.</p>
+
+      <h3>Step 1: Pick the Right Tank Size</h3>
+      <p>Counter-intuitively, larger tanks are easier than nano tanks. A 60-90 litre rimless aquarium gives you stable water parameters, room for composition, and forgiveness when you make beginner mistakes. Avoid anything under 20 litres for your first build.</p>
+
+      <h3>Step 2: The Gear Checklist</h3>
+      <ul>
+        <li><strong>Filter:</strong> A canister or hang-on-back rated for 4–6× tank volume per hour.</li>
+        <li><strong>Heater:</strong> 1 watt per litre, with a built-in thermostat.</li>
+        <li><strong>Light:</strong> A full-spectrum LED with 6500K colour temperature.</li>
+        <li><strong>Substrate:</strong> An active aquasoil for the planted section, capped with inert sand in open areas.</li>
+        <li><strong>Hardscape:</strong> One or two pieces of driftwood plus a small handful of stones.</li>
+      </ul>
+
+      <h3>Step 3: Plan Your Layout on Paper</h3>
+      <p>Sketch a side view before you start. Decide where your focal point sits — usually one-third in from the left or right. Slope substrate higher at the back so the tank reads deeper than it really is.</p>
+
+      <h3>Step 4: Choose Beginner-Friendly Plants</h3>
+      <p>Stick to low-maintenance species for your first scape: Anubias nana, Java fern, Cryptocoryne wendtii, Bucephalandra, and a carpet of Monte Carlo or Marsilea hirsuta. Avoid demanding stem plants until you have CO2.</p>
+
+      <h3>Step 5: Cycle Before You Stock</h3>
+      <p>Run the tank with plants but no fish for 3–4 weeks. Dose a bottled bacteria starter and a small amount of ammonia. Test weekly until ammonia and nitrite read zero — only then is the tank safe for livestock.</p>
+
+      <h3>The First 30 Days</h3>
+      <p>Expect algae. Diatoms (brown dust) and green spot algae are normal in a new tank — they pass as the system matures. Do 30% water changes twice a week for the first month, and resist the urge to over-fertilise.</p>
+
+      <h3>Common Beginner Mistakes</h3>
+      <p>Overstocking too early, skipping the cycle, buying every gadget at once, and chasing rare plants before mastering basics. Patience compounds — a six-month-old scape looks dramatically better than a one-month-old scape, even with the same plants.</p>
+    `
+  },
+  {
+    id: 10,
+    slug: 'vivarium-setup-guide',
+    title: "Building Your First Tropical Vivarium",
+    description: "A complete walk-through for setting up a planted, bioactive vivarium — drainage, substrate, plants, and inhabitants.",
+    category: "Vivarium",
+    difficulty: "Medium",
+    readTime: "16 min read",
+    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=800",
+    author: "Priya Nair",
+    publishedDate: "2026-04-15",
+    productTags: ["moss", "fern", "peperomia", "marcgravia", "anubias"],
+    content: `
+      <h2>Building Your First Tropical Vivarium</h2>
+
+      <p>A vivarium is a sealed glass enclosure designed to host living plants — and often small animals like dart frogs, geckos, or isopods — under tropical conditions. Unlike a terrarium, a true vivarium is built to sustain itself for years with minimal intervention.</p>
+
+      <h3>Choosing the Enclosure</h3>
+      <p>Front-opening glass enclosures (45×45×60 cm or larger) are ideal. They have built-in ventilation strips, drainage gaps, and screen tops that allow controlled humidity. Avoid fully sealed aquariums — they trap stagnant air and breed mould.</p>
+
+      <h3>The Layered Build</h3>
+      <ol>
+        <li><strong>Drainage layer (5 cm):</strong> Lightweight clay balls (LECA) keep excess water away from the root zone.</li>
+        <li><strong>Substrate barrier:</strong> A mesh sheet stops soil from falling into the drainage.</li>
+        <li><strong>ABG mix (8–10 cm):</strong> Tree fern fibre, peat, sphagnum, charcoal, and orchid bark — the gold standard for vivarium soil.</li>
+        <li><strong>Leaf litter:</strong> A 2–3 cm layer of dried magnolia or sea grape leaves — food for the cleanup crew and shelter for inhabitants.</li>
+      </ol>
+
+      <h3>Hardscape and Background</h3>
+      <p>Cork bark slabs, ghost wood, and mopani make excellent vertical hardscape. Many builders attach a cork or carved foam background for epiphytes to colonise. Silicone everything in place before adding substrate.</p>
+
+      <h3>Plant Selection</h3>
+      <p>Choose tropical, humidity-loving species: miniature orchids (Pleurothallis, Lepanthes), Begonia, Peperomia, Marcgravia, Selaginella, and creeping Ficus. Mount epiphytes with sphagnum and fishing line.</p>
+
+      <h3>Bioactive Cleanup Crew</h3>
+      <p>Springtails and dwarf white isopods break down waste, prevent mould, and keep the substrate aerated. Seed them 2–4 weeks before adding any animals so colonies can establish.</p>
+
+      <h3>Lighting and Misting</h3>
+      <p>A 6500K LED rated for plant growth, run 10–12 hours daily, drives photosynthesis. An automatic misting system (2–4 short bursts per day) maintains 70–90% humidity without saturating the soil.</p>
+
+      <h3>Cycling the Vivarium</h3>
+      <p>Wait at least 6 weeks before introducing animals. Plants should be visibly rooted, the cleanup crew breeding, and humidity stable. Rushing this stage is the single biggest cause of failed vivariums.</p>
+    `
+  },
+  {
+    id: 11,
+    slug: 'bioactive-cleanup-crew',
+    title: "The Bioactive Cleanup Crew Explained",
+    description: "Isopods, springtails, and the tiny invertebrates that turn a glass box into a self-sustaining ecosystem.",
+    category: "Vivarium",
+    difficulty: "Easy",
+    readTime: "9 min read",
+    image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&q=80&w=800",
+    author: "Dr. Neha Sharma",
+    publishedDate: "2026-04-12",
+    productTags: ["moss", "fern", "peperomia", "bucephalandra", "anubias"],
+    content: `
+      <h2>The Bioactive Cleanup Crew Explained</h2>
+
+      <p>"Bioactive" describes an enclosure that processes its own waste through living organisms instead of regular cleaning. The workhorses are tiny detritivores — primarily isopods and springtails — that consume mould, decaying plant matter, and animal waste.</p>
+
+      <h3>Why Bioactive?</h3>
+      <p>A balanced cleanup crew eliminates the need for substrate changes, reduces mould outbreaks, and keeps frog or gecko enclosures odour-free. It also creates a more naturalistic, enriching environment for inhabitants.</p>
+
+      <h3>Springtails (Collembola)</h3>
+      <p>Tiny (1–2 mm), white, and astonishingly prolific. They feed almost exclusively on mould and surface biofilm, which makes them the first line of defence in any new vivarium. Add a starter culture of 500–1000 at setup; they self-regulate.</p>
+
+      <h3>Dwarf White Isopods (Trichorhina tomentosa)</h3>
+      <p>Blind, soil-dwelling, and parthenogenic (no males needed). They reproduce quickly and stay hidden, which makes them safe even with smaller dart frog species. The default choice for most builders.</p>
+
+      <h3>Powder Blue and Powder Orange Isopods (Porcellionides pruinosus)</h3>
+      <p>Fast, surface-active, and visually striking. Better for larger vivariums with geckos or larger frogs. They need more ventilation and a drier substrate gradient.</p>
+
+      <h3>Giant Species (Porcellio scaber, P. laevis)</h3>
+      <p>Beautiful, slow-breeding, and best kept in display cultures separate from frog enclosures — they can outcompete smaller invertebrates and are sometimes eaten before they establish.</p>
+
+      <h3>Seeding and Feeding</h3>
+      <p>Add invertebrates to the vivarium 2–4 weeks before any vertebrate inhabitants. Drop in a slice of cucumber, a piece of sweet potato, or a pinch of fish food weekly until populations are visibly established.</p>
+
+      <h3>Signs of a Healthy Crew</h3>
+      <p>You should see springtails dotting glass after misting and isopods scurrying under leaf litter when you lift it. If you never see them, the colony has either crashed or the enclosure is too wet.</p>
+    `
+  },
+  {
+    id: 12,
+    slug: 'co2-injection-for-planted-tanks',
+    title: "CO2 Injection: A Practical Guide",
+    description: "Why carbon dioxide transforms a planted tank, how to set up pressurised CO2 safely, and how to dial it in.",
+    category: "Aquascaping",
+    difficulty: "Advanced",
+    readTime: "14 min read",
+    image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&q=80&w=800",
+    author: "Vikram Iyer",
+    publishedDate: "2026-04-09",
+    productTags: ["rotala", "monte carlo", "bucephalandra", "stem plant", "moss"],
+    content: `
+      <h2>CO2 Injection: A Practical Guide</h2>
+
+      <p>Carbon is the single largest building block in plant tissue, and dissolved CO2 in tank water is almost always the limiting nutrient. Injecting CO2 unlocks growth rates and colours that no fertiliser regimen can match — but it must be done correctly to be safe for fish and shrimp.</p>
+
+      <h3>Pressurised vs DIY</h3>
+      <p>DIY yeast-and-sugar systems are inexpensive but unstable, hard to regulate, and unsuitable for tanks over 60 litres. A pressurised setup — CO2 cylinder, regulator, solenoid, and diffuser — is the only serious option for a planted display tank.</p>
+
+      <h3>The Core Equipment</h3>
+      <ul>
+        <li><strong>Cylinder:</strong> 2–5 kg refillable steel or aluminium.</li>
+        <li><strong>Regulator with solenoid:</strong> Drops cylinder pressure to a workable level and lets you switch CO2 on and off via timer.</li>
+        <li><strong>Bubble counter:</strong> Lets you visually meter the rate.</li>
+        <li><strong>Diffuser or in-line reactor:</strong> Breaks gas into a fine mist for absorption.</li>
+        <li><strong>Drop checker:</strong> A small glass vessel with pH-indicator solution that shows real-time dissolved CO2.</li>
+      </ul>
+
+      <h3>Targeting 30 ppm</h3>
+      <p>Planted tanks aim for 25–35 ppm of dissolved CO2 during photoperiod. Drop checker fluid should sit at a clear lime green — yellow means too much (dangerous for fish), blue means too little.</p>
+
+      <h3>Timing and Photoperiod</h3>
+      <p>Wire the solenoid to a timer. CO2 should turn on 1–2 hours before lights and turn off 1 hour before lights-off. This way the tank reaches target concentration before photosynthesis begins and avoids wasted gas at night.</p>
+
+      <h3>Surface Agitation</h3>
+      <p>Many beginners crank up CO2 and crash their fish because they also have excessive surface agitation, which gasses CO2 out as fast as it goes in. Reduce flow at the surface and you will consume far less gas to hit target.</p>
+
+      <h3>Signs You Have It Right</h3>
+      <p>Pearling — tiny oxygen bubbles streaming off plant leaves a few hours into the photoperiod — is the most reliable sign that CO2 and light are matched. Fish should breathe normally; gasping at the surface is a red flag.</p>
+
+      <h3>Safety</h3>
+      <p>Always use a check valve to prevent water flowing back into the regulator. Mount cylinders upright and secured. Never inject CO2 into a tank without a drop checker and without testing for at least a week with a low bubble rate first.</p>
+    `
+  },
+  {
+    id: 13,
+    slug: 'paludarium-design',
+    title: "Paludarium Design Fundamentals",
+    description: "Bridging aquarium and vivarium — how to design a layered land-and-water habitat that thrives long term.",
+    category: "Vivarium",
+    difficulty: "Advanced",
+    readTime: "13 min read",
+    image: "https://images.unsplash.com/photo-1502331538081-041522531548?auto=format&fit=crop&q=80&w=800",
+    author: "Rohan Banerjee",
+    publishedDate: "2026-04-06",
+    productTags: ["moss", "fern", "anubias", "bucephalandra", "cryptocoryne"],
+    content: `
+      <h2>Paludarium Design Fundamentals</h2>
+
+      <p>A paludarium combines an aquatic section with a terrestrial, planted landmass above — think a flooded forest floor in a glass box. Done well, it is the most visually striking format in the hobby. Done poorly, it becomes a maintenance nightmare.</p>
+
+      <h3>Tank Selection</h3>
+      <p>Use a tank that is taller than it is deep — at least 50 cm in height. Front-opening enclosures simplify maintenance on the land section, but rimless aquariums with a custom acrylic shelf also work.</p>
+
+      <h3>Water-to-Land Ratio</h3>
+      <p>A 40:60 water-to-land split is a good starting point for plant-heavy paludariums. Increase water if you want fish; decrease it if the focus is mounted epiphytes and orchids.</p>
+
+      <h3>Building the Landmass</h3>
+      <p>Stack lava rock and great stone to form the structural base, then carve sculpting foam over the top to shape contours. Coat with silicone and press in a mix of coco fibre, sphagnum, and substrate. The result is lightweight, plantable, and porous enough for root growth.</p>
+
+      <h3>Water Movement and Filtration</h3>
+      <p>An external canister filter with the return plumbed through a small waterfall keeps the aquatic section clean and humidifies the land section simultaneously. The land surface should never sit in standing water — that causes root rot.</p>
+
+      <h3>Plant Zoning</h3>
+      <ul>
+        <li><strong>Submerged:</strong> Crypts, Anubias, Bucephalandra, mosses on driftwood.</li>
+        <li><strong>Emergent (waterline):</strong> Hygrophila, Bacopa, Lobelia cardinalis grown halfway out of the water.</li>
+        <li><strong>Terrestrial:</strong> Ferns, Begonia, Peperomia, miniature orchids in the elevated sections.</li>
+      </ul>
+
+      <h3>Lighting Strategy</h3>
+      <p>Paludariums need stronger light than either pure aquariums or vivariums because the canopy plants shade the water below. A high-output LED with adjustable spectrum lets you tune for both layers.</p>
+
+      <h3>Long-Term Maintenance</h3>
+      <p>Trim aggressively. The terrestrial section will try to overtake the water if left unchecked. Plan a monthly pruning session and quarterly substrate inspections to maintain the design intent.</p>
+    `
+  },
+  {
+    id: 14,
+    slug: 'aquarium-lighting-fundamentals',
+    title: "Aquarium Lighting: PAR, Spectrum, and Photoperiod",
+    description: "How light actually drives plant growth — the science of PAR, Kelvin, and dialling in your photoperiod.",
+    category: "Education",
+    difficulty: "Medium",
+    readTime: "12 min read",
+    image: "https://images.unsplash.com/photo-1535185384036-28bbc8035f28?auto=format&fit=crop&q=80&w=800",
+    author: "Dr. Anita Krishnan",
+    publishedDate: "2026-04-03",
+    productTags: ["rotala", "monte carlo", "stem plant", "bucephalandra", "cryptocoryne"],
+    content: `
+      <h2>Aquarium Lighting: PAR, Spectrum, and Photoperiod</h2>
+
+      <p>Lighting is the single most misunderstood variable in planted tanks. Three concepts — PAR, spectrum, and photoperiod — determine whether your plants thrive, stall, or get overrun with algae.</p>
+
+      <h3>PAR: What You Actually Care About</h3>
+      <p>PAR (Photosynthetically Active Radiation) measures the light wavelengths that plants can use, in micromoles per square metre per second. Wattage and lumens are marketing numbers; PAR at the substrate is what grows plants.</p>
+      <ul>
+        <li><strong>Low light:</strong> 15–30 PAR — anubias, ferns, mosses.</li>
+        <li><strong>Medium light:</strong> 30–60 PAR — crypts, swords, most stem plants.</li>
+        <li><strong>High light:</strong> 60+ PAR — carpeting plants, demanding reds, Rotala macrandra.</li>
+      </ul>
+
+      <h3>Spectrum and Kelvin</h3>
+      <p>Plants use red (around 660 nm) and blue (around 450 nm) wavelengths most efficiently. A 6500K full-spectrum LED gives a balanced output that grows plants well and renders colours naturally. Stay away from anything below 5000K — they look warm and yellow but produce poor growth.</p>
+
+      <h3>Photoperiod</h3>
+      <p>Eight hours of high-quality light is better than twelve hours of weak light. Long photoperiods primarily benefit algae, which adapt to low light faster than plants do. Start at 6 hours for a new tank and extend by 30 minutes per week as plants establish.</p>
+
+      <h3>Light, CO2, Nutrients — The Triangle</h3>
+      <p>Increasing light without matching CO2 and fertiliser causes algae, not growth. The three must scale together. If you only have moderate fertilisation, keep light moderate.</p>
+
+      <h3>Practical Setup</h3>
+      <p>Mount the light 15–25 cm above the water surface. Use a programmable controller to ramp up and down at dawn and dusk — sudden on/off stresses fish and looks unnatural.</p>
+
+      <h3>Algae and Lighting</h3>
+      <p>If you have green spot algae on glass, your light may be too strong for nutrient supply. If you have brown diatoms, your light is too weak (or the tank is new). Black beard algae usually points to fluctuating CO2 rather than light itself.</p>
+    `
+  },
+  {
+    id: 15,
+    slug: 'moss-cultivation-in-aquascapes',
+    title: "Moss in Aquascapes: Species, Mounting, and Care",
+    description: "From Christmas moss to Fissidens — pick the right species, mount it cleanly, and keep it lush.",
+    category: "Aquatic Plants",
+    difficulty: "Easy",
+    readTime: "10 min read",
+    image: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&q=80&w=800",
+    author: "Saanvi Deshmukh",
+    publishedDate: "2026-03-30",
+    productTags: ["moss", "java moss", "christmas moss", "driftwood", "lava rock"],
+    content: `
+      <h2>Moss in Aquascapes: Species, Mounting, and Care</h2>
+
+      <p>Mosses are among the most versatile aquascaping plants — they soften hardscape, fill negative space, and grow without substrate. With dozens of species available, choosing the right one for your scape matters more than most aquascapers realise.</p>
+
+      <h3>The Essential Species</h3>
+      <p><strong>Java Moss (Taxiphyllum barbieri):</strong> The beginner default — adaptable, hardy, fast-growing, but messy if untrimmed.</p>
+      <p><strong>Christmas Moss (Vesicularia montagnei):</strong> Triangular fronds resembling fir branches. Slower, neater, and more visually structured than Java.</p>
+      <p><strong>Flame Moss (Taxiphyllum sp. "Flame"):</strong> Grows vertically in spiralling tufts — perfect for hardscape crevices.</p>
+      <p><strong>Fissidens fontanus:</strong> Tiny, dense fronds with a fern-like appearance. The premium choice for show tanks, but slow.</p>
+      <p><strong>Weeping Moss (Vesicularia ferriei):</strong> Cascading habit ideal for the tops of driftwood branches.</p>
+
+      <h3>Mounting Techniques</h3>
+      <ul>
+        <li><strong>Thread tie:</strong> Cotton thread that dissolves after the moss anchors itself — invisible long term.</li>
+        <li><strong>Super glue gel:</strong> Cyanoacrylate is aquarium-safe once cured. Press a thin moss layer onto wood or rock with dabs of glue.</li>
+        <li><strong>Mesh sandwich:</strong> Two sheets of stainless mesh trap moss between them — perfect for moss walls and carpets.</li>
+      </ul>
+
+      <h3>Trimming for Density</h3>
+      <p>Counter-intuitively, mosses get denser when trimmed. Hack them back to about 50% volume monthly with sharp scissors. The cut surfaces branch and fill in, producing the tight, cushion-like look that defines a great moss scape.</p>
+
+      <h3>Lighting and Flow</h3>
+      <p>Most mosses prefer moderate light. Too much triggers algae on the fronds, which is extremely hard to remove. Gentle, consistent flow keeps detritus from settling and suffocating the moss.</p>
+
+      <h3>Troubleshooting</h3>
+      <p><strong>Black Beard Algae:</strong> Usually a sign of unstable CO2. Dose liquid carbon directly on affected patches.</p>
+      <p><strong>Browning core:</strong> Insufficient light penetration through dense growth — trim aggressively to reset.</p>
+      <p><strong>Detaching from hardscape:</strong> Patience. Mosses take 4–8 weeks to anchor; do not pull at it.</p>
     `
   }
 ];

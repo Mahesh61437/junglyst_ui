@@ -265,7 +265,7 @@ export default function SellerOnboarding() {
           </div>
           <div>
             <h1 style={{ fontSize: '1.125rem', fontFamily: 'serif', color: '#0A3029', margin: 0 }}>Junglyst</h1>
-            <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#E5C48B', fontWeight: 700 }}>Grower Sanctuary</span>
+            <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#E5C48B', fontWeight: 700 }}>Seller Onboarding</span>
           </div>
         </div>
 
@@ -312,7 +312,7 @@ export default function SellerOnboarding() {
           {currentStep === 1 && (
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               <h2 style={{ fontSize: '3.5rem', fontFamily: 'serif', color: '#0A3029', marginBottom: '1.5rem', lineHeight: 1.1 }}>
-                Cultivate Your <br /><i style={{ fontWeight: 400 }}>Digital Sanctuary</i>.
+                Cultivate Your <br /><i style={{ fontWeight: 400 }}>Digital Storefront</i>.
               </h2>
               <p style={{ fontSize: '1.25rem', color: '#4b5563', lineHeight: 1.6, marginBottom: '3rem' }}>
                 Join the most exclusive community of botanical artisans. We provide the tools; you provide the beauty.
@@ -370,7 +370,7 @@ export default function SellerOnboarding() {
               </div>
               <div className="branding-card" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sanctuary Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Store Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
 
                   {/* Presets Grid */}
                   <div className="color-presets-grid">
@@ -487,7 +487,7 @@ export default function SellerOnboarding() {
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               <div style={{ marginBottom: '2.5rem' }}>
                 <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', color: '#0A3029', marginBottom: '0.5rem' }}>Compliance</h2>
-                <p style={{ color: '#6b7280' }}>Finalize your business verification for the sanctuary.</p>
+                <p style={{ color: '#6b7280' }}>Finalize your business verification.</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
@@ -596,7 +596,7 @@ export default function SellerOnboarding() {
                 </button>
               ) : (
                 <button onClick={handleCompleteOnboarding} disabled={loading} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 3rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)' }}>
-                  {loading ? 'PLANTING...' : 'LAUNCH SANCTUARY'} <CheckCircle2 size={18} />
+                  {loading ? 'PLANTING...' : 'LAUNCH STORE'} <CheckCircle2 size={18} />
                 </button>
               )}
             </div>
@@ -607,7 +607,7 @@ export default function SellerOnboarding() {
         {currentStep > 1 && (
           <div style={{ position: 'sticky', top: '8rem', height: 'fit-content' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#E5C48B' }}>Live Sanctuary Preview</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#E5C48B' }}>Live Store Preview</span>
               <div style={{ display: 'flex', gap: '0.25rem' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fbbf24' }} />
