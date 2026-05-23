@@ -857,7 +857,9 @@ export default function SellerDashboard() {
     for (const id of subOrderIds) {
       try {
         const res = await api.post(`/orders/seller/sub-orders/${id}/ship/`);
-        setOrders(prev => prev.map(o => o.id === id ? res.data : o));
+        // Backend now returns status='booked' immediately; merge into local state
+        // so the order moves from "Pending" → "Booking Courier" tab right away.
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, ...res.data, status: 'booked' } : o));
         successCount++;
         // Celery books courier async — poll until AWB + label appear (up to ~48 s)
         pollSubOrderForAWB(id);
@@ -1920,22 +1922,30 @@ export default function SellerDashboard() {
                 })()}
 
                 {activeTab === 'orders' && (() => {
-                  const PENDING_STATUSES   = ['placed', 'confirmed', 'packing'];
-                  const SHIPPED_STATUSES   = ['shipped', 'in_transit', 'out_for_delivery'];
-                  const DELIVERED_STATUSES = ['delivered'];
-                  const FAILED_STATUSES    = ['delivery_failed', 'doa_raised', 'cancelled'];
+                  // ── Tab definitions ──────────────────────────────────────────────────────
+                  // Pending   : new orders, confirmed, being packed — no courier booked yet
+                  // Booking   : Ship Now clicked → AWB assigned, courier not yet picked up
+                  // Shipped   : courier physically collected the package (picked_up / in_transit / ofd)
+                  // Delivered : final state
+                  // Failed    : delivery failed, cancelled, RTO
+                  const isPending   = o => ['placed', 'confirmed', 'packing'].includes(o.status);
+                  const isBooking   = o => o.status === 'booked';
+                  const isShipped   = o => ['shipped', 'in_transit', 'out_for_delivery'].includes(o.status);
+                  const isDelivered = o => o.status === 'delivered';
+                  const isFailed    = o => ['delivery_failed', 'doa_raised', 'cancelled'].includes(o.status);
 
-                  const pendingCount   = orders.filter(o => PENDING_STATUSES.includes(o.status)).length;
-                  const shippedCount   = orders.filter(o => SHIPPED_STATUSES.includes(o.status)).length;
-                  const deliveredCount = orders.filter(o => DELIVERED_STATUSES.includes(o.status)).length;
-                  const failedCount    = orders.filter(o => FAILED_STATUSES.includes(o.status)).length;
+                  const pendingCount   = orders.filter(isPending).length;
+                  const bookingCount   = orders.filter(isBooking).length;
+                  const shippedCount   = orders.filter(isShipped).length;
+                  const deliveredCount = orders.filter(isDelivered).length;
+                  const failedCount    = orders.filter(isFailed).length;
 
                   let filteredOrders = [...orders];
-                  if (orderFilter === 'pending')   filteredOrders = filteredOrders.filter(o => PENDING_STATUSES.includes(o.status));
-                  if (orderFilter === 'shipped')   filteredOrders = filteredOrders.filter(o => SHIPPED_STATUSES.includes(o.status));
-                  if (orderFilter === 'delivered') filteredOrders = filteredOrders.filter(o => DELIVERED_STATUSES.includes(o.status));
-                  if (orderFilter === 'failed')    filteredOrders = filteredOrders.filter(o => FAILED_STATUSES.includes(o.status));
-                  // Sort desc by placed time
+                  if (orderFilter === 'pending')   filteredOrders = filteredOrders.filter(isPending);
+                  if (orderFilter === 'booking')   filteredOrders = filteredOrders.filter(isBooking);
+                  if (orderFilter === 'shipped')   filteredOrders = filteredOrders.filter(isShipped);
+                  if (orderFilter === 'delivered') filteredOrders = filteredOrders.filter(isDelivered);
+                  if (orderFilter === 'failed')    filteredOrders = filteredOrders.filter(isFailed);
                   filteredOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
                   // Group by calendar date
@@ -1949,24 +1959,26 @@ export default function SellerDashboard() {
                   const groupedByDate = Object.entries(groups).sort((a, b) => new Date(b[1][0].created_at) - new Date(a[1][0].created_at));
 
                   const filterTabs = [
-                    { key: 'all',       label: 'All Orders', count: orders.length,  color: '#6366f1' },
-                    { key: 'pending',   label: 'Pending',    count: pendingCount,   color: '#f59e0b' },
-                    { key: 'shipped',   label: 'Shipped',    count: shippedCount,   color: '#3b82f6' },
-                    { key: 'delivered', label: 'Delivered',  count: deliveredCount, color: '#10b981' },
+                    { key: 'all',       label: 'All',             count: orders.length,  color: '#6366f1' },
+                    { key: 'pending',   label: 'Pending',         count: pendingCount,   color: '#f59e0b' },
+                    { key: 'booking',   label: 'Booking Courier', count: bookingCount,   color: '#8b5cf6' },
+                    { key: 'shipped',   label: 'Shipped',         count: shippedCount,   color: '#3b82f6' },
+                    { key: 'delivered', label: 'Delivered',       count: deliveredCount, color: '#10b981' },
                     ...(failedCount > 0 ? [{ key: 'failed', label: 'Failed / Issues', count: failedCount, color: '#ef4444' }] : []),
                   ];
 
                   const statusColors = {
-                    placed:           { bg: '#dbeafe', fg: '#1d4ed8' },
-                    confirmed:        { bg: '#fef9c3', fg: '#854d0e' },
-                    packing:          { bg: '#fff7ed', fg: '#c2410c' },
-                    shipped:          { bg: '#d1fae5', fg: '#065f46' },
-                    in_transit:       { bg: '#d1fae5', fg: '#065f46' },
-                    out_for_delivery: { bg: '#dcfce7', fg: '#14532d' },
-                    delivered:        { bg: '#dcfce7', fg: '#14532d' },
-                    delivery_failed:  { bg: '#fee2e2', fg: '#991b1b' },
-                    doa_raised:       { bg: '#fce7f3', fg: '#9d174d' },
-                    cancelled:        { bg: '#fee2e2', fg: '#991b1b' },
+                    placed:           { bg: '#dbeafe', fg: '#1d4ed8',  label: 'Placed' },
+                    confirmed:        { bg: '#fef9c3', fg: '#854d0e',  label: 'Confirmed' },
+                    packing:          { bg: '#fff7ed', fg: '#c2410c',  label: 'Packing' },
+                    booked:           { bg: '#ede9fe', fg: '#6d28d9',  label: 'Courier Booked' },
+                    shipped:          { bg: '#d1fae5', fg: '#065f46',  label: 'Picked Up' },
+                    in_transit:       { bg: '#dbeafe', fg: '#1d4ed8',  label: 'In Transit' },
+                    out_for_delivery: { bg: '#dcfce7', fg: '#14532d',  label: 'Out for Delivery' },
+                    delivered:        { bg: '#bbf7d0', fg: '#14532d',  label: 'Delivered' },
+                    delivery_failed:  { bg: '#fee2e2', fg: '#991b1b',  label: 'Delivery Failed' },
+                    doa_raised:       { bg: '#fce7f3', fg: '#9d174d',  label: 'DOA Raised' },
+                    cancelled:        { bg: '#fee2e2', fg: '#991b1b',  label: 'Cancelled' },
                   };
 
                   return (
@@ -2044,11 +2056,11 @@ export default function SellerDashboard() {
                                     <input
                                       type="checkbox"
                                       checked={dayOrders.some(o => {
-                                        const cs = ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
+                                        const cs = ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm && !o.awb_number;
                                         return cs;
-                                      }) && dayOrders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm).every(o => selectedOrders.has(o.id))}
+                                      }) && dayOrders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm && !o.awb_number).every(o => selectedOrders.has(o.id))}
                                       onChange={e => {
-                                        const shippable = dayOrders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm);
+                                        const shippable = dayOrders.filter(o => ['confirmed','packing'].includes(o.status) && (o.packaging_photos||[]).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm && !o.awb_number);
                                         setSelectedOrders(prev => { const next = new Set(prev); shippable.forEach(o => e.target.checked ? next.add(o.id) : next.delete(o.id)); return next; });
                                       }}
                                       style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#1b2d2a' }}
@@ -2069,8 +2081,9 @@ export default function SellerDashboard() {
                                   const hasPhotos = (o.packaging_photos || []).length > 0;
                                   const hasDims = o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
                                   const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && hasDims;
-                                  const isShipped = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
-                              const sc = statusColors[o.status] || { bg: '#f3f4f6', fg: '#4b5563' };
+                                  const isInTransit = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
+                                  const isCourierBooked = o.status === 'booked';
+                              const sc = statusColors[o.status] || { bg: '#f3f4f6', fg: '#4b5563', label: o.status.replace(/_/g, ' ') };
                               const dispatchUrgent = o.dispatch_hours_remaining !== null && o.dispatch_hours_remaining <= 12;
                               return (
                                 <React.Fragment key={o.id}>
@@ -2096,10 +2109,15 @@ export default function SellerDashboard() {
                                       <p style={{ fontWeight: 700, margin: 0, fontSize: '0.85rem' }}>{o.sub_order_number}</p>
                                       <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>{new Date(o.created_at).toLocaleDateString()}</p>
                                       {isMobile && (
-                                        <div style={{ marginTop: '0.5rem' }}>
+                                        <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                                           <span style={{ padding: '0.2rem 0.5rem', borderRadius: '10px', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: sc.bg, color: sc.fg }}>
-                                            {o.status.replace(/_/g, ' ')}
+                                            {sc.label}
                                           </span>
+                                          {isCourierBooked && o.awb_number && (
+                                            <span style={{ padding: '0.2rem 0.5rem', borderRadius: '10px', fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#f3f4f6', color: '#374151' }}>
+                                              {o.awb_number}
+                                            </span>
+                                          )}
                                         </div>
                                       )}
                                     </td>
@@ -2107,14 +2125,23 @@ export default function SellerDashboard() {
                                       <>
                                         <td style={{ padding: '1.25rem 1.5rem' }}>
                                           <span style={{ padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: sc.bg, color: sc.fg }}>
-                                            {o.status.replace(/_/g, ' ')}
+                                            {sc.label}
                                           </span>
+                                          {/* Show courier + AWB under status for booked/shipped orders */}
+                                          {(isCourierBooked || isInTransit) && o.awb_number && (
+                                            <div style={{ marginTop: '0.35rem', fontSize: '0.65rem', color: '#64748b', fontFamily: 'monospace', fontWeight: 600 }}>
+                                              {o.courier_name && <span>{o.courier_name} · </span>}
+                                              {o.awb_number}
+                                            </div>
+                                          )}
                                         </td>
                                         <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.8rem' }}>
-                                          {o.dispatch_hours_remaining !== null && !isShipped ? (
+                                          {o.dispatch_hours_remaining !== null && !isCourierBooked && !isInTransit ? (
                                             <span style={{ fontWeight: 700, color: dispatchUrgent ? '#dc2626' : '#64748b' }}>
                                               {o.dispatch_hours_remaining > 0 ? `${o.dispatch_hours_remaining}h left` : 'Overdue'}
                                             </span>
+                                          ) : isCourierBooked ? (
+                                            <span style={{ fontSize: '0.75rem', color: '#8b5cf6', fontWeight: 600 }}>Awaiting pickup</span>
                                           ) : <span style={{ color: '#94a3b8' }}>—</span>}
                                         </td>
                                         <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, fontSize: '0.85rem' }}>
@@ -2143,8 +2170,18 @@ export default function SellerDashboard() {
                                                 disabled={bulkShipping}
                                                 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
                                               >
-                                                <Truck size={12} /> Ship
+                                                <Truck size={12} /> Ship Now
                                               </button>
+                                            )}
+                                            {isCourierBooked && !o.awb_number && (
+                                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: '8px', backgroundColor: '#ede9fe', color: '#7c3aed', fontSize: '0.7rem', fontWeight: 700 }}>
+                                                <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Booking...
+                                              </span>
+                                            )}
+                                            {isCourierBooked && o.awb_number && (
+                                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: '8px', backgroundColor: '#ede9fe', color: '#7c3aed', fontSize: '0.7rem', fontWeight: 700 }}>
+                                                <CheckCircle2 size={11} /> Booked · Awaiting Pickup
+                                              </span>
                                             )}
                                             {shipment?.label_url && (
                                               <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', color: '#1b2d2a', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700 }}>
