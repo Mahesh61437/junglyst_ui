@@ -89,6 +89,113 @@ const isLight = (color) => {
   return luminance > 0.6;
 };
 
+function VacationPanel({ brandColor, initial, onChange }) {
+  const [blackouts, setBlackouts] = useState(initial || []);
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setBlackouts(initial || []);
+  }, [initial]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  async function refresh() {
+    try {
+      const res = await api.get('/sellers/blackouts/');
+      const list = Array.isArray(res.data) ? res.data : [];
+      setBlackouts(list);
+      onChange?.(list);
+    } catch (err) {
+      // Non-fatal — keep existing list
+    }
+  }
+
+  async function addBlackout(e) {
+    e.preventDefault();
+    setError(null);
+    if (!start || !end) { setError('Pick both a start and end date.'); return; }
+    if (end < start) { setError('End date must be on or after start date.'); return; }
+    setSaving(true);
+    try {
+      await api.post('/sellers/blackouts/', { start_date: start, end_date: end, reason });
+      setStart(''); setEnd(''); setReason('');
+      await refresh();
+    } catch (err) {
+      const detail = err?.response?.data?.end_date?.[0] || err?.response?.data?.detail || 'Failed to save blackout.';
+      setError(detail);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeBlackout(id) {
+    try {
+      await api.delete(`/sellers/blackouts/${id}/`);
+      await refresh();
+    } catch {
+      setError('Failed to remove blackout.');
+    }
+  }
+
+  function fmtRange(b) {
+    const opts = { day: 'numeric', month: 'short', year: 'numeric' };
+    const s = new Date(b.start_date).toLocaleDateString('en-IN', opts);
+    const e = new Date(b.end_date).toLocaleDateString('en-IN', opts);
+    return b.start_date === b.end_date ? s : `${s} → ${e}`;
+  }
+
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Vacation / Days Off</label>
+      <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.75rem' }}>Block date ranges where you won't ship. Buyers see the next available dispatch date — orders are not delayed for you to action.</p>
+
+      <form onSubmit={addBlackout} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 700 }}>From</span>
+          <input type="date" min={today} value={start} onChange={e => setStart(e.target.value)} required style={{ padding: '0.6rem 0.7rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 700 }}>To</span>
+          <input type="date" min={start || today} value={end} onChange={e => setEnd(e.target.value)} required style={{ padding: '0.6rem 0.7rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flexGrow: 1, minWidth: '180px' }}>
+          <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 700 }}>Reason (optional)</span>
+          <input type="text" placeholder="Vacation, festival, sick" value={reason} onChange={e => setReason(e.target.value)} maxLength={200} style={{ padding: '0.6rem 0.7rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }} />
+        </div>
+        <button type="submit" disabled={saving} style={{ padding: '0.6rem 1rem', borderRadius: '8px', border: 'none', backgroundColor: brandColor, color: 'white', fontWeight: 700, fontSize: '0.8rem', cursor: saving ? 'not-allowed' : 'pointer' }}>
+          {saving ? 'Adding…' : 'Add Vacation'}
+        </button>
+      </form>
+
+      {error && (
+        <div style={{ padding: '0.5rem 0.75rem', backgroundColor: '#fef2f2', color: '#dc2626', fontSize: '0.75rem', borderRadius: '6px', marginBottom: '0.75rem' }}>{error}</div>
+      )}
+
+      {blackouts.length === 0 ? (
+        <p style={{ fontSize: '0.72rem', color: '#94a3b8', fontStyle: 'italic' }}>No upcoming vacations.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {blackouts.map(b => (
+            <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', borderRadius: '8px', backgroundColor: '#fef9c3', border: '1px solid #fde68a' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#854d0e' }}>{fmtRange(b)}</span>
+                {b.reason && <span style={{ fontSize: '0.7rem', color: '#92400e' }}>{b.reason}</span>}
+              </div>
+              <button type="button" onClick={() => removeBlackout(b.id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }} aria-label="Remove vacation">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SellerDashboard() {
   const { user, logout, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState(() => {
@@ -1860,6 +1967,25 @@ export default function SellerDashboard() {
                             <p style={{ fontSize: '0.72rem', color: '#f59e0b', marginTop: '0.5rem', fontWeight: 600 }}>No dispatch days set — buyers won't see a shipment window for your products.</p>
                           )}
                         </div>
+
+                        {/* Daily cut-off time */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Daily Order Cut-Off (IST)</label>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.75rem' }}>Orders placed on a dispatch day before this time ship the same day; after, they roll to your next dispatch day.</p>
+                          <input
+                            type="time"
+                            value={spotlight.daily_cutoff_time || '12:00'}
+                            onChange={e => setSpotlight({ ...spotlight, daily_cutoff_time: e.target.value })}
+                            style={{ padding: '0.85rem 1rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.9rem', fontWeight: 700, color: '#1b2d2a' }}
+                          />
+                        </div>
+
+                        {/* Vacation / blackouts */}
+                        <VacationPanel
+                          brandColor={spotlight.brand_color || '#0A3029'}
+                          initial={spotlight.blackout_dates || []}
+                          onChange={list => setSpotlight(prev => ({ ...prev, blackout_dates: list }))}
+                        />
                       </div>
                     </div>
 

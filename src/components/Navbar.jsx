@@ -48,7 +48,7 @@ function TopBar() {
   );
 
   return (
-    <div style={{
+    <div className="navbar-topbar desktop-flex" style={{
       backgroundColor: '#0a1f1c',
       borderBottom: '1px solid rgba(201,151,43,0.15)',
       textAlign: 'center',
@@ -56,7 +56,6 @@ function TopBar() {
       transition: 'opacity 0.35s ease',
       opacity: visible ? 1 : 0,
       minHeight: '28px',
-      display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
     }}>

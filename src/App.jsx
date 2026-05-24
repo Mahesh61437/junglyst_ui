@@ -28,6 +28,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import GstManagement from './pages/GstManagement';
 import SuperAdminShippingFees from './pages/SuperAdminShippingFees';
+import SuperAdminSettings from './pages/SuperAdminSettings';
 import Success from './pages/Success';
 import Failure from './pages/Failure';
 import MyOrders from './pages/MyOrders';
@@ -109,6 +110,7 @@ function App() {
               <Route path="/super-admin" element={<SuperAdminDashboard />} />
               <Route path="/super-admin/gst" element={<GstManagement />} />
               <Route path="/super-admin/shipping-fees" element={<SuperAdminShippingFees />} />
+              <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
             </Routes>
           </BrowserRouter>
         </OrderProvider>

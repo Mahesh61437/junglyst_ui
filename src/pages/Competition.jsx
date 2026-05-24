@@ -6,6 +6,14 @@ import api from '../services/api';
 
 const LAUNCH_DATE = new Date('2026-05-25T00:00:00+05:30');
 const MAX_ENTRIES = 500;
+const DEFAULT_RESULT_DATE_LABEL = 'soon';
+
+function formatAnnouncementDate(raw) {
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 // ─── Countdown ───────────────────────────────────────────────────────────────
 function useCountdown(target) {
@@ -215,13 +223,14 @@ function EntryForm({ status, onSuccess }) {
   };
 
   const isOpen = status?.is_open !== false;
+  const announcementDate = formatAnnouncementDate(status?.result_announcement_date);
 
   if (!isOpen && status) {
     return (
       <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'rgba(255,255,255,0.6)' }}>
         <Clock size={40} color="rgba(201,151,43,0.5)" style={{ marginBottom: '1rem', display: 'block', margin: '0 auto 1rem' }} />
         <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>Submissions Closed</h3>
-        <p>The competition period has ended. Stay tuned for the winner announcement on May 25, 2026!</p>
+        <p>The competition period has ended. Stay tuned for the winner announcement on {announcementDate || DEFAULT_RESULT_DATE_LABEL}!</p>
       </div>
     );
   }
@@ -318,7 +327,7 @@ function EntryForm({ status, onSuccess }) {
 }
 
 // ─── Success ─────────────────────────────────────────────────────────────────
-function SuccessState({ data }) {
+function SuccessState({ data, announcementDate }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
@@ -331,7 +340,7 @@ function SuccessState({ data }) {
         You're In, {data.name}!
       </h2>
       <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, maxWidth: '420px', margin: '0 auto 1.5rem', fontSize: '0.9rem' }}>
-        Your aquascape has been entered into the competition. The winner will be selected and announced on <strong style={{ color: '#c9972b' }}>May 25, 2026</strong>.
+        Your aquascape has been entered into the competition. The winner will be selected and announced on <strong style={{ color: '#c9972b' }}>{announcementDate || DEFAULT_RESULT_DATE_LABEL}</strong>.
       </p>
       {data.slots_remaining > 0 && (
         <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)' }}>
@@ -362,12 +371,13 @@ export default function Competition() {
   }, []);
 
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const announcementDate = formatAnnouncementDate(status?.result_announcement_date);
 
   return (
     <div style={{ backgroundColor: '#060f0d', minHeight: '100vh', color: 'white' }}>
       <SEO
         title="Aquascape Competition 2026 — Junglyst"
-        description="Enter Junglyst's first ever Aquascape Competition. Submit photos of your build, win ₹1,000. Open to all — 500 slots only. Winner announced May 25, 2026."
+        description={`Enter Junglyst's first ever Aquascape Competition. Submit photos of your build, win ₹1,000. Open to all — 500 slots only.${announcementDate ? ` Winner announced ${announcementDate}.` : ''}`}
         path="/competition"
       />
 
@@ -405,7 +415,7 @@ export default function Competition() {
           </h1>
 
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 'clamp(0.9rem,2vw,1.1rem)', maxWidth: '560px', margin: '0 auto 2.5rem', lineHeight: 1.75 }}>
-            Share your aquascape with India's aquatic plant community. The most stunning build wins <strong style={{ color: '#c9972b' }}>₹1,000 cash</strong>. Winner selected by the Junglyst team and announced on launch day.
+            Share your aquascape with India's aquatic plant community. The most stunning build wins <strong style={{ color: '#c9972b' }}>₹1,000 cash</strong>. Winner selected by the Junglyst team{announcementDate ? <> and announced on <strong style={{ color: '#c9972b' }}>{announcementDate}</strong></> : ''}.
           </p>
 
           {/* Countdown */}
@@ -458,7 +468,7 @@ export default function Competition() {
             {[
               { icon: <Camera size={22} color="#c9972b" />, title: 'Submit Your Build', body: 'Fill in the registration form below with your details, a description of your aquascape, and up to 5 photos.' },
               { icon: <Users size={22} color="#c9972b" />, title: '500 Slots Only', body: 'The competition is limited to 500 entries. Once slots are full, registrations close — enter early.' },
-              { icon: <Award size={22} color="#c9972b" />, title: '₹1,000 Prize', body: 'One winner selected by the Junglyst team on May 25, 2026. The decision is final and will be announced on the website.' },
+              { icon: <Award size={22} color="#c9972b" />, title: '₹1,000 Prize', body: `One winner selected by the Junglyst team${announcementDate ? ` on ${announcementDate}` : ''}. The decision is final and will be announced on the website.` },
               { icon: <Trophy size={22} color="#c9972b" />, title: 'Win & Get Featured', body: 'The winning aquascape and its creator will be prominently featured on the Junglyst platform.' },
             ].map((item, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
@@ -488,7 +498,7 @@ export default function Competition() {
 
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: 'clamp(1.5rem,4vw,2.5rem)' }}>
             {success ? (
-              <SuccessState data={success} />
+              <SuccessState data={success} announcementDate={announcementDate} />
             ) : (
               <EntryForm status={status} onSuccess={setSuccess} />
             )}

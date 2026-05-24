@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/OrderService';
 import api from '../services/api';
-import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package, Truck, Calendar, Store } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 import { load } from '@cashfreepayments/cashfree-js';
 import { trackEvent, trackCheckoutInitiated } from '../utils/analytics';
@@ -653,28 +653,79 @@ export default function Checkout() {
               <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', backgroundColor: '#ecfdf5', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>Secure</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '2rem', paddingRight: '0.5rem' }}>
-              {cart.items.map(item => {
-                const product = item.product_details || (item.product && typeof item.product === 'object' ? item.product : {});
-                const variant = item.variant_details || (item.variant && typeof item.variant === 'object' ? item.variant : {});
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '420px', overflowY: 'auto', marginBottom: '2rem', paddingRight: '0.5rem' }}>
+              {Object.entries(sellerGroups).map(([sellerId, group]) => {
+                const storeName = group.seller?.store_name
+                  || group.seller?.seller_profile?.store_name
+                  || group.seller?.full_name
+                  || 'Curator';
+                const win = group.shipping_window;
+                const pincodeReady = !!shipping.pincode && shipping.pincode.length === 6;
                 return (
-                  <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <Link to={`/product/${product.slug || product.id}`} style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc', display: 'block' }}>
-                      <img src={getImageUrl(variant.image_url || product.image_url || product.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} />
-                    </Link>
-                    <div style={{ flexGrow: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <Link to={`/product/${product.slug || product.id}`} style={{ textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
-                          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#1b2d2a' }}>{product.name || 'Botanical Specimen'}</h4>
-                        </Link>
-                        <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Qty: {item.quantity} · {variant.name || 'Standard'}</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>₹{((parseFloat(variant.price || product.price) || 0) * item.quantity).toLocaleString()}</span>
-                      </div>
+                  <div key={sellerId} style={{ border: '1px solid #f1f5f9', borderRadius: '14px', padding: '1rem', backgroundColor: '#fcfdfc' }}>
+                    {/* Per-seller header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px dashed #e2e8f0' }}>
+                      <Store size={14} color="#0A3029" />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1b2d2a' }}>{storeName}</span>
+                    </div>
+
+                    {/* Items from this seller */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {group.items.map(item => {
+                        const product = item.product_details || (item.product && typeof item.product === 'object' ? item.product : {});
+                        const variant = item.variant_details || (item.variant && typeof item.variant === 'object' ? item.variant : {});
+                        return (
+                          <div key={item.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <Link to={`/product/${product.slug || product.id}`} style={{ width: '54px', height: '54px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc', display: 'block' }}>
+                              <img src={getImageUrl(variant.image_url || product.image_url || product.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} />
+                            </Link>
+                            <div style={{ flexGrow: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                <Link to={`/product/${product.slug || product.id}`} style={{ textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
+                                  <h4 style={{ fontSize: '0.82rem', fontWeight: 700, margin: 0, color: '#1b2d2a' }}>{product.name || 'Botanical Specimen'}</h4>
+                                </Link>
+                                <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', flexShrink: 0 }} aria-label="Remove item">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.2rem' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Qty: {item.quantity} · {variant.name || 'Standard'}</span>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 800 }}>₹{((parseFloat(variant.price || product.price) || 0) * item.quantity).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Shipping window */}
+                    <div style={{ marginTop: '0.85rem', padding: '0.7rem 0.85rem', backgroundColor: '#f0fdf4', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      {win ? (
+                        win.unavailable ? (
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e' }}>
+                            <Info size={12} style={{ display: 'inline', marginRight: 4 }} />
+                            This curator hasn't published a shipping schedule yet.
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#15803d' }}>
+                              <Truck size={13} />
+                              Ships <strong style={{ color: '#1b2d2a' }}>{win.ships_on}</strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#15803d' }}>
+                              <Calendar size={13} />
+                              Est. delivery <strong style={{ color: '#1b2d2a' }}>{pincodeReady ? win.estimated_delivery : 'enter pincode for ETA'}</strong>
+                            </div>
+                            {win.on_break && (
+                              <div style={{ fontSize: '0.7rem', color: '#92400e', backgroundColor: '#fef3c7', padding: '0.3rem 0.5rem', borderRadius: '6px', marginTop: '0.2rem' }}>
+                                Curator is on a break today — order will dispatch on their next shipping day.
+                              </div>
+                            )}
+                          </>
+                        )
+                      ) : (
+                        <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Shipping date unavailable.</div>
+                      )}
                     </div>
                   </div>
                 );
