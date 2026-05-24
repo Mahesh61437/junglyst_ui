@@ -240,8 +240,8 @@ export default function BlogFeaturedProducts({ tags = [], limit = 4, blogTitle =
             reviews={product.rating || 4.8}
             stockStatus={product.stock > 0 ? 'In Stock' : 'Listing Soon'}
             seller={product.seller}
-            variants={product.variants}
             stock={product.stock}
+            variants={product.variants}
           />
         ))}
       </div>

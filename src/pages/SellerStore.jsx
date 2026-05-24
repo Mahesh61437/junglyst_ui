@@ -293,6 +293,7 @@ export default function SellerStore() {
                 brandColor={sellerInfo.brandColor}
                 reviews={product.rating}
                 stock={product.stock}
+                variants={product.variants}
               />
             ))}
           </div>
