@@ -87,6 +87,7 @@ export default function Footer() {
             <FooterLink to="/shipping-policy">Shipping</FooterLink>
             <FooterLink to="/refund-policy">Refunds</FooterLink>
             <FooterLink to="/contact">Contact</FooterLink>
+            <FooterButton onClick={() => window.dispatchEvent(new Event('openBugReport'))}>Report a Bug</FooterButton>
           </div>
         </div>
       </div>
@@ -104,5 +105,21 @@ function FooterLink({ to, children }) {
     >
       {children}
     </Link>
+  );
+}
+
+function FooterButton({ onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.15s',
+        background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit'
+      }}
+      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+    >
+      {children}
+    </button>
   );
 }

@@ -26,7 +26,7 @@ function emptyForm(sellerId, category, defaults = {}) {
     tier1_fee: d.tier1_fee ?? '',
     tier2_max: d.tier2_max ?? '',
     tier2_fee: d.tier2_fee ?? '',
-    show_nudge_products: false,
+    show_nudge_products: true,
   };
 }
 
@@ -173,6 +173,53 @@ export default function SuperAdminShippingFees() {
     }
   };
 
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedAll = async () => {
+    const hasDefaults = CATEGORIES.some(cat => shippingDefaults[cat]);
+    if (!hasDefaults) {
+      alert('No default pricing configured. Set platform defaults first via the info banner or Django admin.');
+      return;
+    }
+    const missing = [];
+    for (const seller of sellers) {
+      for (const cat of CATEGORIES) {
+        if (!configMap[String(seller.user)]?.[cat] && shippingDefaults[cat]) {
+          missing.push({ seller, cat });
+        }
+      }
+    }
+    if (missing.length === 0) {
+      alert('All sellers already have shipping configs for available categories.');
+      return;
+    }
+    if (!window.confirm(`Create ${missing.length} shipping config(s) with default prices for sellers that have none?`)) return;
+    setSeeding(true);
+    let created = 0;
+    const newConfigs = [];
+    for (const { seller, cat } of missing) {
+      const d = shippingDefaults[cat];
+      try {
+        const res = await api.post('/sellers/shipping-configs/', {
+          seller_id: String(seller.user),
+          item_category: cat,
+          tier1_max: d.tier1_max,
+          tier1_fee: d.tier1_fee,
+          tier2_max: d.tier2_max,
+          tier2_fee: d.tier2_fee,
+          show_nudge_products: true,
+        });
+        newConfigs.push(res.data);
+        created++;
+      } catch (e) {
+        console.error(`Failed for seller ${seller.user} ${cat}:`, e);
+      }
+    }
+    setConfigs(prev => [...prev, ...newConfigs]);
+    setSeeding(false);
+    alert(`Done — created ${created} config(s).`);
+  };
+
   if (authLoading || loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc' }}>
@@ -195,8 +242,18 @@ export default function SuperAdminShippingFees() {
             <Truck size={20} color="var(--brand-gold)" />
             <h1 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Seller Shipping Fee Tiers</h1>
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-            {configs.length} config{configs.length !== 1 ? 's' : ''} across {sellers.length} sellers
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+              {configs.length} config{configs.length !== 1 ? 's' : ''} across {sellers.length} sellers
+            </div>
+            <button
+              onClick={handleSeedAll}
+              disabled={seeding}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', cursor: seeding ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: seeding ? 0.6 : 1, whiteSpace: 'nowrap' }}
+            >
+              {seeding ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={13} />}
+              {seeding ? 'Seeding…' : 'Apply defaults to all'}
+            </button>
           </div>
         </div>
       </header>

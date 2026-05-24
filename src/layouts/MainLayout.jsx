@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import MobileCartFab from '../components/MobileCartFab';
 import CompetitionBanner from '../components/CompetitionBanner';
 import CompetitionTicker from '../components/CompetitionTicker';
+import BugReportModal from '../components/BugReportModal';
 
 export default function MainLayout() {
   const headerRef = useRef(null);
@@ -57,6 +58,7 @@ export default function MainLayout() {
       </main>
       <Footer />
       <MobileCartFab />
+      <BugReportModal />
     </div>
   );
 }
