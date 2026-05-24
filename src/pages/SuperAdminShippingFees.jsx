@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Truck, Plus, Pencil, Trash2, X, Check, Loader2, Search } from 'lucide-react';
 
-const CATEGORIES = ['light', 'heavy'];
+const CATEGORIES = ['light', 'heavy', 'hybrid'];
 
 const labelStyle = {
   display: 'block', fontSize: '0.65rem', fontWeight: 800,
@@ -263,7 +263,7 @@ export default function SuperAdminShippingFees() {
         {/* Info banner */}
         <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem', fontSize: '0.82rem', color: '#1e40af', lineHeight: 1.5 }}>
           <strong>Fee logic per seller:</strong> subtotal &lt; Tier 1 Max → Tier 1 Fee · Tier 1 Max ≤ subtotal &lt; Tier 2 Max → Tier 2 Fee · ≥ Tier 2 Max → <strong>Free</strong>.
-          Sellers without a config get <strong>free shipping</strong> by default. Light and Heavy categories are configured independently.
+          Sellers without a config get <strong>free shipping</strong> by default. Light, Heavy, and Hybrid categories are configured independently. Hybrid applies when a cart contains both light and heavy items.
         </div>
 
         {/* Search */}
@@ -287,6 +287,7 @@ export default function SuperAdminShippingFees() {
                   <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Store</th>
                   <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Light Tier</th>
                   <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Heavy Tier</th>
+                  <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Hybrid Tier</th>
                 </tr>
               </thead>
               <tbody>
@@ -338,7 +339,7 @@ export default function SuperAdminShippingFees() {
                 })}
                 {filteredSellers.length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    <td colSpan={4} style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                       {sellers.length === 0 ? 'No sellers found.' : 'No sellers match your search.'}
                     </td>
                   </tr>
@@ -378,6 +379,7 @@ export default function SuperAdminShippingFees() {
                   >
                     <option value="light">Light (plants, moss, isopods)</option>
                     <option value="heavy">Heavy (rocks, substrate, hardscape)</option>
+                    <option value="hybrid">Hybrid (light + heavy items mixed)</option>
                   </select>
                 )}
               </div>

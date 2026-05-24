@@ -13,9 +13,24 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const { toggleWishlist, isInWishlist } = useWishlist();
   const sellerInfo = seller?.seller_profile || {};
 
-  const rawStock = stock ?? variants?.[0]?.stock;
-  const parsedStock = typeof rawStock === 'number' ? rawStock : parseInt(rawStock ?? '', 10);
-  const stockLimit = Number.isFinite(parsedStock) ? parsedStock : null;
+  let calculatedStock = null;
+  if (stock !== undefined && stock !== null) {
+    calculatedStock = typeof stock === 'number' ? stock : parseInt(stock, 10);
+  } else if (variants && variants.length > 0) {
+    const availableStocks = variants
+      .map(v => typeof v.stock === 'number' ? v.stock : parseInt(v.stock || '0', 10))
+      .filter(s => !isNaN(s) && s > 0);
+    
+    if (availableStocks.length > 0) {
+      calculatedStock = Math.min(...availableStocks);
+    } else {
+      calculatedStock = 0;
+    }
+  } else {
+    calculatedStock = parseInt(stock ?? '', 10);
+  }
+
+  const stockLimit = Number.isFinite(calculatedStock) ? calculatedStock : null;
   const isSoldOut = stockLimit !== null && stockLimit <= 0;
   const isLowStock = stockLimit !== null && stockLimit > 0 && stockLimit < 10;
 
