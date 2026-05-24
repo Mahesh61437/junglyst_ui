@@ -7,24 +7,55 @@ import api from '../services/api';
 // ── Shipping window helpers ───────────────────────────────────────────────────
 // shipping_days uses Python/ISO convention: 0=Mon … 6=Sun
 // JS Date.getDay() uses: 0=Sun, 1=Mon … 6=Sat → convert via (jsDay + 6) % 7
-function getNextShippingDate(shippingDays) {
-  if (!shippingDays || shippingDays.length === 0) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const jsDay = today.getDay();
-  const currentWeekday = (jsDay + 6) % 7; // convert to ISO Mon=0
-  const sorted = [...new Set(shippingDays)].sort((a, b) => a - b);
-  for (const day of sorted) {
-    if (day >= currentWeekday) {
-      const next = new Date(today);
-      next.setDate(today.getDate() + (day - currentWeekday));
-      return next;
+//
+// Source of truth is the backend `next_shipping_date` (already honors cutoff +
+// blackouts). The client-side calculator below is a fallback when the value
+// isn't present in the payload (e.g. local guest cart with stale snapshot).
+function parseIsoDate(s) {
+  if (!s || typeof s !== 'string') return null;
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function buildBlackoutSet(blackouts) {
+  const set = new Set();
+  if (!Array.isArray(blackouts)) return set;
+  for (const b of blackouts) {
+    const start = parseIsoDate(b.start_date);
+    const end = parseIsoDate(b.end_date);
+    if (!start || !end) continue;
+    const cur = new Date(start);
+    while (cur <= end) {
+      set.add(cur.toISOString().slice(0, 10));
+      cur.setDate(cur.getDate() + 1);
     }
   }
-  // Wrap to next week
-  const next = new Date(today);
-  next.setDate(today.getDate() + (7 - currentWeekday + sorted[0]));
-  return next;
+  return set;
+}
+
+function getNextShippingDate(shippingDays, { cutoff = '12:00', blackouts = [], asOf = null } = {}) {
+  if (!shippingDays || shippingDays.length === 0) return null;
+  const days = new Set(shippingDays);
+  const blackoutSet = buildBlackoutSet(blackouts);
+  const [cutH, cutM] = (cutoff || '12:00').split(':').map(Number);
+
+  const now = asOf ? new Date(asOf) : new Date();
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const cutoffMins = (cutH || 0) * 60 + (cutM || 0);
+
+  for (let offset = 0; offset < 90; offset++) {
+    const cand = new Date(today);
+    cand.setDate(today.getDate() + offset);
+    const wd = (cand.getDay() + 6) % 7;
+    if (!days.has(wd)) continue;
+    const iso = cand.toISOString().slice(0, 10);
+    if (blackoutSet.has(iso)) continue;
+    if (offset === 0 && nowMins >= cutoffMins) continue;
+    return cand;
+  }
+  return null;
 }
 
 function formatShipDate(date) {
@@ -47,19 +78,37 @@ function transitDays(zone) {
   return { min: 3, max: 5 }; // C and unknown
 }
 
-export function buildShippingWindow(shippingDays, zone = null) {
-  const next = getNextShippingDate(shippingDays);
-  if (!next) return null;
+export function buildShippingWindow(shippingDays, zone = null, opts = {}) {
+  // Prefer the backend-supplied next_shipping_date (already honors cutoff + blackouts).
+  // Fall back to client-side computation when not provided.
+  const serverNext = parseIsoDate(opts.nextShippingDate);
+  const next = serverNext || getNextShippingDate(shippingDays, {
+    cutoff: opts.cutoff,
+    blackouts: opts.blackouts,
+  });
+  if (!next) {
+    return shippingDays && shippingDays.length === 0
+      ? { ships_on: 'Schedule not set', estimated_delivery: '—', unavailable: true }
+      : null;
+  }
   const { min: minDays, max: maxDays } = transitDays(zone);
   const min = new Date(next); min.setDate(next.getDate() + minDays);
   const max = new Date(next); max.setDate(next.getDate() + maxDays);
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const minStr = `${min.getDate()} ${MON[min.getMonth()]}`;
   const maxStr = `${max.getDate()} ${MON[max.getMonth()]}`;
+
+  // "On a break" indicator — true if the seller has an active blackout covering today
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayIso = today.toISOString().slice(0, 10);
+  const blackoutSet = buildBlackoutSet(opts.blackouts || []);
+  const onBreak = blackoutSet.has(todayIso);
+
   return {
     ships_on: formatShipDate(next),
     ships_date: next,
     estimated_delivery: `${minStr} – ${maxStr}`,
+    on_break: onBreak,
   };
 }
 
@@ -148,8 +197,11 @@ function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
 
     if (!seller_groups[sellerId]) {
       const sellerProfile = product.seller?.seller_profile || {};
-      // shipping_days may come nested (core serializer) or flat (cart serializer)
-      const shippingDays = sellerProfile.shipping_days ?? product.seller?.shipping_days;
+      // shipping_days / cutoff / blackouts may come nested (core serializer) or flat (cart serializer)
+      const shippingDays = sellerProfile.shipping_days ?? product.seller?.shipping_days ?? [];
+      const cutoff = sellerProfile.daily_cutoff_time ?? product.seller?.daily_cutoff_time ?? '12:00';
+      const blackouts = sellerProfile.blackout_dates ?? product.seller?.blackout_dates ?? [];
+      const nextShippingDate = sellerProfile.next_shipping_date ?? product.seller?.next_shipping_date ?? null;
       seller_groups[sellerId] = {
         seller: product.seller || {},
         items: [],
@@ -157,7 +209,11 @@ function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
         has_heavy: false,
         shipping_fee: 0,
         nudge: null,
-        shipping_window: buildShippingWindow(shippingDays, deliveryZone),
+        shipping_window: buildShippingWindow(shippingDays, deliveryZone, {
+          cutoff,
+          blackouts,
+          nextShippingDate,
+        }),
       };
     }
 

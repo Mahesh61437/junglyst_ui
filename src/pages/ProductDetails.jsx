@@ -824,25 +824,48 @@ export default function ProductDetails() {
               {/* ── Collapsible Shipping Info ── */}
               {(() => {
                 const isHeavy = selectedVariant?.item_category === 'heavy';
-                const shippingDays = product?.seller?.seller_profile?.shipping_days || [];
+                const sellerProfile = product?.seller?.seller_profile || {};
+                const shippingDays = sellerProfile.shipping_days || [];
+                const cutoffStr = sellerProfile.daily_cutoff_time || '12:00';
+                const blackouts = sellerProfile.blackout_dates || [];
+                const serverNextIso = sellerProfile.next_shipping_date || null;
 
-                // Compute next dispatch date + countdown
-                function getNextDispatch(days) {
-                  if (!days || days.length === 0) return null;
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const currentWeekday = (today.getDay() + 6) % 7;
-                  const sorted = [...new Set(days)].sort((a, b) => a - b);
-                  for (const d of sorted) {
-                    if (d >= currentWeekday) {
-                      const next = new Date(today);
-                      next.setDate(today.getDate() + (d - currentWeekday));
-                      return next;
-                    }
+                // Parse ISO date to a local Date at midnight
+                function parseIso(s) {
+                  if (!s) return null;
+                  const [y, m, d] = s.split('-').map(Number);
+                  return (y && m && d) ? new Date(y, m - 1, d) : null;
+                }
+
+                function blackoutHas(dateObj) {
+                  const iso = dateObj.toISOString().slice(0, 10);
+                  for (const b of blackouts) {
+                    if (b.start_date <= iso && iso <= b.end_date) return true;
                   }
-                  const next = new Date(today);
-                  next.setDate(today.getDate() + (7 - currentWeekday + sorted[0]));
-                  return next;
+                  return false;
+                }
+
+                // Mirror backend: cut-off + blackout aware. Prefer server value.
+                function getNextDispatch(days) {
+                  const serverDate = parseIso(serverNextIso);
+                  if (serverDate) return serverDate;
+                  if (!days || days.length === 0) return null;
+                  const [cutH, cutM] = (cutoffStr || '12:00').split(':').map(Number);
+                  const now = new Date();
+                  const nowMins = now.getHours() * 60 + now.getMinutes();
+                  const cutoffMins = (cutH || 0) * 60 + (cutM || 0);
+                  const today = new Date(now); today.setHours(0, 0, 0, 0);
+                  const set = new Set(days);
+                  for (let offset = 0; offset < 90; offset++) {
+                    const cand = new Date(today);
+                    cand.setDate(today.getDate() + offset);
+                    const wd = (cand.getDay() + 6) % 7;
+                    if (!set.has(wd)) continue;
+                    if (blackoutHas(cand)) continue;
+                    if (offset === 0 && nowMins >= cutoffMins) continue;
+                    return cand;
+                  }
+                  return null;
                 }
 
                 function formatDispatch(date) {
@@ -858,18 +881,23 @@ export default function ProductDetails() {
                 const nextDispatch = getNextDispatch(shippingDays);
                 const dispatchLabel = nextDispatch ? formatDispatch(nextDispatch) : null;
 
-                // Countdown: cutoff is midnight of next dispatch day (ships anytime that day)
-                // "Book within X hrs Y mins" = time until end of dispatch day
+                // Countdown to today's seller cut-off (if today is the dispatch day)
                 let countdownText = null;
                 if (nextDispatch) {
-                  const cutoff = new Date(nextDispatch);
-                  cutoff.setHours(23, 59, 59, 999);
-                  const now = new Date();
-                  const msLeft = cutoff - now;
-                  if (msLeft > 0 && msLeft < 24 * 60 * 60 * 1000) {
-                    const h = Math.floor(msLeft / 3600000);
-                    const m = Math.floor((msLeft % 3600000) / 60000);
-                    countdownText = `Book within ${h}h ${m}m to ship ${dispatchLabel}`;
+                  const today = new Date(); today.setHours(0, 0, 0, 0);
+                  const sameDay = nextDispatch.getTime() === today.getTime();
+                  if (sameDay) {
+                    const [cutH, cutM] = (cutoffStr || '12:00').split(':').map(Number);
+                    const cutoffDate = new Date(today);
+                    cutoffDate.setHours(cutH || 0, cutM || 0, 0, 0);
+                    const msLeft = cutoffDate - new Date();
+                    if (msLeft > 0) {
+                      const h = Math.floor(msLeft / 3600000);
+                      const m = Math.floor((msLeft % 3600000) / 60000);
+                      countdownText = `Order within ${h}h ${m}m to ship today`;
+                    } else if (dispatchLabel) {
+                      countdownText = `Next dispatch: ${dispatchLabel}`;
+                    }
                   } else if (dispatchLabel) {
                     countdownText = `Next dispatch: ${dispatchLabel}`;
                   }

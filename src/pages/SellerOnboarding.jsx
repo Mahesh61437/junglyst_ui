@@ -49,7 +49,9 @@ export default function SellerOnboarding() {
     pickupAddress: '',
     locationCity: 'Bengaluru',
     locationState: 'Karnataka',
-    locationPincode: ''
+    locationPincode: '',
+    // Optional: pre-selected to Mon/Wed/Fri. Skipping the picker leaves these defaults.
+    shippingDays: [0, 2, 4],
   };
 
   const [formData, setFormData] = useState(defaultFormData);
@@ -282,6 +284,7 @@ export default function SellerOnboarding() {
         payout_type: formData.payoutType,
         payout_account: formData.payoutBank,
         ifsc_code: formData.payoutType === 'bank' ? formData.ifscCode : '',
+        shipping_days: Array.isArray(formData.shippingDays) ? formData.shippingDays : [0, 2, 4],
       });
 
       if (response.data.user) {
@@ -610,6 +613,44 @@ export default function SellerOnboarding() {
                   />
                   {formData.description.length > 0 && formData.description.length < 10 && (
                     <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '0.5rem', fontWeight: 600 }}>Please share a bit more about your studio (at least 10 characters).</p>
+                  )}
+                </div>
+
+                {/* Optional: Dispatch days picker. Defaults to Mon/Wed/Fri — sellers can skip or fine-tune. */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Dispatch Days <span style={{ color: '#94a3b8', fontSize: '0.65rem', fontWeight: 700, textTransform: 'none', letterSpacing: 0, marginLeft: '0.4rem' }}>Optional — pre-set to Mon/Wed/Fri</span>
+                  </label>
+                  <p style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '0.85rem', lineHeight: 1.5 }}>
+                    Pick the weekdays you usually ship orders. Buyers see your next dispatch date at checkout. You can change this anytime in your dashboard.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => {
+                      const active = (formData.shippingDays || []).includes(idx);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => setFormData(prev => {
+                            const cur = prev.shippingDays || [];
+                            const updated = active ? cur.filter(d => d !== idx) : [...cur, idx].sort((a, b) => a - b);
+                            return { ...prev, shippingDays: updated };
+                          })}
+                          style={{
+                            padding: '0.55rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', border: '2px solid',
+                            backgroundColor: active ? (formData.brandColor || '#0A3029') : 'white',
+                            color: active ? 'white' : '#64748b',
+                            borderColor: active ? (formData.brandColor || '#0A3029') : '#e2e8f0',
+                            transition: 'all 0.15s',
+                          }}
+                        >{day}</button>
+                      );
+                    })}
+                  </div>
+                  {(formData.shippingDays || []).length === 0 && (
+                    <p style={{ fontSize: '0.72rem', color: '#f59e0b', marginTop: '0.5rem', fontWeight: 600 }}>
+                      No dispatch days selected — we'll fall back to Mon/Wed/Fri so buyers always see an ETA. You can change this later.
+                    </p>
                   )}
                 </div>
               </div>
