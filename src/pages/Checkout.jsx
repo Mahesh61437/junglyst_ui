@@ -284,12 +284,11 @@ export default function Checkout() {
                     { method: 'wallet', flows: ['iframe'] },
                   ],
                 },
-                // UPI - Direct & QR
+                // UPI — collect (VPA input), QR, and intent (mobile apps)
                 upi: {
                   name: 'UPI Payments',
                   instruments: [
-                    { method: 'upi', flows: ['collect'] },
-                    { method: 'upi', flows: ['qr'] },
+                    { method: 'upi' },
                   ],
                 },
               },
