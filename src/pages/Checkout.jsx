@@ -94,12 +94,45 @@ export default function Checkout() {
   }, [user]);
 
   // ── Payment status polling (handles UPI in-processing / modal-close edge case) ──
-  const startPolling = (gatewayType, gatewayId) => {
+  const startPolling = async (gatewayType, gatewayId) => {
     setVerifying(true);
     orderPlaced.current = true;
+    const param = gatewayType === 'cashfree' ? 'cashfree_order_id' : 'razorpay_order_id';
+
+    // Immediate first check — handles the common "user cancelled the modal"
+    // case in one round-trip instead of waiting for the 3s interval to tick.
+    try {
+      const res = await api.get(`/orders/payment-status/?${param}=${gatewayId}`);
+      const { status: pStatus, order } = res.data;
+      if (pStatus === 'success') {
+        clearCart();
+        try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch { }
+        navigate('/checkout/success', { state: { order } });
+        return;
+      }
+      if (pStatus === 'cancelled') {
+        orderPlaced.current = false;
+        setVerifying(false);
+        trackEvent('payment_failed', { reason: 'user_cancelled', gateway: gatewayType });
+        navigate('/checkout/failure', { state: { error: 'Payment was cancelled. You can retry from your cart.' } });
+        return;
+      }
+      if (pStatus === 'failed') {
+        orderPlaced.current = false;
+        setVerifying(false);
+        trackEvent('payment_failed', { reason: 'declined', gateway: gatewayType });
+        navigate('/checkout/failure', { state: { error: 'Payment was declined. Please try a different payment method.' } });
+        return;
+      }
+      // 'processing' — payment is in flight (UPI collect/QR completed out-of-band).
+      // Fall through to the long poll below.
+    } catch {
+      // Network error on first check — fall through to the long poll, which
+      // will retry and eventually time out with a clear message.
+    }
+
     const MAX_ATTEMPTS = 30; // 30 × 3s = 90 seconds
     let attempts = 0;
-    const param = gatewayType === 'cashfree' ? 'cashfree_order_id' : 'razorpay_order_id';
     const interval = setInterval(async () => {
       attempts++;
       try {
@@ -110,12 +143,15 @@ export default function Checkout() {
           clearCart();
           try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch { }
           navigate('/checkout/success', { state: { order } });
-        } else if (pStatus === 'failed') {
+        } else if (pStatus === 'failed' || pStatus === 'cancelled') {
           clearInterval(interval);
           orderPlaced.current = false;
           setVerifying(false);
-          trackEvent('payment_failed', { reason: 'declined' });
-          navigate('/checkout/failure', { state: { error: 'Payment was declined. Please try a different payment method.' } });
+          trackEvent('payment_failed', { reason: pStatus === 'cancelled' ? 'user_cancelled' : 'declined', gateway: gatewayType });
+          const msg = pStatus === 'cancelled'
+            ? 'Payment was cancelled. You can retry from your cart.'
+            : 'Payment was declined. Please try a different payment method.';
+          navigate('/checkout/failure', { state: { error: msg } });
         } else if (attempts >= MAX_ATTEMPTS) {
           clearInterval(interval);
           orderPlaced.current = false;
@@ -259,43 +295,9 @@ export default function Checkout() {
           order_id: razorpay_order_id,
           name: 'JungLyst',
           description: 'Order payment',
-          // Multiple payment methods: Cards, Net Banking, Wallets, UPI
-          config: {
-            display: {
-              blocks: {
-                // Credit/Debit Cards
-                card: {
-                  name: 'Card Payments',
-                  instruments: [
-                    { method: 'card', flows: ['headless', 'recurring'] },
-                  ],
-                },
-                // Net Banking
-                netbanking: {
-                  name: 'Net Banking',
-                  instruments: [
-                    { method: 'netbanking' },
-                  ],
-                },
-                // Wallets & Digital Payment Apps
-                wallet: {
-                  name: 'Digital Wallets',
-                  instruments: [
-                    { method: 'wallet', flows: ['iframe'] },
-                  ],
-                },
-                // UPI — collect (VPA input), QR, and intent (mobile apps)
-                upi: {
-                  name: 'UPI Payments',
-                  instruments: [
-                    { method: 'upi' },
-                  ],
-                },
-              },
-              sequence: ['block.card', 'block.netbanking', 'block.wallet', 'block.upi'],
-              preferences: { show_default_blocks: false },
-            },
-          },
+          // Use Razorpay's default checkout — natively renders UPI (VPA input,
+          // QR, intent apps), Cards, Net Banking, and Wallets. Custom
+          // config.display.blocks was collapsing UPI to QR-only on desktop.
           handler: async function (rzpRes) {
             // Mark order placed immediately so the empty-cart guard
             // doesn't redirect to /cart while verifyPayment runs
