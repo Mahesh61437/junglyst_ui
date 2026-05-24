@@ -338,10 +338,13 @@ export const CartProvider = ({ children }) => {
       return false;
     }
 
-    // SHIP-003: block 4th seller (optimistic check using known seller IDs)
+    // SHIP-003: block 4th seller (optimistic check using known seller IDs).
+    // Only block when the incoming product comes from a seller NOT already in the cart.
+    // If we don't know the incoming seller (no productData), defer to the backend check below.
     if (!existing && cart.sellers_at_limit) {
-      const knownSellerItems = cart.items.some(i => i.product.id === productId);
-      if (!knownSellerItems) {
+      const incomingSellerId = productData?.seller?.id;
+      const cartSellerIds = new Set(Object.keys(cart.seller_groups || {}));
+      if (incomingSellerId && !cartSellerIds.has(incomingSellerId)) {
         showToast('Your cart supports up to 3 sellers. Remove an item to add from a new seller.', 'warning');
         return false;
       }
