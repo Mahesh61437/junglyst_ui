@@ -322,15 +322,12 @@ export default function Checkout() {
           },
           modal: {
             ondismiss: function () {
-              // If handler already fired (success), do nothing
+              // Handler (success) or payment.failed already navigated — bail.
               if (orderPlaced.current) return;
-              // Otherwise payment might be in-flight — start polling
-              const rzpId = pendingGatewayId.current.razorpay;
-              if (rzpId) {
-                startPolling('razorpay', rzpId);
-              } else {
-                setLoading(false);
-              }
+              orderPlaced.current = true; // prevent double-nav from late callbacks
+              setLoading(false);
+              trackEvent('payment_failed', { reason: 'user_cancelled', gateway: 'razorpay' });
+              navigate('/checkout/failure', { state: { error: 'Payment was cancelled. You can retry from your cart.' } });
             }
           },
           prefill: {
@@ -343,6 +340,7 @@ export default function Checkout() {
 
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function () {
+          orderPlaced.current = true; // prevent ondismiss from double-navigating
           setLoading(false);
           trackEvent('payment_failed', { reason: 'gateway_failed', gateway: 'razorpay' });
           navigate('/checkout/failure', { state: { error: 'Payment failed. Please try a different payment method or retry.' } });
@@ -458,7 +456,9 @@ export default function Checkout() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5 }}>
             <ShieldCheck size={14} color="#a3c4a8" />
-            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>Secured by Cashfree Payments</span>
+            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>
+              {pendingGatewayId.current.razorpay ? 'Secured by Razorpay' : 'Secured by Cashfree Payments'}
+            </span>
           </div>
         </div>
       )}
