@@ -207,6 +207,7 @@ function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
         items: [],
         subtotal: 0,
         has_heavy: false,
+        has_light: false,
         shipping_fee: 0,
         nudge: null,
         shipping_window: buildShippingWindow(shippingDays, deliveryZone, {
@@ -224,6 +225,7 @@ function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
     // item_category on the variant drives light/heavy classification
     const cat = variant.item_category || 'light';
     if (cat === 'heavy') seller_groups[sellerId].has_heavy = true;
+    if (cat === 'light') seller_groups[sellerId].has_light = true;
   }
 
   // 3. Per-seller shipping + nudge using DB-driven configs
@@ -234,7 +236,9 @@ function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
     const g = seller_groups[id];
     const storeName = g.seller?.store_name || g.seller?.seller_profile?.store_name || g.seller?.full_name || 'this seller';
     const blocked = deliveryZone === 'E';
-    const cat = g.has_heavy ? 'heavy' : 'light';
+    let cat = 'light';
+    if (g.has_heavy && g.has_light) cat = 'hybrid';
+    else if (g.has_heavy) cat = 'heavy';
     const sellerConfig = (configs[id] || {})[cat] || null;
 
     if (!blocked) {

@@ -14,9 +14,7 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const sellerInfo = seller?.seller_profile || {};
 
   let calculatedStock = null;
-  if (stock !== undefined && stock !== null) {
-    calculatedStock = typeof stock === 'number' ? stock : parseInt(stock, 10);
-  } else if (variants && variants.length > 0) {
+  if (variants && variants.length > 0) {
     const availableStocks = variants
       .map(v => typeof v.stock === 'number' ? v.stock : parseInt(v.stock || '0', 10))
       .filter(s => !isNaN(s) && s > 0);
@@ -26,8 +24,10 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
     } else {
       calculatedStock = 0;
     }
+  } else if (stock !== undefined && stock !== null) {
+    calculatedStock = typeof stock === 'number' ? stock : parseInt(stock, 10);
   } else {
-    calculatedStock = parseInt(stock ?? '', 10);
+    calculatedStock = 0;
   }
 
   const stockLimit = Number.isFinite(calculatedStock) ? calculatedStock : null;
