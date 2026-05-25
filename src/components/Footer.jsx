@@ -61,7 +61,7 @@ export default function Footer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <FooterLink to="/terms">Terms & Conditions</FooterLink>
               <FooterLink to="/privacy">Privacy Policy</FooterLink>
-              <FooterLink to="/shipping-policy">Shipping Policy</FooterLink>
+              {/* <FooterLink to="/shipping-policy">Shipping Policy</FooterLink> */}
               <FooterLink to="/refund-policy">DOA Policy</FooterLink>
               <FooterLink to="/faq">FAQ</FooterLink>
             </div>
