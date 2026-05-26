@@ -386,7 +386,7 @@ export default function Home() {
                 care_level={p.care_level} origin={p.origin} growth_rate={p.growth_rate}
                 price={p.price} originalPrice={p.compare_at_price} image={p.image}
                 trending={p.is_trending} reviews={p.rating} stock={p.stock}
-                variants={p.variants} seller={p.seller} />
+                variants={p.variants} seller={p.seller} category={p.category} />
             ))}
           </div>
         )}
