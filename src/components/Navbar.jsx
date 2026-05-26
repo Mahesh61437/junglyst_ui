@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck, Trophy, ArrowRight } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck, Trophy, ArrowRight, Bug } from 'lucide-react';
 
 const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
 
@@ -543,12 +543,25 @@ export default function Navbar() {
               </>
             )}
 
-            {/* Track Order - Available to all users (authenticated and guests) */}
+            {/* Track Order & Report Bug - Available to all users */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
               <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Quick Access</p>
               <Link to="/track" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <Truck size={18} /> Track Order
               </Link>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  window.dispatchEvent(new Event('openBugReport'));
+                }}
+                style={{
+                  fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left'
+                }}
+              >
+                <Bug size={18} /> Report a Bug
+              </button>
             </div>
             {user && (
               <button

@@ -247,6 +247,10 @@ export default function SuperAdminDashboard() {
   // Misc
   const [categories, setCategories] = useState([]);
   const [copyingProducts, setCopyingProducts] = useState({});
+  
+  // Bug Reports
+  const [bugReports, setBugReports] = useState([]);
+  const [bugReportsLoading, setBugReportsLoading] = useState(false);
 
   // ── Category management state ─────────────────────────────────────────────
   const [catExpanded, setCatExpanded] = useState({});
@@ -586,6 +590,28 @@ export default function SuperAdminDashboard() {
     api.get('/core/categories/').then(res => setCategories(res.data.results || res.data || [])).catch(() => {});
   };
 
+  const fetchBugReports = async () => {
+    setBugReportsLoading(true);
+    try {
+      const res = await api.get('/core/bug-reports/');
+      setBugReports(res.data.results || res.data || []);
+    } catch (e) {
+      console.error('Failed to load bug reports', e);
+    } finally {
+      setBugReportsLoading(false);
+    }
+  };
+
+  const resolveBugReport = async (id, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'resolved' ? 'unresolved' : 'resolved';
+      const res = await api.patch(`/core/bug-reports/${id}/`, { status: newStatus });
+      setBugReports(prev => prev.map(bug => bug.id === id ? res.data : bug));
+    } catch (e) {
+      alert('Failed to update bug report status');
+    }
+  };
+
   useEffect(() => { refreshCategories(); }, []);
 
   // Category modal save handler
@@ -642,6 +668,7 @@ export default function SuperAdminDashboard() {
     };
     fetchData();
     fetchPromoSellers();
+    fetchBugReports();
 
     api.get('/payments/gateway-settings/')
       .then(res => setPaymentGateway(res.data.active_gateway || 'cashfree'))
@@ -1338,6 +1365,80 @@ export default function SuperAdminDashboard() {
                     {orders[activeTab].length === 0 && (
                       <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</td></tr>
                     )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── Bug Reports Management ──────────────────────────────────────────────── */}
+        <section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Bug Reports</h2>
+            <button onClick={fetchBugReports} disabled={bugReportsLoading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', color: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', cursor: bugReportsLoading ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+              Refresh
+            </button>
+          </div>
+
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+            {bugReportsLoading ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading bug reports…</div>
+            ) : bugReports.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No bug reports found.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Date</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Reported By</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700, width: '40%' }}>Description & Images</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700, textAlign: 'center' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bugReports.map(bug => (
+                      <tr key={bug.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem', backgroundColor: bug.status === 'resolved' ? '#f8fafc' : 'white' }}>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
+                          {new Date(bug.created_at).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          {bug.user ? (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{bug.user.full_name || bug.user.username}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{bug.user.email}</span>
+                            </div>
+                          ) : (
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{bug.contact_info || 'Guest'}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>{bug.description}</p>
+                          {bug.images && bug.images.length > 0 && (
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {bug.images.map((img, i) => (
+                                <a key={i} href={img} target="_blank" rel="noopener noreferrer">
+                                  <img src={img} alt="Bug screenshot" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
+                          <button
+                            onClick={() => resolveBugReport(bug.id, bug.status)}
+                            style={{
+                              padding: '0.4rem 0.75rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', border: 'none',
+                              backgroundColor: bug.status === 'resolved' ? '#dcfce7' : '#fee2e2',
+                              color: bug.status === 'resolved' ? '#166534' : '#991b1b',
+                            }}
+                          >
+                            {bug.status === 'resolved' ? 'Resolved' : 'Mark Resolved'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

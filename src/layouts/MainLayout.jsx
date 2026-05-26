@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import MobileCartFab from '../components/MobileCartFab';
 import CompetitionBanner from '../components/CompetitionBanner';
 import CompetitionTicker from '../components/CompetitionTicker';
+import BugReportModal from '../components/BugReportModal';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -150,6 +151,7 @@ export default function MainLayout() {
       </main>
       <Footer />
       <MobileCartFab />
+      <BugReportModal />
     </div>
   );
 }

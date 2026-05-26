@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Truck, Plus, Pencil, Trash2, X, Check, Loader2, Search } from 'lucide-react';
 
-const CATEGORIES = ['light', 'heavy'];
+const CATEGORIES = ['light', 'heavy', 'hybrid'];
 
 const labelStyle = {
   display: 'block', fontSize: '0.65rem', fontWeight: 800,
@@ -26,7 +26,7 @@ function emptyForm(sellerId, category, defaults = {}) {
     tier1_fee: d.tier1_fee ?? '',
     tier2_max: d.tier2_max ?? '',
     tier2_fee: d.tier2_fee ?? '',
-    show_nudge_products: false,
+    show_nudge_products: true,
   };
 }
 
@@ -173,6 +173,53 @@ export default function SuperAdminShippingFees() {
     }
   };
 
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedAll = async () => {
+    const hasDefaults = CATEGORIES.some(cat => shippingDefaults[cat]);
+    if (!hasDefaults) {
+      alert('No default pricing configured. Set platform defaults first via the info banner or Django admin.');
+      return;
+    }
+    const missing = [];
+    for (const seller of sellers) {
+      for (const cat of CATEGORIES) {
+        if (!configMap[String(seller.user)]?.[cat] && shippingDefaults[cat]) {
+          missing.push({ seller, cat });
+        }
+      }
+    }
+    if (missing.length === 0) {
+      alert('All sellers already have shipping configs for available categories.');
+      return;
+    }
+    if (!window.confirm(`Create ${missing.length} shipping config(s) with default prices for sellers that have none?`)) return;
+    setSeeding(true);
+    let created = 0;
+    const newConfigs = [];
+    for (const { seller, cat } of missing) {
+      const d = shippingDefaults[cat];
+      try {
+        const res = await api.post('/sellers/shipping-configs/', {
+          seller_id: String(seller.user),
+          item_category: cat,
+          tier1_max: d.tier1_max,
+          tier1_fee: d.tier1_fee,
+          tier2_max: d.tier2_max,
+          tier2_fee: d.tier2_fee,
+          show_nudge_products: true,
+        });
+        newConfigs.push(res.data);
+        created++;
+      } catch (e) {
+        console.error(`Failed for seller ${seller.user} ${cat}:`, e);
+      }
+    }
+    setConfigs(prev => [...prev, ...newConfigs]);
+    setSeeding(false);
+    alert(`Done — created ${created} config(s).`);
+  };
+
   if (authLoading || loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc' }}>
@@ -195,8 +242,18 @@ export default function SuperAdminShippingFees() {
             <Truck size={20} color="var(--brand-gold)" />
             <h1 style={{ fontSize: '1.1rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Seller Shipping Fee Tiers</h1>
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-            {configs.length} config{configs.length !== 1 ? 's' : ''} across {sellers.length} sellers
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+              {configs.length} config{configs.length !== 1 ? 's' : ''} across {sellers.length} sellers
+            </div>
+            <button
+              onClick={handleSeedAll}
+              disabled={seeding}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', cursor: seeding ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: seeding ? 0.6 : 1, whiteSpace: 'nowrap' }}
+            >
+              {seeding ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={13} />}
+              {seeding ? 'Seeding…' : 'Apply defaults to all'}
+            </button>
           </div>
         </div>
       </header>
@@ -206,7 +263,7 @@ export default function SuperAdminShippingFees() {
         {/* Info banner */}
         <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem', fontSize: '0.82rem', color: '#1e40af', lineHeight: 1.5 }}>
           <strong>Fee logic per seller:</strong> subtotal &lt; Tier 1 Max → Tier 1 Fee · Tier 1 Max ≤ subtotal &lt; Tier 2 Max → Tier 2 Fee · ≥ Tier 2 Max → <strong>Free</strong>.
-          Sellers without a config get <strong>free shipping</strong> by default. Light and Heavy categories are configured independently.
+          Sellers without a config get <strong>free shipping</strong> by default. Light, Heavy, and Hybrid categories are configured independently. Hybrid applies when a cart contains both light and heavy items.
         </div>
 
         {/* Search */}
@@ -230,6 +287,7 @@ export default function SuperAdminShippingFees() {
                   <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Store</th>
                   <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Light Tier</th>
                   <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Heavy Tier</th>
+                  <th style={{ padding: '1rem 1.25rem', fontWeight: 800 }}>Hybrid Tier</th>
                 </tr>
               </thead>
               <tbody>
@@ -281,7 +339,7 @@ export default function SuperAdminShippingFees() {
                 })}
                 {filteredSellers.length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    <td colSpan={4} style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                       {sellers.length === 0 ? 'No sellers found.' : 'No sellers match your search.'}
                     </td>
                   </tr>
@@ -321,6 +379,7 @@ export default function SuperAdminShippingFees() {
                   >
                     <option value="light">Light (plants, moss, isopods)</option>
                     <option value="heavy">Heavy (rocks, substrate, hardscape)</option>
+                    <option value="hybrid">Hybrid (light + heavy items mixed)</option>
                   </select>
                 )}
               </div>
