@@ -1,9 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { trackSearch } from '../utils/analytics';
+import SEO from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams, useNavigationType } from 'react-router-dom';
+import { useScrollRestoration } from '../utils/useScrollRestoration';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import { ProductService } from '../services/ProductService';
 import { Search, X, Leaf, SlidersHorizontal, Check, IndianRupee } from 'lucide-react';
 
@@ -11,9 +14,14 @@ export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
   const navigationType = useNavigationType(); // 'POP' = back button, 'PUSH' = forward nav
+
+  // Restore filter state when user navigates back (POP), otherwise start fresh.
+  // Declared here so all useState calls below can reference it.
+  const _saved = navigationType === 'POP' ? (() => { try { return JSON.parse(sessionStorage.getItem('shopFilters') || 'null'); } catch { return null; } })() : null;
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [sortBy, setSortBy] = useState('Featured');
+  const [sortBy, setSortBy] = useState(_saved?.sortBy || 'Featured');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   useEffect(() => {
@@ -36,9 +44,6 @@ export default function Shop() {
     };
   }, []);
 
-  // Restore filter state when user navigates back (POP), otherwise start fresh
-  const _saved = navigationType === 'POP' ? (() => { try { return JSON.parse(sessionStorage.getItem('shopFilters') || 'null'); } catch { return null; } })() : null;
-
   const [categories, setCategories] = useState(_saved?.categories || {});
   const [difficulties, setDifficulties] = useState(_saved?.difficulties || {
     'Easy': false,
@@ -51,25 +56,21 @@ export default function Shop() {
   const [selectedSubCat, setSelectedSubCat] = useState(_saved?.selectedSubCat || '');
   const [page, setPage] = useState(_saved?.page || 1);
 
-  // Restore sortBy from saved state on back navigation
-  useEffect(() => {
-    if (_saved?.sortBy) setSortBy(_saved.sortBy);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: categoryData = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: ProductService.getCategories,
+    staleTime: 10 * 60 * 1000, // cache for 10 min — avoids re-fetch on every shop visit
+  });
 
-  const [categoryData, setCategoryData] = useState([]);
-
-  // Load categories from API, preserving any already-active selections
+  // Sync API categories into filter checkbox state, preserving active selections
   useEffect(() => {
-    ProductService.getCategories().then(data => {
-      const cats = data.results || data || [];
-      setCategoryData(cats);
-      setCategories(prev => {
-        const merged = {};
-        cats.forEach(c => { merged[c.name] = prev[c.name] ?? false; });
-        return merged;
-      });
-    }).catch(() => { });
-  }, []);
+    if (!categoryData.length) return;
+    setCategories(prev => {
+      const merged = {};
+      categoryData.forEach(c => { merged[c.name] = prev[c.name] ?? false; });
+      return merged;
+    });
+  }, [categoryData]);
 
   // Persist filter state to sessionStorage so back navigation can restore it
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function Shop() {
 
   const gridRef = useRef(null);
   const isFirstRender = useRef(true);
+  const isFirstSearchSync = useRef(true);
 
   // ── Derive API query params from filter state ──────────────────────────────
   const activeCats = useMemo(
@@ -105,7 +107,7 @@ export default function Shop() {
   const apiParams = useMemo(() => {
     const p = { page, ordering: sortParam };
     if (searchTerm.trim()) p.search = searchTerm.trim();
-    if (activeCats.length === 1) p.category = activeCats[0];   // single cat filter
+    if (activeCats.length > 0) p.category = activeCats.join(',');
     if (activeDiffs.length > 0) p.care_level = activeDiffs.join(',');
     if (inStock) p.in_stock = 'true';
     if (minPrice) p.min_price = minPrice;
@@ -121,27 +123,18 @@ export default function Shop() {
     staleTime: 30_000,
   });
 
+  useScrollRestoration(!isLoading);
+
   // ── Derived product list & pagination ─────────────────────────────────────
   const products = data?.results || [];
   const totalCount = data?.count ?? 0;
   const PAGE_SIZE = 20;  // must match backend page_size
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  // Client-side filter only when multiple categories selected (API doesn't support OR filter natively)
-  const displayedProducts = useMemo(() => {
-    let list = products.filter(p => p?.is_active !== false);
-
-    // Multi-category OR filter client side (single cat is already handled server-side)
-    if (activeCats.length > 1) {
-      list = list.filter(product => {
-        const matchesCat = activeCats.includes(product.category);
-        const matchesSub = product.sub_category && activeCats.includes(product.sub_category.name);
-        return matchesCat || matchesSub;
-      });
-    }
-
-    return list;
-  }, [products, activeCats]);
+  const displayedProducts = useMemo(
+    () => products.filter(p => p?.is_active !== false),
+    [products],
+  );
 
   // ── Sync URL category param into filter state ──────────────────────────────
   // Fires on every navbar category click; also clears all filters on plain /shop
@@ -162,8 +155,9 @@ export default function Shop() {
   // ── Scroll to top on pagination change (skip first render — ScrollToTop handles entry) ──
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (navigationType === 'POP') return; // back nav: scroll handled by useScrollRestoration
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [page]);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCategoryChange = (cat) => {
     setCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -184,14 +178,17 @@ export default function Shop() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  // Sync search from URL
+  // Sync search from URL — skip the very first render so that page restored
+  // from sessionStorage (on back navigation) isn't immediately reset to 1.
   useEffect(() => {
-    const query = searchParams.get('search') || '';
-    if (query !== searchTerm) {
-      setSearchTerm(query);
+    if (isFirstSearchSync.current) {
+      isFirstSearchSync.current = false;
+      return;
     }
+    const query = searchParams.get('search') || '';
+    if (query !== searchTerm) setSearchTerm(query);
     setPage(1);
-  }, [searchParams, sortBy]);
+  }, [searchParams, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearAllFilters = () => {
     setCategories(Object.keys(categories).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
@@ -439,6 +436,11 @@ export default function Shop() {
 
   return (
     <div className="container" style={{ padding: '4rem 1.5rem', minHeight: '80vh', fontFamily: 'var(--font-sans)' }}>
+      <SEO
+        title={category ? `${category} — Shop | Junglyst` : 'Shop Aquatic Plants & Botanicals | Junglyst'}
+        description="Browse hundreds of rare aquatic plants, aquarium moss, and tropical botanicals from verified Indian growers. Filter by category, price, and availability."
+        path={category ? `/shop/${category}` : '/shop'}
+      />
 
       {/* ── Page Header ── */}
       <div style={{ marginBottom: '3rem' }}>
@@ -632,9 +634,6 @@ export default function Shop() {
                   (() => {
                     const variant = Array.isArray(product.variants) ? product.variants?.[0] : null;
                     const basePrice = parseFloat(
-                      product.base_price ??
-                      product.basePrice ??
-                      variant?.base_price ??
                       variant?.compare_at_price ??
                       product.compare_at_price ??
                       product.compareAtPrice ??
@@ -654,78 +653,13 @@ export default function Shop() {
               </motion.div>
 
               {/* ── Pagination ── */}
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem', marginTop: '5rem' }}>
-                  {/* Previous */}
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage(p => p - 1)}
-                    style={{
-                      padding: '0.6rem 1.1rem', borderRadius: '10px',
-                      border: '1.5px solid #e2e8f0', backgroundColor: 'white',
-                      fontSize: '0.8rem', fontWeight: 700,
-                      cursor: page === 1 ? 'not-allowed' : 'pointer',
-                      opacity: page === 1 ? 0.4 : 1,
-                      transition: 'opacity 0.15s',
-                      fontFamily: 'var(--font-sans)',
-                    }}
-                  >
-                    ← Prev
-                  </button>
-
-                  {/* Page numbers with ellipsis */}
-                  {pageNumbers.map((num, idx) =>
-                    num === '…' ? (
-                      <span
-                        key={`ellipsis-${idx}`}
-                        style={{ padding: '0 0.25rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.85rem', userSelect: 'none' }}
-                      >
-                        …
-                      </span>
-                    ) : (
-                      <button
-                        key={num}
-                        onClick={() => setPage(num)}
-                        style={{
-                          width: '38px', height: '38px', borderRadius: '10px',
-                          border: page === num ? 'none' : '1.5px solid #e2e8f0',
-                          backgroundColor: page === num ? '#0A3029' : 'white',
-                          color: page === num ? 'white' : '#64748b',
-                          fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
-                          transition: 'all 0.15s',
-                          fontFamily: 'var(--font-sans)',
-                        }}
-                      >
-                        {num}
-                      </button>
-                    )
-                  )}
-
-                  {/* Next */}
-                  <button
-                    disabled={page === totalPages}
-                    onClick={() => setPage(p => p + 1)}
-                    style={{
-                      padding: '0.6rem 1.1rem', borderRadius: '10px',
-                      border: '1.5px solid #e2e8f0', backgroundColor: 'white',
-                      fontSize: '0.8rem', fontWeight: 700,
-                      cursor: page === totalPages ? 'not-allowed' : 'pointer',
-                      opacity: page === totalPages ? 0.4 : 1,
-                      transition: 'opacity 0.15s',
-                      fontFamily: 'var(--font-sans)',
-                    }}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-
-              {/* Page indicator */}
-              {totalPages > 1 && (
-                <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
-                  Page {page} of {totalPages}
-                </p>
-              )}
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+              />
 
               {displayedProducts.length === 0 && !isLoading && (
                 <div style={{

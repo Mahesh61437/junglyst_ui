@@ -33,7 +33,7 @@ export default function SellerOnboarding() {
     storeName: '',
     tagline: '',
     description: '',
-    location: 'Karnataka, India',
+    location: 'Bengaluru, Karnataka',
     brandColor: '#0A3029',
     logoUrl: '',
     iconUrl: '',
@@ -44,7 +44,14 @@ export default function SellerOnboarding() {
     ifscCode: '',
     logoName: '',
     iconName: '',
-    bannerName: ''
+    bannerName: '',
+    phone: (user?.phone || '').replace(/^\+91/, '').replace(/[\s-]/g, ''),
+    pickupAddress: '',
+    locationCity: 'Bengaluru',
+    locationState: 'Karnataka',
+    locationPincode: '',
+    // Optional: pre-selected to Mon/Wed/Fri. Skipping the picker leaves these defaults.
+    shippingDays: [0, 2, 4],
   };
 
   const [formData, setFormData] = useState(defaultFormData);
@@ -73,7 +80,8 @@ export default function SellerOnboarding() {
         try {
           const saved = localStorage.getItem(draftKey);
           if (saved && saved !== 'undefined' && saved !== 'null') {
-            setFormData(JSON.parse(saved));
+            const parsed = JSON.parse(saved);
+            setFormData(prev => ({ ...prev, ...parsed }));
           }
         } catch (e) {
           console.error('Failed to parse onboarding draft', e);
@@ -136,18 +144,70 @@ export default function SellerOnboarding() {
   ];
 
   const validateStep = () => {
+    setError(null);
     switch (currentStep) {
       case 2:
-        return formData.storeName.trim().length >= 3;
+        if (formData.storeName.trim().length < 3) {
+          setError("Studio Name must be at least 3 characters long.");
+          return false;
+        }
+        return true;
       case 3:
-        return formData.brandColor && formData.logoUrl;
-      case 4:
-        return formData.description.trim().length >= 10;
+        if (!formData.brandColor) {
+          setError("Brand Color is required.");
+          return false;
+        }
+        if (!formData.logoUrl) {
+          setError("Brand Logo is required.");
+          return false;
+        }
+        return true;
+      case 4: {
+        const cleanedPhone = formData.phone.trim().replace(/^\+91/, '').replace(/[\s-]/g, '');
+        if (cleanedPhone.length !== 10 || !/^\d+$/.test(cleanedPhone)) {
+          setError("Please enter a valid 10-digit Indian mobile number for pickup coordination.");
+          return false;
+        }
+        if (formData.pickupAddress.trim().length < 5) {
+          setError("Please enter a valid street address for pickup (at least 5 characters).");
+          return false;
+        }
+        if (formData.locationCity.trim().length < 2) {
+          setError("Please enter a valid city name.");
+          return false;
+        }
+        if (formData.locationState.trim().length < 2) {
+          setError("Please enter a valid state name.");
+          return false;
+        }
+        const pincode = formData.locationPincode.trim();
+        if (!/^\d{6}$/.test(pincode)) {
+          setError("Pincode must be exactly 6 digits.");
+          return false;
+        }
+        if (formData.description.trim().length < 10) {
+          setError("Studio Philosophy must be at least 10 characters long.");
+          return false;
+        }
+        return true;
+      }
       case 5: {
         const taxOk = formData.taxId.trim().length >= 5;
         const payoutOk = formData.payoutBank.trim().length >= 5;
         const ifscOk = formData.payoutType === 'bank' ? formData.ifscCode.trim().length === 11 : true;
-        return taxOk && payoutOk && ifscOk;
+        if (!taxOk) {
+          setError("Tax Identification must be at least 5 characters long.");
+          return false;
+        }
+        if (!payoutOk) {
+          setError("Payout Account is required.");
+          return false;
+        }
+        if (!ifscOk) {
+          setError("IFSC code must be exactly 11 characters.");
+          return false;
+        }
+        return true;
       }
       default:
         return true;
@@ -159,7 +219,7 @@ export default function SellerOnboarding() {
       setError(null);
       setCurrentStep(prev => Math.min(prev + 1, 5));
     } else {
-      setError("Please complete all required fields for this step before continuing.");
+      setError(prev => prev || "Please complete all required fields for this step before continuing.");
     }
   };
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -169,7 +229,15 @@ export default function SellerOnboarding() {
     if (name === 'firstProductCategoryId') {
       setFormData(prev => ({ ...prev, [name]: value, firstProductSubCategoryId: '' }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => {
+        const updated = { ...prev, [name]: value };
+        if (name === 'locationCity' || name === 'locationState') {
+          const city = name === 'locationCity' ? value : prev.locationCity;
+          const state = name === 'locationState' ? value : prev.locationState;
+          updated.location = `${city}, ${state}`;
+        }
+        return updated;
+      });
     }
   };
 
@@ -203,7 +271,11 @@ export default function SellerOnboarding() {
         store_name: formData.storeName,
         expertise: formData.tagline,
         bio: formData.description,
-        location_city: formData.location,
+        location_city: formData.locationCity,
+        location_state: formData.locationState,
+        location_pincode: formData.locationPincode,
+        pickup_address: formData.pickupAddress,
+        phone: formData.phone,
         brand_color: formData.brandColor,
         logo_url: formData.logoUrl,
         icon_url: formData.iconUrl,
@@ -212,6 +284,7 @@ export default function SellerOnboarding() {
         payout_type: formData.payoutType,
         payout_account: formData.payoutBank,
         ifsc_code: formData.payoutType === 'bank' ? formData.ifscCode : '',
+        shipping_days: Array.isArray(formData.shippingDays) ? formData.shippingDays : [0, 2, 4],
       });
 
       if (response.data.user) {
@@ -265,7 +338,7 @@ export default function SellerOnboarding() {
           </div>
           <div>
             <h1 style={{ fontSize: '1.125rem', fontFamily: 'serif', color: '#0A3029', margin: 0 }}>Junglyst</h1>
-            <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#E5C48B', fontWeight: 700 }}>Grower Sanctuary</span>
+            <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#E5C48B', fontWeight: 700 }}>Seller Onboarding</span>
           </div>
         </div>
 
@@ -312,7 +385,7 @@ export default function SellerOnboarding() {
           {currentStep === 1 && (
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               <h2 style={{ fontSize: '3.5rem', fontFamily: 'serif', color: '#0A3029', marginBottom: '1.5rem', lineHeight: 1.1 }}>
-                Cultivate Your <br /><i style={{ fontWeight: 400 }}>Digital Sanctuary</i>.
+                Cultivate Your <br /><i style={{ fontWeight: 400 }}>Digital Storefront</i>.
               </h2>
               <p style={{ fontSize: '1.25rem', color: '#4b5563', lineHeight: 1.6, marginBottom: '3rem' }}>
                 Join the most exclusive community of botanical artisans. We provide the tools; you provide the beauty.
@@ -370,7 +443,7 @@ export default function SellerOnboarding() {
               </div>
               <div className="branding-card" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sanctuary Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Store Theme Color <span style={{ color: '#ef4444' }}>*</span></label>
 
                   {/* Presets Grid */}
                   <div className="color-presets-grid">
@@ -447,21 +520,84 @@ export default function SellerOnboarding() {
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               <div style={{ marginBottom: '2.5rem' }}>
                 <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', color: '#0A3029', marginBottom: '0.5rem' }}>Logistics</h2>
-                <p style={{ color: '#6b7280' }}>Where will you ship your masterpieces from?</p>
+                <p style={{ color: '#6b7280' }}>Where will you ship your masterpieces from? All fields are required for logistics registration.</p>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
+                
+                {/* Contact Phone */}
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dispatch Origin</label>
-                  <select name="location" value={formData.location} onChange={handleInputChange} style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none', appearance: 'none', backgroundColor: 'white' }}>
-                    <option>Karnataka, India</option>
-                    <option>Kerala, India</option>
-                    <option>Maharashtra, India</option>
-                    <option>Tamil Nadu, India</option>
-                    <option>West Bengal, India</option>
-                  </select>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Pickup Contact Phone <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="10-digit mobile number for pickup coordination"
+                    maxLength={10}
+                    style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }}
+                  />
                 </div>
+
+                {/* Pickup Address */}
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Pickup Street Address <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    name="pickupAddress"
+                    value={formData.pickupAddress}
+                    onChange={handleInputChange}
+                    placeholder="Building name, street, locality"
+                    style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }}
+                  />
+                </div>
+
+                {/* City & State Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      City <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      name="locationCity"
+                      value={formData.locationCity}
+                      onChange={handleInputChange}
+                      placeholder="City"
+                      style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      State <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      name="locationState"
+                      value={formData.locationState}
+                      onChange={handleInputChange}
+                      placeholder="State"
+                      style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Pincode */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Pincode <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    name="locationPincode"
+                    value={formData.locationPincode}
+                    onChange={handleInputChange}
+                    placeholder="6-digit PIN code"
+                    maxLength={6}
+                    style={{ width: '100%', padding: '1.125rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '1rem', outline: 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', justifyContent: 'space-between' }}>
                     <span>Studio Philosophy <span style={{ color: '#ef4444' }}>*</span></span>
                     <span style={{ color: formData.description.length < 10 ? '#ef4444' : '#10b981', fontSize: '0.7rem' }}>
                       {formData.description.length}/10 min
@@ -479,6 +615,44 @@ export default function SellerOnboarding() {
                     <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '0.5rem', fontWeight: 600 }}>Please share a bit more about your studio (at least 10 characters).</p>
                   )}
                 </div>
+
+                {/* Optional: Dispatch days picker. Defaults to Mon/Wed/Fri — sellers can skip or fine-tune. */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Dispatch Days <span style={{ color: '#94a3b8', fontSize: '0.65rem', fontWeight: 700, textTransform: 'none', letterSpacing: 0, marginLeft: '0.4rem' }}>Optional — pre-set to Mon/Wed/Fri</span>
+                  </label>
+                  <p style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '0.85rem', lineHeight: 1.5 }}>
+                    Pick the weekdays you usually ship orders. Buyers see your next dispatch date at checkout. You can change this anytime in your dashboard.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => {
+                      const active = (formData.shippingDays || []).includes(idx);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => setFormData(prev => {
+                            const cur = prev.shippingDays || [];
+                            const updated = active ? cur.filter(d => d !== idx) : [...cur, idx].sort((a, b) => a - b);
+                            return { ...prev, shippingDays: updated };
+                          })}
+                          style={{
+                            padding: '0.55rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', border: '2px solid',
+                            backgroundColor: active ? (formData.brandColor || '#0A3029') : 'white',
+                            color: active ? 'white' : '#64748b',
+                            borderColor: active ? (formData.brandColor || '#0A3029') : '#e2e8f0',
+                            transition: 'all 0.15s',
+                          }}
+                        >{day}</button>
+                      );
+                    })}
+                  </div>
+                  {(formData.shippingDays || []).length === 0 && (
+                    <p style={{ fontSize: '0.72rem', color: '#f59e0b', marginTop: '0.5rem', fontWeight: 600 }}>
+                      No dispatch days selected — we'll fall back to Mon/Wed/Fri so buyers always see an ETA. You can change this later.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -487,7 +661,7 @@ export default function SellerOnboarding() {
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               <div style={{ marginBottom: '2.5rem' }}>
                 <h2 style={{ fontSize: '2.5rem', fontFamily: 'serif', color: '#0A3029', marginBottom: '0.5rem' }}>Compliance</h2>
-                <p style={{ color: '#6b7280' }}>Finalize your business verification for the sanctuary.</p>
+                <p style={{ color: '#6b7280' }}>Finalize your business verification.</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', backgroundColor: 'white', padding: '3rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                 <div>
@@ -596,7 +770,7 @@ export default function SellerOnboarding() {
                 </button>
               ) : (
                 <button onClick={handleCompleteOnboarding} disabled={loading} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '12px', padding: '1rem 3rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)' }}>
-                  {loading ? 'PLANTING...' : 'LAUNCH SANCTUARY'} <CheckCircle2 size={18} />
+                  {loading ? 'PLANTING...' : 'LAUNCH STORE'} <CheckCircle2 size={18} />
                 </button>
               )}
             </div>
@@ -607,7 +781,7 @@ export default function SellerOnboarding() {
         {currentStep > 1 && (
           <div style={{ position: 'sticky', top: '8rem', height: 'fit-content' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#E5C48B' }}>Live Sanctuary Preview</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#E5C48B' }}>Live Store Preview</span>
               <div style={{ display: 'flex', gap: '0.25rem' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fbbf24' }} />

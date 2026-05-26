@@ -1,6 +1,68 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck, Trophy, ArrowRight, Bug } from 'lucide-react';
+
+const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
+
+function TopBar() {
+  const isOpen = Date.now() < COMPETITION_LAUNCH.getTime();
+  const [slide, setSlide] = useState(0); // 0 = competition, 1 = packaging
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setSlide(p => (p + 1) % 2);
+        setVisible(true);
+      }, 350);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [isOpen]);
+
+  const bar = isOpen && slide === 0 ? (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <Trophy size={11} color="#c9972b" />
+      <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+        Aquascape Competition 2026 — ₹1,000 Prize — 500 Slots Only
+      </span>
+      <Link
+        to="/competition"
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+          backgroundColor: '#c9972b', color: '#0a1f1c',
+          padding: '0.18rem 0.65rem', borderRadius: '100px',
+          fontSize: '0.6rem', fontWeight: 800,
+          textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.1em',
+          flexShrink: 0,
+        }}
+      >
+        Enter Now <ArrowRight size={9} />
+      </Link>
+    </div>
+  ) : (
+    <span style={{ fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)' }}>
+      Free Expert Packaging on All Orders Above ₹999
+    </span>
+  );
+
+  return (
+    <div className="navbar-topbar desktop-flex" style={{
+      backgroundColor: '#0a1f1c',
+      borderBottom: '1px solid rgba(201,151,43,0.15)',
+      textAlign: 'center',
+      padding: '0.45rem 1rem',
+      transition: 'opacity 0.35s ease',
+      opacity: visible ? 1 : 0,
+      minHeight: '28px',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      {bar}
+    </div>
+  );
+}
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -92,19 +154,7 @@ export default function Navbar() {
     <header className="navbar" style={{
       boxShadow: scrolled ? 'var(--shadow-md)' : 'none'
     }}>
-      {/* Top Utility Bar */}
-      <div className="desktop-only" style={{
-        backgroundColor: 'var(--bg-deep)',
-        color: 'white',
-        fontSize: '0.65rem',
-        textAlign: 'center',
-        padding: '0.5rem 0',
-        fontWeight: 600,
-        letterSpacing: '0.15em',
-        textTransform: 'uppercase'
-      }}>
-        Free Expert Packaging on All Orders Above ₹999
-      </div>
+      <TopBar />
 
       <div className="container" style={{
         display: 'flex',
@@ -462,7 +512,7 @@ export default function Navbar() {
                     <Package size={18} /> My Orders
                   </Link>
                   <Link to="/profile" state={{ tab: 'history' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Package size={18} /> Acquisition History
+                    <Package size={18} /> Order History
                   </Link>
                   <Link to="/profile" state={{ tab: 'wishlist' }} onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <Heart size={18} /> Curated Wishlist
@@ -493,12 +543,25 @@ export default function Navbar() {
               </>
             )}
 
-            {/* Track Order - Available to all users (authenticated and guests) */}
+            {/* Track Order & Report Bug - Available to all users */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
               <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Quick Access</p>
               <Link to="/track" onClick={() => setIsMobileMenuOpen(false)} style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <Truck size={18} /> Track Order
               </Link>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  window.dispatchEvent(new Event('openBugReport'));
+                }}
+                style={{
+                  fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left'
+                }}
+              >
+                <Bug size={18} /> Report a Bug
+              </button>
             </div>
             {user && (
               <button

@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Block private/functional routes
+Disallow: /cart
+Disallow: /checkout
+Disallow: /orders
+Disallow: /profile
+Disallow: /wishlist
+Disallow: /login
+Disallow: /signup
+Disallow: /seller/dashboard
+Disallow: /seller/onboarding
+Disallow: /admin/
+Disallow: /super-admin/
+
+Sitemap: https://junglyst.com/sitemap.xml

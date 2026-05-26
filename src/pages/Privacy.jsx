@@ -1,4 +1,5 @@
 import PolicyLayout, { Section, Notice, Divider } from '../components/PolicyLayout';
+import SEO from '../components/SEO';
 
 const RELATED = [
   { to: '/terms', label: 'Terms & Conditions' },
@@ -8,10 +9,16 @@ const RELATED = [
 
 export default function Privacy() {
   return (
+    <>
+    <SEO
+      title="Privacy Policy | Junglyst"
+      description="Learn how Junglyst collects, uses, and protects your personal data in accordance with Indian privacy law."
+      path="/privacy"
+    />
     <PolicyLayout
       badge="Legal"
       title="Privacy Policy"
-      updated="May 7, 2026"
+      updated="May 20, 2026"
       summary="This policy explains what personal data Junglyst collects, how we use it, and your rights. We are committed to protecting your privacy in accordance with Indian law."
       relatedLinks={RELATED}
     >
@@ -121,5 +128,6 @@ export default function Privacy() {
         <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated "Last Updated" date. We encourage you to review this page periodically. Continued use of the Platform after changes constitutes your acceptance of the revised policy.</p>
       </Section>
     </PolicyLayout>
+    </>
   );
 }

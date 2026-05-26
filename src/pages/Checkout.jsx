@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/OrderService';
 import api from '../services/api';
-import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package, Truck, Calendar, Store } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 import { load } from '@cashfreepayments/cashfree-js';
 import { trackEvent, trackCheckoutInitiated } from '../utils/analytics';
@@ -42,6 +42,7 @@ export default function Checkout() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showGuestConfirm, setShowGuestConfirm] = useState(false);
   const [verifying, setVerifying] = useState(false); // polling overlay state
   // Ref to prevent empty-cart guard from redirecting to /cart after order is placed
   const orderPlaced = useRef(false);
@@ -93,12 +94,45 @@ export default function Checkout() {
   }, [user]);
 
   // ── Payment status polling (handles UPI in-processing / modal-close edge case) ──
-  const startPolling = (gatewayType, gatewayId) => {
+  const startPolling = async (gatewayType, gatewayId) => {
     setVerifying(true);
     orderPlaced.current = true;
+    const param = gatewayType === 'cashfree' ? 'cashfree_order_id' : 'razorpay_order_id';
+
+    // Immediate first check — handles the common "user cancelled the modal"
+    // case in one round-trip instead of waiting for the 3s interval to tick.
+    try {
+      const res = await api.get(`/orders/payment-status/?${param}=${gatewayId}`);
+      const { status: pStatus, order } = res.data;
+      if (pStatus === 'success') {
+        clearCart();
+        try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch { }
+        navigate('/checkout/success', { state: { order } });
+        return;
+      }
+      if (pStatus === 'cancelled') {
+        orderPlaced.current = false;
+        setVerifying(false);
+        trackEvent('payment_failed', { reason: 'user_cancelled', gateway: gatewayType });
+        navigate('/checkout/failure', { state: { error: 'Payment was cancelled. You can retry from your cart.' } });
+        return;
+      }
+      if (pStatus === 'failed') {
+        orderPlaced.current = false;
+        setVerifying(false);
+        trackEvent('payment_failed', { reason: 'declined', gateway: gatewayType });
+        navigate('/checkout/failure', { state: { error: 'Payment was declined. Please try a different payment method.' } });
+        return;
+      }
+      // 'processing' — payment is in flight (UPI collect/QR completed out-of-band).
+      // Fall through to the long poll below.
+    } catch {
+      // Network error on first check — fall through to the long poll, which
+      // will retry and eventually time out with a clear message.
+    }
+
     const MAX_ATTEMPTS = 30; // 30 × 3s = 90 seconds
     let attempts = 0;
-    const param = gatewayType === 'cashfree' ? 'cashfree_order_id' : 'razorpay_order_id';
     const interval = setInterval(async () => {
       attempts++;
       try {
@@ -107,13 +141,17 @@ export default function Checkout() {
         if (pStatus === 'success') {
           clearInterval(interval);
           clearCart();
+          try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch { }
           navigate('/checkout/success', { state: { order } });
-        } else if (pStatus === 'failed') {
+        } else if (pStatus === 'failed' || pStatus === 'cancelled') {
           clearInterval(interval);
           orderPlaced.current = false;
           setVerifying(false);
-          trackEvent('payment_failed', { reason: 'declined' });
-          navigate('/checkout/failure', { state: { error: 'Payment was declined. Please try a different payment method.' } });
+          trackEvent('payment_failed', { reason: pStatus === 'cancelled' ? 'user_cancelled' : 'declined', gateway: gatewayType });
+          const msg = pStatus === 'cancelled'
+            ? 'Payment was cancelled. You can retry from your cart.'
+            : 'Payment was declined. Please try a different payment method.';
+          navigate('/checkout/failure', { state: { error: msg } });
         } else if (attempts >= MAX_ATTEMPTS) {
           clearInterval(interval);
           orderPlaced.current = false;
@@ -158,6 +196,12 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (!user && !showGuestConfirm) {
+      setShowGuestConfirm(true);
+      return;
+    }
+    setShowGuestConfirm(false);
 
     if (deliveryBlocked) {
       setError("Delivery is not available for your selected address. Please update the address or contact support.");
@@ -230,6 +274,7 @@ export default function Checkout() {
 
       if (mock_payment) {
         await clearCart();
+        try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(order)); } catch { }
         navigate('/checkout/success', { state: { order } });
         return;
       }
@@ -250,44 +295,9 @@ export default function Checkout() {
           order_id: razorpay_order_id,
           name: 'JungLyst',
           description: 'Order payment',
-          // Multiple payment methods: Cards, Net Banking, Wallets, UPI
-          config: {
-            display: {
-              blocks: {
-                // Credit/Debit Cards
-                card: {
-                  name: 'Card Payments',
-                  instruments: [
-                    { method: 'card', flows: ['headless', 'recurring'] },
-                  ],
-                },
-                // Net Banking
-                netbanking: {
-                  name: 'Net Banking',
-                  instruments: [
-                    { method: 'netbanking' },
-                  ],
-                },
-                // Wallets & Digital Payment Apps
-                wallet: {
-                  name: 'Digital Wallets',
-                  instruments: [
-                    { method: 'wallet', flows: ['iframe'] },
-                  ],
-                },
-                // UPI - Direct & QR
-                upi: {
-                  name: 'UPI Payments',
-                  instruments: [
-                    { method: 'upi', flows: ['collect'] },
-                    { method: 'upi', flows: ['qr'] },
-                  ],
-                },
-              },
-              sequence: ['block.card', 'block.netbanking', 'block.wallet', 'block.upi'],
-              preferences: { show_default_blocks: false },
-            },
-          },
+          // Use Razorpay's default checkout — natively renders UPI (VPA input,
+          // QR, intent apps), Cards, Net Banking, and Wallets. Custom
+          // config.display.blocks was collapsing UPI to QR-only on desktop.
           handler: async function (rzpRes) {
             // Mark order placed immediately so the empty-cart guard
             // doesn't redirect to /cart while verifyPayment runs
@@ -301,6 +311,7 @@ export default function Checkout() {
                 razorpay_signature: rzpRes.razorpay_signature,
               });
               clearCart();
+              try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch { }
               navigate('/checkout/success', { state: { order: response.order } });
             } catch (e) {
               console.error('Razorpay verify failed:', e);
@@ -311,15 +322,12 @@ export default function Checkout() {
           },
           modal: {
             ondismiss: function () {
-              // If handler already fired (success), do nothing
+              // Handler (success) or payment.failed already navigated — bail.
               if (orderPlaced.current) return;
-              // Otherwise payment might be in-flight — start polling
-              const rzpId = pendingGatewayId.current.razorpay;
-              if (rzpId) {
-                startPolling('razorpay', rzpId);
-              } else {
-                setLoading(false);
-              }
+              orderPlaced.current = true; // prevent double-nav from late callbacks
+              setLoading(false);
+              trackEvent('payment_failed', { reason: 'user_cancelled', gateway: 'razorpay' });
+              navigate('/checkout/failure', { state: { error: 'Payment was cancelled. You can retry from your cart.' } });
             }
           },
           prefill: {
@@ -332,6 +340,7 @@ export default function Checkout() {
 
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function () {
+          orderPlaced.current = true; // prevent ondismiss from double-navigating
           setLoading(false);
           trackEvent('payment_failed', { reason: 'gateway_failed', gateway: 'razorpay' });
           navigate('/checkout/failure', { state: { error: 'Payment failed. Please try a different payment method or retry.' } });
@@ -376,6 +385,7 @@ export default function Checkout() {
             cashfree_order_id: cashfree_order_id,
           }).then((response) => {
             clearCart();
+            try { sessionStorage.setItem('junglyst_last_order', JSON.stringify(response.order)); } catch { }
             navigate('/checkout/success', { state: { order: response.order } });
           }).catch(() => {
             orderPlaced.current = false;
@@ -416,6 +426,7 @@ export default function Checkout() {
   };
 
   return (
+    <>
     <div className="container" style={{ padding: '4rem 1rem 10rem' }}>
 
       {/* ── Payment Verifying Overlay ── */}
@@ -445,7 +456,9 @@ export default function Checkout() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5 }}>
             <ShieldCheck size={14} color="#a3c4a8" />
-            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>Secured by Cashfree Payments</span>
+            <span style={{ color: '#a3c4a8', fontSize: '0.72rem' }}>
+              {pendingGatewayId.current.razorpay ? 'Secured by Razorpay' : 'Secured by Cashfree Payments'}
+            </span>
           </div>
         </div>
       )}
@@ -516,7 +529,7 @@ export default function Checkout() {
                 </div>
                 <div>
                   <label style={labelStyle}>Mobile <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required type="tel" placeholder="+91 98765 43210" value={shipping.phone} onChange={f('phone')} style={inputStyle} />
+                  <input required type="tel" placeholder="+91 12345 67890" value={shipping.phone} onChange={f('phone')} style={inputStyle} />
                 </div>
               </div>
 
@@ -640,28 +653,79 @@ export default function Checkout() {
               <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', backgroundColor: '#ecfdf5', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>Secure</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '2rem', paddingRight: '0.5rem' }}>
-              {cart.items.map(item => {
-                const product = item.product_details || (item.product && typeof item.product === 'object' ? item.product : {});
-                const variant = item.variant_details || (item.variant && typeof item.variant === 'object' ? item.variant : {});
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '420px', overflowY: 'auto', marginBottom: '2rem', paddingRight: '0.5rem' }}>
+              {Object.entries(sellerGroups).map(([sellerId, group]) => {
+                const storeName = group.seller?.store_name
+                  || group.seller?.seller_profile?.store_name
+                  || group.seller?.full_name
+                  || 'Curator';
+                const win = group.shipping_window;
+                const pincodeReady = !!shipping.pincode && shipping.pincode.length === 6;
                 return (
-                  <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <Link to={`/product/${product.slug || product.id}`} style={{ width: '60px', height: '60px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc', display: 'block' }}>
-                      <img src={getImageUrl(variant.image_url || product.image_url || product.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} />
-                    </Link>
-                    <div style={{ flexGrow: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <Link to={`/product/${product.slug || product.id}`} style={{ textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
-                          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, color: '#1b2d2a' }}>{product.name || 'Botanical Specimen'}</h4>
-                        </Link>
-                        <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Qty: {item.quantity} · {variant.name || 'Standard'}</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>₹{((parseFloat(variant.price || product.price) || 0) * item.quantity).toLocaleString()}</span>
-                      </div>
+                  <div key={sellerId} style={{ border: '1px solid #f1f5f9', borderRadius: '14px', padding: '1rem', backgroundColor: '#fcfdfc' }}>
+                    {/* Per-seller header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px dashed #e2e8f0' }}>
+                      <Store size={14} color="#0A3029" />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1b2d2a' }}>{storeName}</span>
+                    </div>
+
+                    {/* Items from this seller */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {group.items.map(item => {
+                        const product = item.product_details || (item.product && typeof item.product === 'object' ? item.product : {});
+                        const variant = item.variant_details || (item.variant && typeof item.variant === 'object' ? item.variant : {});
+                        return (
+                          <div key={item.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <Link to={`/product/${product.slug || product.id}`} style={{ width: '54px', height: '54px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc', display: 'block' }}>
+                              <img src={getImageUrl(variant.image_url || product.image_url || product.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} />
+                            </Link>
+                            <div style={{ flexGrow: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                <Link to={`/product/${product.slug || product.id}`} style={{ textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
+                                  <h4 style={{ fontSize: '0.82rem', fontWeight: 700, margin: 0, color: '#1b2d2a' }}>{product.name || 'Botanical Specimen'}</h4>
+                                </Link>
+                                <button onClick={() => removeItem(cart.items.indexOf(item))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', flexShrink: 0 }} aria-label="Remove item">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.2rem' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Qty: {item.quantity} · {variant.name || 'Standard'}</span>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 800 }}>₹{((parseFloat(variant.price || product.price) || 0) * item.quantity).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Shipping window */}
+                    <div style={{ marginTop: '0.85rem', padding: '0.7rem 0.85rem', backgroundColor: '#f0fdf4', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      {win ? (
+                        win.unavailable ? (
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e' }}>
+                            <Info size={12} style={{ display: 'inline', marginRight: 4 }} />
+                            This curator hasn't published a shipping schedule yet.
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#15803d' }}>
+                              <Truck size={13} />
+                              Ships <strong style={{ color: '#1b2d2a' }}>{win.ships_on}</strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#15803d' }}>
+                              <Calendar size={13} />
+                              Est. delivery <strong style={{ color: '#1b2d2a' }}>{pincodeReady ? win.estimated_delivery : 'enter pincode for ETA'}</strong>
+                            </div>
+                            {win.on_break && (
+                              <div style={{ fontSize: '0.7rem', color: '#92400e', backgroundColor: '#fef3c7', padding: '0.3rem 0.5rem', borderRadius: '6px', marginTop: '0.2rem' }}>
+                                Curator is on a break today — order will dispatch on their next shipping day.
+                              </div>
+                            )}
+                          </>
+                        )
+                      ) : (
+                        <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Shipping date unavailable.</div>
+                      )}
                     </div>
                   </div>
                 );
@@ -715,7 +779,7 @@ export default function Checkout() {
                 transition: 'opacity 0.2s'
               }}
             >
-              {loading ? 'Processing...' : 'COMPLETE ACQUISITION'} {!loading && <ChevronRight size={20} />}
+              {loading ? 'Processing...' : 'PLACE ORDER'} {!loading && <ChevronRight size={20} />}
             </button>
 
             <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -737,5 +801,40 @@ export default function Checkout() {
 
       </div>
     </div>
+
+      {/* Guest checkout confirmation modal */}
+
+      {showGuestConfirm && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '2rem', maxWidth: '400px', width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
+              <Info size={22} color="#ca8a04" />
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.25rem', color: '#1b2d2a', marginBottom: '0.5rem' }}>Continue without signing in?</h3>
+            <p style={{ fontSize: '0.88rem', color: '#64748b', lineHeight: 1.6, marginBottom: '1.75rem' }}>
+              You're about to complete your order as a guest. You won't be able to track your order or view it in your account later.{' '}
+              <Link to="/login" style={{ color: '#1b2d2a', fontWeight: 700, textDecoration: 'underline' }}>Sign in</Link> for a better experience.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowGuestConfirm(false)}
+                style={{ flex: 1, padding: '0.85rem', borderRadius: '12px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#1b2d2a', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Go Back
+              </button>
+              <button
+                onClick={() => {
+                  const form = document.getElementById('checkout-form');
+                  if (form) form.requestSubmit();
+                }}
+                style={{ flex: 1, padding: '0.85rem', borderRadius: '12px', border: 'none', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Continue as Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

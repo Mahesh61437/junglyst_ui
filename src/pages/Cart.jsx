@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { trackCheckoutInitiated } from '../utils/analytics';
-import { Trash2, ArrowLeft, ShoppingBag, ShieldCheck, Leaf, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, ShieldCheck, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Calendar, Truck, Leaf } from 'lucide-react';
+import SellerNudgeProducts from '../components/SellerNudgeProducts';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
@@ -10,12 +11,11 @@ export default function Cart() {
   const {
     cart, loading,
     updateItemQuantity, removeItem,
-    checkPincode, pincodeChecking, pincodeResult, deliveryZone,
+    checkPincode, pincodeChecking, pincodeResult,
   } = useCart();
   const { addToWishlist } = useWishlist();
   const navigate = useNavigate();
 
-  const [pincode, setPincode] = useState('');
   const [pincodeInput, setPincodeInput] = useState('');
 
   if (loading) {
@@ -33,7 +33,7 @@ export default function Cart() {
           <div style={{ backgroundColor: '#f8fafc', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', color: '#cbd5e1' }}>
             <ShoppingBag size={32} strokeWidth={1} />
           </div>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', fontFamily: 'var(--font-serif)', color: 'var(--bg-deep)' }}>Your Sanctuary is Empty</h1>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', fontFamily: 'var(--font-serif)', color: 'var(--bg-deep)' }}>Your Cart is Empty</h1>
           <Link to="/shop" className="btn btn-primary" style={{ padding: '1rem 3rem', borderRadius: '100px' }}>Explore Gallery</Link>
         </div>
       </div>
@@ -45,12 +45,10 @@ export default function Cart() {
 
   const handlePincodeCheck = async () => {
     if (pincodeInput.length !== 6) return;
-    setPincode(pincodeInput);
     await checkPincode(pincodeInput);
   };
 
   const handleCheckout = () => {
-    if (cart.delivery_blocked) return;
     trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.total_items });
     navigate('/checkout');
   };
@@ -97,16 +95,6 @@ export default function Cart() {
             )}
           </div>
 
-          {/* Zone E Hard Block */}
-          {cart.delivery_blocked && (
-            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '16px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <AlertTriangle size={18} color="#ef4444" />
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#dc2626' }}>
-                Sorry, we don't deliver to your pincode yet. Please try a different delivery address.
-              </span>
-            </div>
-          )}
-
           <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '24px', border: '1px solid #f1f5f9', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1.5rem' }}>
               <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Shopping Cart</h1>
@@ -115,8 +103,7 @@ export default function Cart() {
 
             {/* Seller Groups */}
             {Object.entries(sellerGroups).map(([sellerId, group]) => {
-              const storeName = group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
-              const freeThreshold = group.has_heavy ? 2499 : 999;
+              const storeName = group.seller?.store_name || group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
 
               return (
                 <div key={sellerId} style={{ marginBottom: '3.5rem' }}>
@@ -134,22 +121,34 @@ export default function Cart() {
                     </span>
                   </div>
 
-
-                  {/* Free shipping nudge */}
+                  {/* Shipping nudge — primary + secondary tier messages */}
                   {group.nudge && (
                     <div style={{
                       backgroundColor: group.nudge.type === 'free' ? '#ecfdf5' : '#f0f9ff',
                       border: `1px solid ${group.nudge.type === 'free' ? '#6ee7b7' : '#bae6fd'}`,
-                      borderRadius: '10px', padding: '0.65rem 1rem', marginBottom: '0.75rem',
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '0.75rem',
                     }}>
-                      {group.nudge.type === 'free'
-                        ? <CheckCircle size={14} color="#10b981" />
-                        : <Package size={14} color="#0284c7" />
-                      }
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: group.nudge.type === 'free' ? '#065f46' : '#075985' }}>
-                        {group.nudge.message}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {group.nudge.type === 'free'
+                          ? <CheckCircle size={14} color="#10b981" />
+                          : <Package size={14} color="#0284c7" />
+                        }
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: group.nudge.type === 'free' ? '#065f46' : '#075985' }}>
+                          {group.nudge.message}
+                        </span>
+                      </div>
+                      {group.nudge.secondary_message && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
+                          <Package size={14} color="#0284c7" style={{ opacity: 0.6 }} />
+                          <span style={{ fontSize: '0.73rem', fontWeight: 600, color: '#0369a1' }}>
+                            {group.nudge.secondary_message}
+                          </span>
+                        </div>
+                      )}
+                      {/* Seller product suggestions */}
+                      {group.nudge.show_products && group.nudge.type !== 'free' && (
+                        <SellerNudgeProducts sellerId={sellerId} sellerName={storeName} sellerSlug={group.seller?.slug || group.seller?.seller_profile?.slug} />
+                      )}
                     </div>
                   )}
 
@@ -185,7 +184,7 @@ export default function Cart() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
                               <Package size={14} /> Ready for Botanical Packaging
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginTop: 'auto' }}>
                               <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.15rem' }}>
                                 <button onClick={() => updateItemQuantity(itemIndex, -1)} style={{ padding: '0.2rem 0.6rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '1rem' }}>-</button>
                                 <span style={{ padding: '0 0.5rem', fontSize: '0.85rem', fontWeight: 800, minWidth: '24px', textAlign: 'center' }}>{item.quantity}</span>
@@ -195,7 +194,7 @@ export default function Cart() {
                               <button onClick={() => addToWishlist(product.id)} style={{ background: 'none', border: 'none', color: '#007185', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>Save for later</button>
                             </div>
                           </div>
-                          <div style={{ textAlign: 'right' }}>
+                          <div style={{ textAlign: 'right', gridColumn: '1 / -1' }}>
                             <div style={{ fontWeight: 800, fontSize: '1.35rem', color: 'var(--bg-deep)', marginBottom: '0.25rem' }}>
                               ₹{((variant.price || product.price || 0) * item.quantity).toLocaleString()}
                             </div>
@@ -208,12 +207,26 @@ export default function Cart() {
                     })}
                   </div>
 
-                  {/* Per-seller shipping line */}
-                  <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', backgroundColor: '#f8faf9', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Shipping from {storeName}</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
-                      {cart.delivery_blocked ? '—' : group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
-                    </span>
+                  {/* Per-seller shipping line + next dispatch window */}
+                  <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', backgroundColor: '#f8faf9', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Shipping from {storeName}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
+                        {group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
+                      </span>
+                    </div>
+                    {group.shipping_window && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
+                          <Calendar size={12} color="#64748b" />
+                          Ships: <strong style={{ color: '#1b2d2a' }}>{group.shipping_window.ships_on}</strong>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: '#475569', fontWeight: 600 }}>
+                          <Truck size={12} color="#64748b" />
+                          Est. delivery: <strong style={{ color: '#1b2d2a' }}>{group.shipping_window.estimated_delivery}</strong>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -233,7 +246,7 @@ export default function Cart() {
             {/* Per-seller breakdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
               {Object.entries(sellerGroups).map(([id, group]) => {
-                const storeName = group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
+                const storeName = group.seller?.store_name || group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Botanical Studio';
                 return (
                   <div key={id} style={{ borderBottom: '1px dashed #f1f5f9', paddingBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
@@ -246,7 +259,7 @@ export default function Cart() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b', marginTop: '0.3rem' }}>
                       <span>Shipping</span>
                       <span style={{ fontWeight: 700, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
-                        {cart.delivery_blocked ? '—' : group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
+                        {group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
                       </span>
                     </div>
                   </div>
@@ -256,7 +269,7 @@ export default function Cart() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: '#64748b', marginTop: '0.25rem' }}>
                 <span>Total Shipping</span>
                 <span style={{ fontWeight: 700, color: cart.shipping_total === 0 ? '#10b981' : 'var(--bg-deep)' }}>
-                  {cart.delivery_blocked ? '—' : cart.shipping_total === 0 ? 'COMPLIMENTARY' : `₹${cart.shipping_total}`}
+                  {cart.shipping_total === 0 ? 'COMPLIMENTARY' : `₹${cart.shipping_total}`}
                 </span>
               </div>
             </div>
@@ -272,21 +285,15 @@ export default function Cart() {
 
             <button
               onClick={handleCheckout}
-              disabled={cart.delivery_blocked}
               style={{
-                width: '100%', padding: '1.25rem', backgroundColor: cart.delivery_blocked ? '#94a3b8' : 'var(--bg-deep)',
+                width: '100%', padding: '1.25rem', backgroundColor: 'var(--bg-deep)',
                 color: 'white', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1rem',
-                cursor: cart.delivery_blocked ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', gap: '0.75rem', boxShadow: cart.delivery_blocked ? 'none' : '0 10px 30px rgba(10, 48, 41, 0.15)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '0.75rem', boxShadow: '0 10px 30px rgba(10, 48, 41, 0.15)',
               }}
             >
               SECURE CHECKOUT <ChevronRight size={20} />
             </button>
-            {cart.delivery_blocked && (
-              <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#ef4444', fontWeight: 700, marginTop: '0.75rem' }}>
-                Delivery not available to this pincode.
-              </p>
-            )}
 
             <div style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>

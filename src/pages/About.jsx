@@ -1,9 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Leaf, ShieldCheck, Heart, Award, ArrowRight } from 'lucide-react';
+import SEO from '../components/SEO';
 
 export default function About() {
   return (
     <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-primary)' }}>
+      <SEO
+        title="About Junglyst — Our Story & Mission"
+        description="Junglyst is India's curated marketplace for rare aquatic and tropical botanicals. Learn about our mission to connect passionate growers with collectors."
+        path="/about"
+      />
       {/* Hero Section */}
       <section style={{ backgroundColor: 'var(--bg-deep)', color: 'white', padding: '10rem 0', position: 'relative', overflow: 'hidden' }}>
         <div className="container" style={{ position: 'relative', zIndex: 1 }}>

@@ -247,6 +247,10 @@ export default function SuperAdminDashboard() {
   // Misc
   const [categories, setCategories] = useState([]);
   const [copyingProducts, setCopyingProducts] = useState({});
+  
+  // Bug Reports
+  const [bugReports, setBugReports] = useState([]);
+  const [bugReportsLoading, setBugReportsLoading] = useState(false);
 
   // ── Category management state ─────────────────────────────────────────────
   const [catExpanded, setCatExpanded] = useState({});
@@ -262,6 +266,25 @@ export default function SuperAdminDashboard() {
   const [growerSearchLoading, setGrowerSearchLoading] = useState(false);
   const [growerActionLoading, setGrowerActionLoading] = useState({});
   const [growerActionMsg, setGrowerActionMsg] = useState('');
+
+  // Cache management
+  const [cacheClearing, setCacheClearing] = useState(false);
+  const [cacheClearMsg, setCacheClearMsg] = useState('');
+
+  const handleClearCache = async () => {
+    if (!window.confirm('Clear all server cache? This will briefly slow down the next few requests while caches rebuild.')) return;
+    setCacheClearing(true);
+    setCacheClearMsg('');
+    try {
+      await api.post('/analytics/super-admin/clear-cache/');
+      setCacheClearMsg('Cache cleared.');
+    } catch {
+      setCacheClearMsg('Failed to clear cache.');
+    } finally {
+      setCacheClearing(false);
+      setTimeout(() => setCacheClearMsg(''), 4000);
+    }
+  };
 
   // Payment gateway toggle
   const [paymentGateway, setPaymentGateway] = useState('cashfree');
@@ -336,7 +359,12 @@ export default function SuperAdminDashboard() {
       tagline: profile.tagline || '',
       brand_color: profile.brand_color || '#0A3029',
       location_city: profile.location_city || '',
+      location_pincode: profile.location_pincode || '',
+      gst_number: profile.gst_number || '',
+      is_active: profile.is_active !== false,
+      identity_verified: profile.identity_verified || false,
       logo_url: profile.logo_url || '',
+      icon_url: profile.icon_url || '',
       banner_url: profile.banner_url || '',
       expertise_tags: (profile.expertise_tags || []).join(', '),
     });
@@ -345,7 +373,7 @@ export default function SuperAdminDashboard() {
   };
 
   const uploadSellerImage = async (file, field) => {
-    const key = field === 'logo_url' ? 'logo' : 'banner';
+    const key = field === 'icon_url' ? 'icon' : field === 'logo_url' ? 'logo' : 'banner';
     setImageUploading(prev => ({ ...prev, [key]: true }));
     try {
       const formData = new FormData();
@@ -562,6 +590,28 @@ export default function SuperAdminDashboard() {
     api.get('/core/categories/').then(res => setCategories(res.data.results || res.data || [])).catch(() => {});
   };
 
+  const fetchBugReports = async () => {
+    setBugReportsLoading(true);
+    try {
+      const res = await api.get('/core/bug-reports/');
+      setBugReports(res.data.results || res.data || []);
+    } catch (e) {
+      console.error('Failed to load bug reports', e);
+    } finally {
+      setBugReportsLoading(false);
+    }
+  };
+
+  const resolveBugReport = async (id, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'resolved' ? 'unresolved' : 'resolved';
+      const res = await api.patch(`/core/bug-reports/${id}/`, { status: newStatus });
+      setBugReports(prev => prev.map(bug => bug.id === id ? res.data : bug));
+    } catch (e) {
+      alert('Failed to update bug report status');
+    }
+  };
+
   useEffect(() => { refreshCategories(); }, []);
 
   // Category modal save handler
@@ -618,6 +668,7 @@ export default function SuperAdminDashboard() {
     };
     fetchData();
     fetchPromoSellers();
+    fetchBugReports();
 
     api.get('/payments/gateway-settings/')
       .then(res => setPaymentGateway(res.data.active_gateway || 'cashfree'))
@@ -743,7 +794,9 @@ export default function SuperAdminDashboard() {
     }
   } = data;
 
-  const filteredSellers = sellers.filter(s =>
+  // Only show sellers awaiting authorization in the verification section
+  const pendingSellers = sellers.filter(s => !s.is_verified);
+  const filteredSellers = pendingSellers.filter(s =>
     (s.store_name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
     (s.name?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
     (s.email?.toLowerCase() || '').includes(sellerSearchTerm.toLowerCase()) ||
@@ -766,6 +819,22 @@ export default function SuperAdminDashboard() {
             <button onClick={() => navigate('/super-admin/gst')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               GST INVOICES
             </button>
+            <button onClick={() => navigate('/super-admin/shipping-fees')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+              SHIPPING FEES
+            </button>
+            <button onClick={() => navigate('/super-admin/settings')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#475569', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+              SETTINGS
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={handleClearCache}
+                disabled={cacheClearing}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: cacheClearing ? 'rgba(255,255,255,0.05)' : 'rgba(239,68,68,0.15)', color: cacheClearing ? 'rgba(255,255,255,0.4)' : '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', cursor: cacheClearing ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+              >
+                {cacheClearing ? 'CLEARING…' : 'CLEAR CACHE'}
+              </button>
+              {cacheClearMsg && <span style={{ fontSize: '0.75rem', color: cacheClearMsg.startsWith('Failed') ? '#fca5a5' : '#86efac', fontWeight: 600 }}>{cacheClearMsg}</span>}
+            </div>
             <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user?.full_name || user?.username}</span>
             <button onClick={() => navigate('/')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               EXIT
@@ -951,11 +1020,16 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
-        {/* Sellers Directory */}
+        {/* Pending Seller Authorizations */}
         <section>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Sellers Directory</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Pending Seller Authorizations</h2>
+              {pendingSellers.length > 0 && (
+                <span style={{ padding: '0.15rem 0.6rem', borderRadius: '50px', backgroundColor: '#fef3c7', color: '#92400e', fontSize: '0.7rem', fontWeight: 800 }}>
+                  {pendingSellers.length} pending
+                </span>
+              )}
               <button
                 onClick={() => setIsSellerTableMinimized(!isSellerTableMinimized)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', padding: '0.2rem' }}
@@ -999,17 +1073,9 @@ export default function SuperAdminDashboard() {
                     </div>
                     {expandedSeller === seller.id && (
                       <div style={{ padding: '0 1.25rem 1.25rem 1.25rem', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>Status</span>
-                          {seller.is_verified ? (
-                            <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Verified</span>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
-                              <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Authorize</button>
-                              <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Reject</button>
-                            </div>
-                          )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.3rem 0.75rem', borderRadius: '6px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Authorize</button>
+                          <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.3rem 0.75rem', borderRadius: '6px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Reject</button>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                           <User size={14} /> <span style={{ color: 'var(--text-primary)' }}>{seller.name}</span>
@@ -1035,7 +1101,7 @@ export default function SuperAdminDashboard() {
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller / Store</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Contact</th>
-                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Status</th>
+                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Action</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700, textAlign: 'right' }}>Total Orders</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700, textAlign: 'right' }}>Total Revenue</th>
                     </tr>
@@ -1052,22 +1118,17 @@ export default function SuperAdminDashboard() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}><Phone size={12} /> {seller.phone || 'N/A'}</div>
                         </td>
                         <td style={{ padding: '1.25rem' }}>
-                          {seller.is_verified ? (
-                            <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Verified</span>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700 }}>Pending</span>
-                              <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Authorize</button>
-                              <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>Reject</button>
-                            </div>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button onClick={(e) => { e.stopPropagation(); authorizeSeller(seller.id); }} style={{ padding: '0.35rem 0.9rem', borderRadius: '6px', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Authorize</button>
+                            <button onClick={(e) => { e.stopPropagation(); rejectSeller(seller.id); }} style={{ padding: '0.35rem 0.9rem', borderRadius: '6px', backgroundColor: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>Reject</button>
+                          </div>
                         </td>
                         <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 600 }}>{seller.total_orders}</td>
                         <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 700, color: 'var(--brand-green)' }}>₹{seller.total_revenue.toLocaleString()}</td>
                       </tr>
                     ))}
                     {filteredSellers.length === 0 && (
-                      <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No sellers found.</td></tr>
+                      <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{pendingSellers.length === 0 ? 'No pending seller applications.' : 'No sellers match your search.'}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1169,11 +1230,11 @@ export default function SuperAdminDashboard() {
             {promoSellers.map(profile => (
               <div key={profile.id} style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ height: '80px', backgroundColor: profile.brand_color || 'var(--bg-deep)', backgroundImage: profile.banner_url ? `url(${profile.banner_url})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }}>
-                  {profile.logo_url && (
-                    <img src={profile.logo_url} alt="" style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
+                  {(profile.icon_url || profile.logo_url) && (
+                    <img src={profile.icon_url || profile.logo_url} alt="" style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
                   )}
                 </div>
-                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: profile.logo_url ? '1.75rem' : '1.25rem' }}>
+                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: (profile.icon_url || profile.logo_url) ? '1.75rem' : '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <p style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--bg-deep)', margin: '0 0 0.15rem' }}>{profile.store_name}</p>
@@ -1304,6 +1365,80 @@ export default function SuperAdminDashboard() {
                     {orders[activeTab].length === 0 && (
                       <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</td></tr>
                     )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── Bug Reports Management ──────────────────────────────────────────────── */}
+        <section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Bug Reports</h2>
+            <button onClick={fetchBugReports} disabled={bugReportsLoading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', color: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', cursor: bugReportsLoading ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+              Refresh
+            </button>
+          </div>
+
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+            {bugReportsLoading ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading bug reports…</div>
+            ) : bugReports.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No bug reports found.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Date</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Reported By</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700, width: '40%' }}>Description & Images</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700, textAlign: 'center' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bugReports.map(bug => (
+                      <tr key={bug.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem', backgroundColor: bug.status === 'resolved' ? '#f8fafc' : 'white' }}>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
+                          {new Date(bug.created_at).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          {bug.user ? (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{bug.user.full_name || bug.user.username}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{bug.user.email}</span>
+                            </div>
+                          ) : (
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{bug.contact_info || 'Guest'}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>{bug.description}</p>
+                          {bug.images && bug.images.length > 0 && (
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {bug.images.map((img, i) => (
+                                <a key={i} href={img} target="_blank" rel="noopener noreferrer">
+                                  <img src={img} alt="Bug screenshot" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-subtle)' }} />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
+                          <button
+                            onClick={() => resolveBugReport(bug.id, bug.status)}
+                            style={{
+                              padding: '0.4rem 0.75rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', border: 'none',
+                              backgroundColor: bug.status === 'resolved' ? '#dcfce7' : '#fee2e2',
+                              color: bug.status === 'resolved' ? '#166534' : '#991b1b',
+                            }}
+                          >
+                            {bug.status === 'resolved' ? 'Resolved' : 'Mark Resolved'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1508,6 +1643,8 @@ export default function SuperAdminDashboard() {
                 { label: 'Store Name', key: 'store_name' },
                 { label: 'Location City', key: 'location_city' },
                 { label: 'Tagline', key: 'tagline' },
+                { label: 'Location Pincode', key: 'location_pincode' },
+                { label: 'GST Number', key: 'gst_number' },
                 { label: 'Brand Color (hex)', key: 'brand_color' },
               ].map(({ label, key }) => (
                 <div key={key}>
@@ -1522,8 +1659,9 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Logo & Banner */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               {[
+                { label: 'Icon (profile pic)', field: 'icon_url', uploadKey: 'icon' },
                 { label: 'Logo', field: 'logo_url', uploadKey: 'logo' },
                 { label: 'Banner', field: 'banner_url', uploadKey: 'banner' },
               ].map(({ label, field, uploadKey }) => (
@@ -1550,6 +1688,23 @@ export default function SuperAdminDashboard() {
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={labelStyle}>Expertise Tags (comma separated)</label>
               <input value={editSellerForm.expertise_tags || ''} onChange={e => setEditSellerForm(f => ({ ...f, expertise_tags: e.target.value }))} placeholder="Bucephalandra, Rare Aroids, Aquatic Plants" style={inputStyle} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              {[
+                { label: 'Store Active', key: 'is_active' },
+                { label: 'Identity Verified', key: 'identity_verified' },
+              ].map(({ label, key }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!editSellerForm[key]}
+                    onChange={e => setEditSellerForm(f => ({ ...f, [key]: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginBottom: '2rem' }}>

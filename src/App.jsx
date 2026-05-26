@@ -27,11 +27,14 @@ import BlogDetail from './pages/BlogDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import GstManagement from './pages/GstManagement';
+import SuperAdminShippingFees from './pages/SuperAdminShippingFees';
+import SuperAdminSettings from './pages/SuperAdminSettings';
 import Success from './pages/Success';
 import Failure from './pages/Failure';
 import MyOrders from './pages/MyOrders';
 import OrderTracking from './pages/OrderTracking';
 import TrackOrder from './pages/TrackOrder';
+import Competition from './pages/Competition';
 import RequireAuth from './components/RequireAuth';
 import ScrollToTop from './components/ScrollToTop';
 import { useEffect } from 'react';
@@ -43,6 +46,7 @@ import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { OrderProvider } from './context/OrderContext';
 
 /** Fires Meta Pixel PageView + PostHog $pageview on every SPA navigation */
 function NavigationTracker() {
@@ -61,6 +65,7 @@ function App() {
       <WishlistProvider>
         <ToastProvider>
         <CartProvider>
+        <OrderProvider>
           <BrowserRouter>
             <NavigationTracker />
             <ScrollToTop />
@@ -91,6 +96,7 @@ function App() {
                 <Route path="orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
                 <Route path="orders/:id" element={<RequireAuth><OrderTracking /></RequireAuth>} />
                 <Route path="track" element={<TrackOrder />} />
+                <Route path="competition" element={<Competition />} />
               </Route>
               
               {/* Auth Portals (Standalone) */}
@@ -103,8 +109,11 @@ function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/super-admin" element={<SuperAdminDashboard />} />
               <Route path="/super-admin/gst" element={<GstManagement />} />
+              <Route path="/super-admin/shipping-fees" element={<SuperAdminShippingFees />} />
+              <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
             </Routes>
           </BrowserRouter>
+        </OrderProvider>
         </CartProvider>
         </ToastProvider>
       </WishlistProvider>

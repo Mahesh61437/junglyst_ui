@@ -37,7 +37,7 @@ export default function Wishlist() {
         <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.25em', marginBottom: '1.5rem', display: 'block' }}>Private Gallery</span>
         <h1 style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>Specimen Wishlist</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto' }}>
-          A curated selection of botanical masterpieces you are tracking for future acquisition.
+          A curated selection of botanical masterpieces you've saved for later.
         </p>
       </header>
 

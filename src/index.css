@@ -94,11 +94,8 @@ button {
 }
 
 .navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: var(--nav-z-index);
+  position: relative;
+  z-index: 100;
   background-color: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(15px);
   border-bottom: 1px solid var(--border-subtle);
@@ -106,14 +103,7 @@ button {
 }
 
 .main-content {
-  padding-top: var(--nav-height-desktop);
   min-height: 100vh;
-}
-
-@media (max-width: 1024px) {
-  .main-content {
-    padding-top: var(--nav-height-mobile);
-  }
 }
 
 .container {
@@ -441,11 +431,71 @@ button {
 @media (max-width: 1024px) {
   .notif-dropdown {
     position: fixed !important;
-    top: var(--nav-height-mobile) !important;
+    top: var(--header-total-height, var(--nav-height-mobile)) !important;
     left: 8px !important;
     right: 8px !important;
     width: auto !important;
-    max-height: calc(100vh - var(--nav-height-mobile) - 16px) !important;
+    max-height: calc(100vh - var(--header-total-height, var(--nav-height-mobile)) - 16px) !important;
     border-radius: 16px !important;
   }
+}
+
+/* ── Product description: rich HTML content from editor ── */
+.product-description-html h1,
+.product-description-html h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary, #1b2d2a);
+  margin: 1.75rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.product-description-html h3,
+.product-description-html h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, #1b2d2a);
+  margin: 1.25rem 0 0.4rem;
+}
+.product-description-html h1:first-child,
+.product-description-html h2:first-child {
+  margin-top: 0;
+}
+.product-description-html p {
+  margin: 0 0 0.75rem;
+  line-height: 1.75;
+  color: var(--text-secondary, #4a5568);
+  font-size: 0.95rem;
+}
+.product-description-html ul,
+.product-description-html ol {
+  margin: 0 0 1rem 0;
+  padding-left: 1.25rem;
+}
+.product-description-html li {
+  margin-bottom: 0.35rem;
+  line-height: 1.65;
+  color: var(--text-secondary, #4a5568);
+  font-size: 0.9rem;
+}
+.product-description-html ul li {
+  list-style: none;
+  position: relative;
+  padding-left: 0.75rem;
+}
+.product-description-html ul li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  line-height: 1.45;
+}
+.product-description-html strong,
+.product-description-html b {
+  font-weight: 700;
+  color: var(--text-primary, #1b2d2a);
+}
+.product-description-html a {
+  color: var(--brand-gold, #b8860b);
+  text-decoration: underline;
 }

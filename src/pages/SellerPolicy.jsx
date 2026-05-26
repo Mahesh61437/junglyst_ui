@@ -36,7 +36,7 @@ export default function SellerPolicy() {
     <PolicyLayout
       badge="Sellers"
       title="Seller Policy"
-      updated="May 7, 2026"
+      updated="May 20, 2026"
       summary="Everything you need to know about selling on Junglyst — verification requirements, commissions, payouts, conduct standards, and prohibited items."
       relatedLinks={RELATED}
     >
@@ -73,14 +73,15 @@ export default function SellerPolicy() {
       </Section>
 
       <Section n="3" title="Order Fulfilment Obligations">
-        <p>Upon receiving an order, Sellers are required to:</p>
+        <p>Upon receiving an order, Sellers must complete all of the following steps within the specified timeframes:</p>
         <ol style={{ paddingLeft: '1.5rem', marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <li><strong>Confirm the order</strong> within 24 hours of placement. Unconfirmed orders may be auto-cancelled by the system.</li>
-          <li><strong>Upload a packaging photograph</strong> before handing over to courier. This is mandatory and protects both the Seller and buyer in case of disputes.</li>
-          <li><strong>Dispatch the order</strong> within the processing window stated on your listing (maximum 2 business days for in-stock items unless stated otherwise).</li>
-          <li><strong>Enter shipment details</strong> (AWB number, courier partner) in the Seller Dashboard after dispatch so the buyer can track the order.</li>
+          <li><strong>Confirm the order within 24 hours</strong> of placement. Unconfirmed orders may be auto-cancelled by the system and the buyer refunded in full.</li>
+          <li><strong>Dispatch within 48 hours of confirmation.</strong> The Seller Dashboard shows a live dispatch countdown from the moment the order is confirmed. In-stock items must be dispatched within this 48-hour window. No extensions are granted without prior approval from Junglyst admin.</li>
+          <li><strong>Update actual shipment weight and box dimensions</strong> in the Seller Dashboard before dispatch. Actual packed weight (grams) and box dimensions (L × B × H in cm) are required; they override variant-level defaults when booking the courier. The Ship button is blocked until this is completed.</li>
+          <li><strong>Upload 1–3 packaging photographs</strong> (JPG/PNG, max 5 MB each) before clicking Ship. Photos must clearly show the sealed package ready for handover. The Ship button is blocked until photos are uploaded. These images are stored permanently against the sub-order as evidence for any DOA or transit-damage dispute.</li>
+          <li><strong>Shipment is booked automatically</strong> via NimbusPost upon clicking Ship. The AWB number is assigned by the system and shared with the buyer. If NimbusPost booking fails, Sellers must enter the AWB manually and notify admin within 2 hours.</li>
         </ol>
-        <p style={{ marginTop: '1rem' }}>Repeated failure to fulfil orders on time will result in a seller rating penalty and may lead to account suspension.</p>
+        <p style={{ marginTop: '1rem' }}>Repeated failure to fulfil orders within the required timeframes will result in a seller rating penalty and may lead to account suspension.</p>
       </Section>
 
       <Section n="4" title="Packaging Requirements">

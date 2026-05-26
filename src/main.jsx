@@ -9,6 +9,12 @@ import PostHogErrorBoundary from './components/PostHogErrorBoundary.jsx'
 initPostHog();
 initAnalytics();
 
+// Let our useScrollRestoration hook control scroll position on back/forward nav
+// instead of the browser's built-in restoration (which conflicts with React Router).
+if ('scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual';
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

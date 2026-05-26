@@ -13,9 +13,24 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const { toggleWishlist, isInWishlist } = useWishlist();
   const sellerInfo = seller?.seller_profile || {};
 
-  const rawStock = stock ?? variants?.[0]?.stock;
-  const parsedStock = typeof rawStock === 'number' ? rawStock : parseInt(rawStock ?? '', 10);
-  const stockLimit = Number.isFinite(parsedStock) ? parsedStock : null;
+  let calculatedStock = null;
+  if (variants && variants.length > 0) {
+    const availableStocks = variants
+      .map(v => typeof v.stock === 'number' ? v.stock : parseInt(v.stock || '0', 10))
+      .filter(s => !isNaN(s) && s > 0);
+    
+    if (availableStocks.length > 0) {
+      calculatedStock = Math.min(...availableStocks);
+    } else {
+      calculatedStock = 0;
+    }
+  } else if (stock !== undefined && stock !== null) {
+    calculatedStock = typeof stock === 'number' ? stock : parseInt(stock, 10);
+  } else {
+    calculatedStock = 0;
+  }
+
+  const stockLimit = Number.isFinite(calculatedStock) ? calculatedStock : null;
   const isSoldOut = stockLimit !== null && stockLimit <= 0;
   const isLowStock = stockLimit !== null && stockLimit > 0 && stockLimit < 10;
 
@@ -143,24 +158,39 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
         <div className="product-card-footer" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
 
           {/* Price */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0, flex: '1 1 0%' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-              {minPrice !== maxPrice && (
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>from</span>
-              )}
-              {originalPrice && minPrice === maxPrice && (
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', textDecoration: 'line-through' }}>₹{originalPrice}</span>
-              )}
-              <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--bg-deep)' }}>
-                ₹{minPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </span>
-            </div>
-            {minPrice !== maxPrice && variants?.length > 1 && (
-              <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.03em' }}>
-                {variants.length} variants available
-              </span>
-            )}
-          </div>
+          {(() => {
+            const discountPct = originalPrice && minPrice === maxPrice
+              ? Math.round((1 - minPrice / originalPrice) * 100)
+              : 0;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0, flex: '1 1 0%' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                  {minPrice !== maxPrice && (
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>from</span>
+                  )}
+                  <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--bg-deep)' }}>
+                    ₹{minPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                {originalPrice && minPrice === maxPrice ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', textDecoration: 'line-through' }}>
+                      ₹{parseFloat(originalPrice).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                    {discountPct > 0 && (
+                      <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#65a30d', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', padding: '0.05rem 0.3rem', letterSpacing: '0.02em' }}>
+                        −{discountPct}%
+                      </span>
+                    )}
+                  </div>
+                ) : minPrice !== maxPrice && variants?.length > 1 ? (
+                  <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.03em' }}>
+                    {variants.length} variants available
+                  </span>
+                ) : null}
+              </div>
+            );
+          })()}
 
           {/* Cart action — always visible, never overlaid on image */}
           {isSoldOut ? (

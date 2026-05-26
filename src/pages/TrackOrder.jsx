@@ -195,7 +195,7 @@ export default function TrackOrder() {
                 type="text"
                 placeholder="Enter order number (e.g., JNG-2026-ABCDE)"
                 value={orderNumber}
-                onChange={(e) => setOrderNumber(e.target.value)}
+                onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
                 style={{
                   width: '100%', padding: 'clamp(0.75rem,2vw,1rem) clamp(1rem,2.5vw,1.5rem)',
                   fontSize: 'clamp(0.85rem,2vw,0.95rem)',

@@ -1,4 +1,5 @@
 import PolicyLayout, { Section, Notice, Divider } from '../components/PolicyLayout';
+import SEO from '../components/SEO';
 
 const RELATED = [
   { to: '/privacy', label: 'Privacy Policy' },
@@ -9,10 +10,16 @@ const RELATED = [
 
 export default function Terms() {
   return (
+    <>
+    <SEO
+      title="Terms & Conditions | Junglyst"
+      description="Read Junglyst's terms and conditions governing use of our marketplace platform, buyer protections, and seller obligations."
+      path="/terms"
+    />
     <PolicyLayout
       badge="Legal"
       title="Terms & Conditions"
-      updated="May 7, 2026"
+      updated="May 20, 2026"
       summary="Please read these terms carefully before using the Junglyst platform. By placing an order or registering as a seller, you agree to be bound by these terms."
       relatedLinks={RELATED}
     >
@@ -54,6 +61,12 @@ export default function Terms() {
 
       <Section n="6" title="Pricing & Payments">
         <p>All prices are in Indian Rupees (INR) and are inclusive of applicable taxes unless stated otherwise. Prices may change without prior notice. Payment is collected at the time of order placement via Razorpay. Junglyst does not store any payment card details on its servers. Orders are confirmed only upon successful payment authorisation.</p>
+        <p style={{ marginTop: '1rem' }}>The following cart rules apply to all orders:</p>
+        <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <li>A maximum of <strong>3 sellers</strong> may be included in a single cart / checkout session.</li>
+          <li>A minimum subtotal of <strong>₹500 per seller</strong> is required before checkout. Items below this threshold must be supplemented to meet the minimum.</li>
+          <li>A single payment captures the full order value. The order is then split into independent sub-orders per seller for fulfilment.</li>
+        </ul>
       </Section>
 
       <Section n="7" title="Prohibited Conduct">
@@ -91,5 +104,6 @@ export default function Terms() {
         <p>For questions regarding these Terms, write to us at <strong>legal@junglyst.com</strong> or visit our <a href="/contact" style={{ color: 'var(--brand-gold)', fontWeight: 700 }}>Contact page</a>.</p>
       </Section>
     </PolicyLayout>
+    </>
   );
 }

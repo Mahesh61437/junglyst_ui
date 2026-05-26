@@ -5,18 +5,26 @@ import { Package, Truck, CheckCircle, Clock, ArrowLeft, MapPin, ExternalLink, Sh
 import { getImageUrl } from '../utils/imageUtils';
 
 const SUB_STATUS_META = {
-  pending: { label: 'Pending', color: '#6b7280', bg: '#f3f4f6' },
-  placed: { label: 'Order Placed', color: '#1d4ed8', bg: '#dbeafe' },
-  confirmed: { label: 'Confirmed', color: '#854d0e', bg: '#fef9c3' },
-  packing: { label: 'Being Packed', color: '#c2410c', bg: '#fff7ed' },
-  shipped: { label: 'Shipped', color: '#065f46', bg: '#d1fae5' },
-  in_transit: { label: 'In Transit', color: '#065f46', bg: '#d1fae5' },
-  out_for_delivery: { label: 'Out for Delivery', color: '#14532d', bg: '#dcfce7' },
-  delivered: { label: 'Delivered', color: '#14532d', bg: '#dcfce7' },
-  delivery_failed: { label: 'Delivery Failed', color: '#991b1b', bg: '#fee2e2' },
-  doa_raised: { label: 'DOA Raised', color: '#9d174d', bg: '#fce7f3' },
-  cancelled: { label: 'Cancelled', color: '#991b1b', bg: '#fee2e2' },
+  pending:           { label: 'Awaiting Payment',  color: '#6b7280', bg: '#f3f4f6' },
+  placed:            { label: 'Order Received',    color: '#1d4ed8', bg: '#dbeafe' },
+  confirmed:         { label: 'Confirmed',         color: '#854d0e', bg: '#fef9c3' },
+  packing:           { label: 'Being Packed',      color: '#c2410c', bg: '#fff7ed' },
+  shipped:           { label: 'Shipped',           color: '#065f46', bg: '#d1fae5' },
+  in_transit:        { label: 'In Transit',        color: '#065f46', bg: '#d1fae5' },
+  out_for_delivery:  { label: 'Out for Delivery', color: '#14532d', bg: '#dcfce7' },
+  delivered:         { label: 'Delivered',         color: '#14532d', bg: '#dcfce7' },
+  delivery_failed:   { label: 'Delivery Failed',  color: '#991b1b', bg: '#fee2e2' },
+  doa_raised:        { label: 'DOA Raised',        color: '#9d174d', bg: '#fce7f3' },
+  cancelled:         { label: 'Cancelled',         color: '#991b1b', bg: '#fee2e2' },
 };
+
+// Ordered sub-order stages for the per-seller mini-timeline
+const SUB_ORDER_STAGES = ['placed', 'confirmed', 'packing', 'shipped', 'in_transit', 'out_for_delivery', 'delivered'];
+const STAGE_LABELS = {
+  placed: 'Received', confirmed: 'Confirmed', packing: 'Packing',
+  shipped: 'Shipped', in_transit: 'In Transit', out_for_delivery: 'Out for Delivery', delivered: 'Delivered',
+};
+const TERMINAL_NEGATIVE = new Set(['delivery_failed', 'doa_raised', 'cancelled']);
 
 function SubStatusBadge({ status }) {
   const m = SUB_STATUS_META[status] || { label: status, color: '#4b5563', bg: '#f3f4f6' };
@@ -34,20 +42,56 @@ function SubStatusBadge({ status }) {
 function SubOrderCard({ so }) {
   const shipment = so.shipment;
   const sellerName = so.seller_name || (so.seller && (so.seller.store_name || so.seller.username));
+  const isTerminalNegative = TERMINAL_NEGATIVE.has(so.status);
+  const currentStageIdx = SUB_ORDER_STAGES.indexOf(so.status);
+
   return (
     <div style={{
       backgroundColor: '#f8faf8', borderRadius: '16px',
       padding: 'clamp(1rem,2.5vw,1.5rem)',
-      border: '1px solid #edf2ed',
+      border: `1px solid ${isTerminalNegative ? '#fecaca' : '#edf2ed'}`,
     }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
         <div>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 'clamp(0.8rem,2vw,0.9rem)', color: '#1b2d2a', fontFamily: 'monospace' }}>{so.sub_order_number}</p>
-          {sellerName && <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: '#64748b' }}>Seller: {sellerName}</p>}
+          {sellerName && (
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+              from <strong style={{ color: '#1b2d2a' }}>{sellerName}</strong>
+            </p>
+          )}
         </div>
         <SubStatusBadge status={so.status} />
       </div>
+
+      {/* Mini stage timeline (only for non-negative terminal states) */}
+      {!isTerminalNegative && (
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+          {SUB_ORDER_STAGES.map((stage, idx) => {
+            const isDone = currentStageIdx >= idx;
+            const isCurrent = currentStageIdx === idx;
+            return (
+              <div key={stage} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
+                  <div style={{
+                    width: isCurrent ? '10px' : '8px', height: isCurrent ? '10px' : '8px',
+                    borderRadius: '50%',
+                    backgroundColor: isDone ? (isCurrent ? '#0A3029' : '#10b981') : '#e2e8f0',
+                    border: isCurrent ? '2px solid #0A3029' : 'none',
+                    flexShrink: 0,
+                  }} />
+                  <span style={{ fontSize: '0.55rem', fontWeight: isCurrent ? 800 : 600, color: isDone ? (isCurrent ? '#0A3029' : '#10b981') : '#cbd5e1', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    {STAGE_LABELS[stage]}
+                  </span>
+                </div>
+                {idx < SUB_ORDER_STAGES.length - 1 && (
+                  <div style={{ width: '24px', height: '2px', backgroundColor: currentStageIdx > idx ? '#10b981' : '#e2e8f0', flexShrink: 0, margin: '0 2px', marginBottom: '14px' }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Items */}
       {so.items && so.items.length > 0 && (
@@ -142,17 +186,35 @@ export default function OrderTracking() {
     return (
       <div className="container" style={{ padding: '10rem 1rem', textAlign: 'center' }}>
         <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem' }}>Protocol Error</h2>
-        <p style={{ color: '#64748b', margin: '2rem 0' }}>The requested acquisition could not be located in our archives.</p>
+        <p style={{ color: '#64748b', margin: '2rem 0' }}>We couldn't find that order.</p>
         <Link to="/orders" className="btn btn-primary">Back to My Orders</Link>
       </div>
     );
   }
 
+  const ACTIVE_AFTER_CONFIRM = ['confirmed', 'processing', 'shipped', 'delivered'];
+  const ACTIVE_AFTER_PROCESSING = ['processing', 'shipped', 'delivered'];
   const steps = [
-    { label: 'Order Placed', status: 'placed', icon: <Package size={20} />, active: true },
-    { label: 'Processing', status: 'processing', icon: <Clock size={20} />, active: ['processing', 'shipped', 'delivered'].includes(order.status) },
-    { label: 'In Transit', status: 'shipped', icon: <Truck size={20} />, active: ['shipped', 'delivered'].includes(order.status) },
-    { label: 'Delivered', status: 'delivered', icon: <CheckCircle size={20} />, active: order.status === 'delivered' }
+    {
+      label: 'Payment Confirmed',
+      icon: <Package size={20} />,
+      active: ACTIVE_AFTER_CONFIRM.includes(order.status),
+    },
+    {
+      label: 'Processing',
+      icon: <Clock size={20} />,
+      active: ACTIVE_AFTER_PROCESSING.includes(order.status),
+    },
+    {
+      label: 'Shipped',
+      icon: <Truck size={20} />,
+      active: ['shipped', 'delivered'].includes(order.status),
+    },
+    {
+      label: 'Delivered',
+      icon: <CheckCircle size={20} />,
+      active: order.status === 'delivered',
+    },
   ];
 
   return (
@@ -170,7 +232,7 @@ export default function OrderTracking() {
           <section style={{ backgroundColor: 'white', padding: 'clamp(1.5rem,4vw,3.5rem)', borderRadius: '32px', border: '1px solid #f1f5f9', marginBottom: '3rem' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'clamp(2rem,5vw,4rem)', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                   <h1 style={{ fontSize: 'clamp(1.5rem,4vw,2.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.5rem' }}>Acquisition Tracking</h1>
+                   <h1 style={{ fontSize: 'clamp(1.5rem,4vw,2.5rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.5rem' }}>Order Tracking</h1>
                    <p style={{ color: '#64748b', fontWeight: 600 }}>Protocol Reference: #{order.order_number}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -221,9 +283,24 @@ export default function OrderTracking() {
           {/* Per-seller shipment cards */}
           {order.sub_orders && order.sub_orders.length > 0 && (
             <section style={{ marginBottom: '3rem' }}>
-              <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.25rem)', fontWeight: 700, marginBottom: '1.25rem', fontFamily: 'var(--font-serif)' }}>
-                Shipments ({order.sub_orders.length})
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.25rem)', fontWeight: 700, fontFamily: 'var(--font-serif)', margin: 0 }}>
+                  Shipments ({order.sub_orders.length})
+                </h3>
+                {order.sub_orders.length > 1 && (() => {
+                  const shippedCount = order.sub_orders.filter(s =>
+                    ['shipped','in_transit','out_for_delivery','delivered'].includes(s.status)
+                  ).length;
+                  if (shippedCount > 0 && shippedCount < order.sub_orders.length) {
+                    return (
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#92400e', backgroundColor: '#fffbeb', border: '1px solid #fde68a', padding: '0.3rem 0.65rem', borderRadius: '20px' }}>
+                        {shippedCount}/{order.sub_orders.length} dispatched
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {order.sub_orders.map((so) => (
                   <SubOrderCard key={so.id} so={so} />
@@ -261,7 +338,7 @@ export default function OrderTracking() {
               <div style={{ marginTop: '3rem', padding: '1.5rem', backgroundColor: '#fcfdfc', borderRadius: '16px', display: 'flex', gap: '1rem' }}>
                  <ShieldCheck size={20} color="#10b981" style={{ flexShrink: 0 }} />
                  <div>
-                    <h5 style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.25rem' }}>Acquisition Guarantee</h5>
+                    <h5 style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.25rem' }}>Order Guarantee</h5>
                     <p style={{ fontSize: '0.7rem', color: '#64748b', lineHeight: 1.5 }}>Your botanical investment is secured under our vitality guarantee. Any issues in transit will be managed by our concierge.</p>
                  </div>
               </div>
