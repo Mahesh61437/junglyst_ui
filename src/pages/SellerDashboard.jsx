@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../services/api';
 import {
@@ -225,7 +225,7 @@ export default function SellerDashboard() {
   const [expandedProductId, setExpandedProductId] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [newProduct, setNewProduct] = useState({
-    name: '', scientific_name: '', category_id: '', sub_category_id: '', tagline: '', origin: '', description: '',
+    name: '', scientific_name: '', category_ids: [], sub_category_ids: [], tagline: '', origin: '', description: '',
     care_level: 'Easy', care_level_max: 'Easy',
     light_requirements: 'Low', light_requirements_max: 'Medium',
     growth_rate: 'Moderate', growth_rate_max: 'Moderate',
@@ -815,7 +815,7 @@ export default function SellerDashboard() {
     if (newProduct.tagline && newProduct.tagline.length > 200) errors.tagline = "Max 200 characters";
 
     if (!isDraft) {
-      if (!newProduct.category_id) errors.category_id = "Please select a category";
+      if (!newProduct.category_ids || newProduct.category_ids.length === 0) errors.category_ids = "Please select at least one category";
       if (!newProduct.description?.trim()) errors.description = "Botanical description is required";
       else if (newProduct.description.trim().length < 20) errors.description = "Must be at least 20 characters";
 
@@ -858,6 +858,10 @@ export default function SellerDashboard() {
     try {
       const payload = { ...newProduct };
 
+      // Normalize multi-select category arrays into integer IDs the backend expects
+      payload.category_ids = (newProduct.category_ids || []).map(id => Number(id)).filter(Boolean);
+      payload.sub_category_ids = (newProduct.sub_category_ids || []).map(id => Number(id)).filter(Boolean);
+
       // Draft flag — only set on create. Editing preserves existing draft/published state.
       if (!editingProduct) {
         payload.is_draft = isDraft;
@@ -892,7 +896,7 @@ export default function SellerDashboard() {
 
       if (addAnother) {
         setNewProduct({
-          name: '', scientific_name: '', category_id: '', sub_category_id: '', tagline: '', origin: '', description: '',
+          name: '', scientific_name: '', category_ids: [], sub_category_ids: [], tagline: '', origin: '', description: '',
           care_level: 'Easy', care_level_max: 'Easy',
           light_requirements: 'Low', light_requirements_max: 'Medium',
           growth_rate: 'Moderate', growth_rate_max: 'Moderate',
@@ -927,7 +931,8 @@ export default function SellerDashboard() {
     setNewProduct({
       name: `Exotic Specimen #${randomId}`,
       scientific_name: `Plantae exotica v.${randomId}`,
-      category_id: String(cat.id),
+      category_ids: [String(cat.id)],
+      sub_category_ids: [],
       tagline: "A rare and beautiful specimen for your collection.",
       origin: "Southeast Asia",
       description: "This specimen has been meticulously acclimated in our private greenhouse. It exhibits vibrant coloration and robust root growth. Perfect for advanced collectors seeking a centerpiece for their display.",
@@ -1232,8 +1237,10 @@ export default function SellerDashboard() {
       setNewProduct({
         name: p.name || '',
         scientific_name: p.scientific_name || '',
-        category_id: p.categories?.[0]?.id || '',
-        sub_category_id: p.sub_category?.id || '',
+        category_ids: (p.categories || []).map(c => String(c.id)),
+        sub_category_ids: (p.sub_categories && p.sub_categories.length > 0)
+          ? p.sub_categories.map(s => String(s.id))
+          : (p.sub_category?.id ? [String(p.sub_category.id)] : []),
         tagline: p.tagline || '',
         origin: p.origin || '',
         description: p.description || '',
@@ -1437,7 +1444,7 @@ export default function SellerDashboard() {
                 onClick={() => {
                   setEditingProduct(null);
                   setNewProduct({
-                    name: '', scientific_name: '', category_id: '', sub_category_id: '', description: '',
+                    name: '', scientific_name: '', category_ids: [], sub_category_ids: [], description: '',
                     tagline: '', origin: '',
                     care_level: 'Easy', care_level_max: 'Easy',
                     light_requirements: 'Low', light_requirements_max: 'Medium',
@@ -3307,7 +3314,7 @@ export default function SellerDashboard() {
                 const MAX_IMAGES = 5;
                 const emptyRow = () => ({
                   product_name: '', scientific_name: '', origin: '',
-                  category_id: '', sub_category_id: '',
+                  category_ids: [], sub_category_ids: [],
                   variant_type: 'Plant', variant_name: 'Standard',
                   base_price: '', stock: '',
                   item_category: 'light', packed_weight_grams: '',
@@ -3325,7 +3332,19 @@ export default function SellerDashboard() {
                       if (saved) {
                         const { rows: r } = JSON.parse(saved);
                         // Restore text fields; images can't survive page reload (File/blob refs die)
-                        return r.map(row => ({ ...emptyRow(), ...row, images: [] }));
+                        return r.map(row => {
+                          const base = { ...emptyRow(), ...row, images: [] };
+                          // Migrate legacy single-id drafts → arrays
+                          if (!Array.isArray(base.category_ids)) {
+                            base.category_ids = base.category_id ? [String(base.category_id)] : [];
+                          }
+                          if (!Array.isArray(base.sub_category_ids)) {
+                            base.sub_category_ids = base.sub_category_id ? [String(base.sub_category_id)] : [];
+                          }
+                          delete base.category_id;
+                          delete base.sub_category_id;
+                          return base;
+                        });
                       }
                     } catch { }
                     return [emptyRow(), emptyRow()];
@@ -3387,7 +3406,16 @@ export default function SellerDashboard() {
                   const updateRow = (idx, field, value) => {
                     setRows(prev => {
                       const next = prev.map((r, i) => i === idx ? { ...r, [field]: value } : r);
-                      if (field === 'category_id') next[idx].sub_category_id = '';
+                      if (field === 'category_ids') {
+                        const allowedSubs = new Set(
+                          (value || []).flatMap(cid => {
+                            const c = categories.find(x => String(x.id) === String(cid));
+                            const subs = c?.subcategories || subcatMap[c?.id] || [];
+                            return subs.map(s => String(s.id));
+                          })
+                        );
+                        next[idx].sub_category_ids = (next[idx].sub_category_ids || []).filter(sid => allowedSubs.has(String(sid)));
+                      }
                       return next;
                     });
                   };
@@ -3459,24 +3487,26 @@ export default function SellerDashboard() {
                     try {
                       const headers = [
                         'Product Name', 'Scientific Name (optional)', 'Origin (optional)',
-                        'Category', 'Sub-Category', 'Variant Type', 'Variant Name',
+                        'Categories', 'Sub-Categories', 'Variant Type', 'Variant Name',
                         'Base Price (₹)', 'Stock Qty',
                         'Weight Category (light/heavy)', 'Packed Weight (grams)',
                         'Box Length (cm)', 'Box Width (cm)', 'Box Height (cm)',
                         'GST %', 'Images (filenames)', 'SKU (optional)',
                       ];
                       const data = rows.map(row => {
-                        const cat = categories.find(c => String(c.id) === String(row.category_id));
-                        const subs = subcatMap[row.category_id] || [];
-                        const sub = subs.find(s => String(s.id) === String(row.sub_category_id));
+                        const selectedCats = (row.category_ids || []).map(cid => categories.find(c => String(c.id) === String(cid))).filter(Boolean);
+                        const availableSubs = selectedCats.flatMap(c => (c.subcategories || subcatMap[c.id] || []));
+                        const selectedSubs = (row.sub_category_ids || []).map(sid => availableSubs.find(s => String(s.id) === String(sid))).filter(Boolean);
+                        const primaryCat = selectedCats[0];
                         return [
                           row.product_name, row.scientific_name, row.origin,
-                          cat?.name || '', sub?.name || '',
+                          selectedCats.map(c => c.name).join(', '),
+                          selectedSubs.map(s => s.name).join(', '),
                           row.variant_type, row.variant_name,
                           row.base_price, row.stock,
                           row.item_category, row.packed_weight_grams,
                           row.box_length, row.box_width, row.box_height,
-                          cat?.gst_percentage ?? '',
+                          primaryCat?.gst_percentage ?? '',
                           row.images.map(img => img.name).join(', '),
                           row.sku,
                         ];
@@ -3503,6 +3533,77 @@ export default function SellerDashboard() {
                     </th>
                   );
                   const TOTAL_COLS = 19; // for colspan on image panel row
+
+                  // Compact multi-select widget for the bulk-upload row cells
+                  const MultiSelectCell = ({ options, values, onChange, placeholder, emptyLabel, disabled }) => {
+                    const [open, setOpen] = useState(false);
+                    const rootRef = useRef(null);
+                    useEffect(() => {
+                      if (!open) return;
+                      const handler = (e) => {
+                        if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+                      };
+                      document.addEventListener('mousedown', handler);
+                      return () => document.removeEventListener('mousedown', handler);
+                    }, [open]);
+                    const selectedNames = values
+                      .map(v => options.find(o => String(o.id) === String(v))?.name)
+                      .filter(Boolean);
+                    const label = disabled
+                      ? (emptyLabel || placeholder || 'Select…')
+                      : selectedNames.length === 0
+                        ? (placeholder || 'Select…')
+                        : selectedNames.length === 1
+                          ? selectedNames[0]
+                          : `${selectedNames.length} selected`;
+                    return (
+                      <div ref={rootRef} style={{ position: 'relative' }}>
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => !disabled && setOpen(v => !v)}
+                          title={selectedNames.join(', ')}
+                          style={{
+                            ...selectStyle,
+                            textAlign: 'left',
+                            backgroundColor: disabled ? '#f8fafc' : 'white',
+                            color: disabled ? '#94a3b8' : (selectedNames.length ? '#1b2d2a' : '#94a3b8'),
+                            cursor: disabled ? 'not-allowed' : 'pointer',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {label}
+                        </button>
+                        {open && !disabled && (
+                          <div style={{
+                            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 20,
+                            minWidth: '180px', maxWidth: '260px', maxHeight: '220px', overflowY: 'auto',
+                            backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px',
+                            boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
+                          }}>
+                            {options.length === 0 ? (
+                              <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: '#94a3b8' }}>No options.</div>
+                            ) : options.map(opt => {
+                              const checked = values.some(v => String(v) === String(opt.id));
+                              return (
+                                <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.65rem', cursor: 'pointer', fontSize: '0.78rem', backgroundColor: checked ? '#f0fdf4' : 'white', borderBottom: '1px solid #f8faf9' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={e => {
+                                      if (e.target.checked) onChange([...values, String(opt.id)]);
+                                      else onChange(values.filter(v => String(v) !== String(opt.id)));
+                                    }}
+                                  />
+                                  <span style={{ whiteSpace: 'normal' }}>{opt.name}{opt._parent ? <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}> · {opt._parent}</span> : null}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -3570,8 +3671,8 @@ export default function SellerDashboard() {
                               {colHead('Product Name')}
                               {colHead('Scientific Name', 'optional')}
                               {colHead('Origin', 'optional')}
-                              {colHead('Category')}
-                              {colHead('Sub-Category')}
+                              {colHead('Categories', 'multi-select')}
+                              {colHead('Sub-Categories', 'multi-select')}
                               {colHead('Variant Type')}
                               {colHead('Variant Name')}
                               {colHead('Base Price ₹')}
@@ -3589,9 +3690,10 @@ export default function SellerDashboard() {
                           </thead>
                           <tbody>
                             {rows.map((row, idx) => {
-                              const cat = categories.find(c => String(c.id) === String(row.category_id));
-                              const subcats = subcatMap[row.category_id] || (cat?.subcategories) || [];
-                              const gstVal = cat ? cat.gst_percentage : '—';
+                              const selectedCats = (row.category_ids || []).map(cid => categories.find(c => String(c.id) === String(cid))).filter(Boolean);
+                              const primaryCat = selectedCats[0];
+                              const subcatOptions = selectedCats.flatMap(c => ((c.subcategories && c.subcategories.length) ? c.subcategories : (subcatMap[c.id] || [])).map(s => ({ ...s, _parent: c.name })));
+                              const gstVal = primaryCat ? primaryCat.gst_percentage : '—';
                               const rowBg = idx % 2 === 0 ? 'white' : '#fafbfa';
                               const imgOpen = openImageRow === idx;
                               const imgCount = row.images.length;
@@ -3607,16 +3709,22 @@ export default function SellerDashboard() {
                                     {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="Anubias barteri" value={row.scientific_name} onChange={e => updateRow(idx, 'scientific_name', e.target.value)} />)}
                                     {td(<input style={{ ...inputStyle, color: '#94a3b8' }} placeholder="West Africa" value={row.origin} onChange={e => updateRow(idx, 'origin', e.target.value)} />)}
                                     {td(
-                                      <select style={selectStyle} value={row.category_id} onChange={e => updateRow(idx, 'category_id', e.target.value)}>
-                                        <option value="">Select…</option>
-                                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                      </select>
+                                      <MultiSelectCell
+                                        options={categories}
+                                        values={row.category_ids || []}
+                                        onChange={vals => updateRow(idx, 'category_ids', vals)}
+                                        placeholder="Select…"
+                                      />
                                     )}
                                     {td(
-                                      <select style={selectStyle} value={row.sub_category_id} onChange={e => updateRow(idx, 'sub_category_id', e.target.value)} disabled={!row.category_id}>
-                                        <option value="">{row.category_id ? 'Select…' : '← Pick category'}</option>
-                                        {subcats.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                      </select>
+                                      <MultiSelectCell
+                                        options={subcatOptions}
+                                        values={row.sub_category_ids || []}
+                                        onChange={vals => updateRow(idx, 'sub_category_ids', vals)}
+                                        placeholder={(row.category_ids?.length ? 'Select…' : '← Pick category')}
+                                        emptyLabel="← Pick category"
+                                        disabled={!(row.category_ids?.length)}
+                                      />
                                     )}
                                     {td(
                                       <select style={selectStyle} value={row.variant_type} onChange={e => updateRow(idx, 'variant_type', e.target.value)}>
@@ -3636,8 +3744,8 @@ export default function SellerDashboard() {
                                     {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_width} onChange={e => updateRow(idx, 'box_width', e.target.value)} />)}
                                     {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_height} onChange={e => updateRow(idx, 'box_height', e.target.value)} />)}
                                     {td(
-                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: cat ? '#166534' : '#94a3b8', backgroundColor: cat ? '#f0fdf4' : '#f8fafc', padding: '0.3rem 0.6rem', borderRadius: '6px', whiteSpace: 'nowrap' }}>
-                                        {cat ? `${gstVal}%` : '—'}
+                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: primaryCat ? '#166534' : '#94a3b8', backgroundColor: primaryCat ? '#f0fdf4' : '#f8fafc', padding: '0.3rem 0.6rem', borderRadius: '6px', whiteSpace: 'nowrap' }}>
+                                        {primaryCat ? `${gstVal}%` : '—'}
                                       </span>
                                     )}
                                     {td(
@@ -3750,7 +3858,7 @@ export default function SellerDashboard() {
                       {/* Footer tips */}
                       <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px', padding: '1.25rem 1.5rem' }}>
                         <div style={{ fontSize: '0.78rem', color: '#166534', lineHeight: 1.7 }}>
-                          <strong>Tips:</strong> Click <em>Add photos</em> on any row to attach up to 5 images — the first one becomes the cover. GST fills automatically once you pick a category. Sub-category unlocks after category is selected. Duplicate a row to list another variant of the same plant (photos won't carry over). Download Excel exports filenames for your records.
+                          <strong>Tips:</strong> Click <em>Add photos</em> on any row to attach up to 5 images — the first one becomes the cover. GST fills automatically once you pick the first category. You can pick multiple categories and sub-categories per row. Sub-categories unlock after at least one category is selected. Duplicate a row to list another variant of the same plant (photos won't carry over). Download Excel exports filenames for your records.
                         </div>
                       </div>
                     </div>
@@ -3874,51 +3982,153 @@ export default function SellerDashboard() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
                               <div>
-                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_id ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Category <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.category_id && `— ${fieldErrors.category_id}`}</label>
-                                <div style={{ position: 'relative' }}>
+                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_ids ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Categories <span style={{ color: '#ef4444' }}>*</span> <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(select one or more)</span> {fieldErrors.category_ids && `— ${fieldErrors.category_ids}`}</label>
+                                <div style={{ border: `1px solid ${fieldErrors.category_ids ? '#ef4444' : '#e2e8f0'}`, borderRadius: '10px', overflow: 'hidden' }}>
                                   <input
                                     type="text"
                                     value={categorySearch}
                                     onChange={e => setCategorySearch(e.target.value)}
                                     placeholder="Search categories…"
-                                    style={{ width: '100%', padding: '0.75rem 0.85rem', borderRadius: '10px 10px 0 0', border: '1px solid #e2e8f0', fontSize: '0.85rem', boxSizing: 'border-box', outline: 'none' }}
+                                    style={{ width: '100%', padding: '0.75rem 0.85rem', border: 'none', borderBottom: '1px solid #e2e8f0', fontSize: '0.85rem', boxSizing: 'border-box', outline: 'none' }}
                                   />
-                                  <select
-                                    value={newProduct.category_id}
-                                    onChange={e => {
-                                      const catId = e.target.value;
-                                      setNewProduct({ ...newProduct, category_id: catId, sub_category_id: '' });
-                                      setFieldErrors({ ...fieldErrors, category_id: null });
-                                      setCategorySearch('');
-                                    }}
-                                    className={fieldErrors.category_id ? 'form-error-input' : ''}
-                                    size={Math.min(6, categories.filter(c => !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase())).length + 1)}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0 0 10px 10px', border: '1px solid #e2e8f0', borderTop: 'none', backgroundColor: 'white', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                                  >
-                                    <option value="">Select Category</option>
+                                  {newProduct.category_ids.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', padding: '0.6rem 0.75rem', borderBottom: '1px solid #f1f5f4', backgroundColor: '#f8faf9' }}>
+                                      {newProduct.category_ids.map(cid => {
+                                        const c = categories.find(x => String(x.id) === String(cid));
+                                        if (!c) return null;
+                                        return (
+                                          <span key={cid} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.55rem', backgroundColor: '#1b2d2a', color: 'white', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700 }}>
+                                            {c.name}
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const remainingCats = newProduct.category_ids.filter(x => String(x) !== String(cid));
+                                                const allowedSubs = new Set(
+                                                  remainingCats.flatMap(rc => (categories.find(cc => String(cc.id) === String(rc))?.subcategories || []).map(s => String(s.id)))
+                                                );
+                                                setNewProduct({
+                                                  ...newProduct,
+                                                  category_ids: remainingCats,
+                                                  sub_category_ids: newProduct.sub_category_ids.filter(sid => allowedSubs.has(String(sid))),
+                                                });
+                                              }}
+                                              style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1, padding: 0 }}
+                                              aria-label={`Remove ${c.name}`}
+                                            >×</button>
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                  <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'white' }}>
                                     {categories
                                       .filter(c => !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase()))
-                                      .map(cat => (
-                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                      ))
-                                    }
-                                  </select>
+                                      .map(cat => {
+                                        const checked = newProduct.category_ids.some(x => String(x) === String(cat.id));
+                                        return (
+                                          <label key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.55rem 0.85rem', cursor: 'pointer', fontSize: '0.85rem', borderBottom: '1px solid #f8faf9', backgroundColor: checked ? '#f0fdf4' : 'white' }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={checked}
+                                              onChange={e => {
+                                                const id = String(cat.id);
+                                                let next;
+                                                if (e.target.checked) {
+                                                  next = [...newProduct.category_ids, id];
+                                                } else {
+                                                  next = newProduct.category_ids.filter(x => String(x) !== id);
+                                                }
+                                                const allowedSubs = new Set(
+                                                  next.flatMap(rc => (categories.find(cc => String(cc.id) === String(rc))?.subcategories || []).map(s => String(s.id)))
+                                                );
+                                                setNewProduct({
+                                                  ...newProduct,
+                                                  category_ids: next,
+                                                  sub_category_ids: newProduct.sub_category_ids.filter(sid => allowedSubs.has(String(sid))),
+                                                });
+                                                setFieldErrors({ ...fieldErrors, category_ids: null });
+                                              }}
+                                              style={{ cursor: 'pointer' }}
+                                            />
+                                            <span>{cat.name}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    {categories.filter(c => !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
+                                      <div style={{ padding: '0.85rem', color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center' }}>No categories match.</div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
 
                               <div>
-                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Sub Category <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span></label>
-                                <select
-                                  value={newProduct.sub_category_id}
-                                  onChange={e => setNewProduct({ ...newProduct, sub_category_id: e.target.value })}
-                                  disabled={!newProduct.category_id}
-                                  style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: newProduct.category_id ? 'white' : '#f8fafc', fontSize: '0.9rem', color: newProduct.category_id ? '#1b2d2a' : '#94a3b8', cursor: newProduct.category_id ? 'pointer' : 'not-allowed' }}
-                                >
-                                  <option value="">{newProduct.category_id ? 'Select Sub Category' : 'Select a category first'}</option>
-                                  {categories.find(c => String(c.id) === String(newProduct.category_id))?.subcategories?.map(sub => (
-                                    <option key={sub.id} value={sub.id}>{sub.name}</option>
-                                  ))}
-                                </select>
+                                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Sub Categories <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional, multi-select)</span></label>
+                                {(() => {
+                                  const availableSubs = newProduct.category_ids.flatMap(cid => {
+                                    const c = categories.find(x => String(x.id) === String(cid));
+                                    return (c?.subcategories || []).map(s => ({ ...s, _parent: c?.name }));
+                                  });
+                                  if (newProduct.category_ids.length === 0) {
+                                    return (
+                                      <div style={{ padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '0.85rem', color: '#94a3b8' }}>
+                                        Select at least one category to choose sub-categories.
+                                      </div>
+                                    );
+                                  }
+                                  if (availableSubs.length === 0) {
+                                    return (
+                                      <div style={{ padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '0.85rem', color: '#94a3b8' }}>
+                                        No sub-categories available for the selected categories.
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+                                      {newProduct.sub_category_ids.length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', padding: '0.6rem 0.75rem', borderBottom: '1px solid #f1f5f4', backgroundColor: '#f8faf9' }}>
+                                          {newProduct.sub_category_ids.map(sid => {
+                                            const sub = availableSubs.find(s => String(s.id) === String(sid));
+                                            if (!sub) return null;
+                                            return (
+                                              <span key={sid} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.55rem', backgroundColor: '#e7f5ee', color: '#166534', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700 }}>
+                                                {sub.name}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setNewProduct({ ...newProduct, sub_category_ids: newProduct.sub_category_ids.filter(x => String(x) !== String(sid)) })}
+                                                  style={{ background: 'transparent', border: 'none', color: '#166534', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1, padding: 0 }}
+                                                  aria-label={`Remove ${sub.name}`}
+                                                >×</button>
+                                              </span>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                      <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'white' }}>
+                                        {availableSubs.map(sub => {
+                                          const checked = newProduct.sub_category_ids.some(x => String(x) === String(sub.id));
+                                          return (
+                                            <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.55rem 0.85rem', cursor: 'pointer', fontSize: '0.85rem', borderBottom: '1px solid #f8faf9', backgroundColor: checked ? '#f0fdf4' : 'white' }}>
+                                              <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={e => {
+                                                  const id = String(sub.id);
+                                                  if (e.target.checked) {
+                                                    setNewProduct({ ...newProduct, sub_category_ids: [...newProduct.sub_category_ids, id] });
+                                                  } else {
+                                                    setNewProduct({ ...newProduct, sub_category_ids: newProduct.sub_category_ids.filter(x => String(x) !== id) });
+                                                  }
+                                                }}
+                                                style={{ cursor: 'pointer' }}
+                                              />
+                                              <span>{sub.name} <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>· {sub._parent}</span></span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
 
                               <div>
