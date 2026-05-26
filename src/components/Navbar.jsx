@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck, Trophy, ArrowRight, Bug } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 
-const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
+const COMPETITION_LAUNCH = new Date('2026-06-01T00:00:00+05:30');
 
 function TopBar() {
   const isOpen = Date.now() < COMPETITION_LAUNCH.getTime();

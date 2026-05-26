@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin, Trophy, Clock } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 
-const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
+const COMPETITION_LAUNCH = new Date('2026-06-01T00:00:00+05:30');
 
 const COMPETITION_SLIDE = {
   id: '__competition',

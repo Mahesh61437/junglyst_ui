@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Trophy } from 'lucide-react';
 
-const LAUNCH_DATE = new Date('2026-05-25T00:00:00+05:30');
+const LAUNCH_DATE = new Date('2026-06-01T00:00:00+05:30');
 
 const ITEMS = [
   { type: 'icon' },
@@ -13,7 +13,7 @@ const ITEMS = [
   { type: 'dot' },
   { type: 'text', text: 'Submit Photos of Your Build' },
   { type: 'dot' },
-  { type: 'text', text: 'Winner Announced May 25, 2026' },
+  { type: 'text', text: 'Winner Announced June 1, 2026' },
   { type: 'dot' },
   { type: 'cta', text: 'Register Now →' },
   { type: 'dot' },

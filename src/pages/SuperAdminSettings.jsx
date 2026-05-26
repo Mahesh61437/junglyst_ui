@@ -42,15 +42,6 @@ export default function SuperAdminSettings() {
   const [error, setError] = useState('');
   const [deletingName, setDeletingName] = useState(null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user || (!user.is_staff && !user.is_superuser)) {
-      navigate('/');
-      return;
-    }
-    fetchConfigs();
-  }, [user, authLoading, navigate]);
-
   const fetchConfigs = useCallback(async () => {
     setLoading(true);
     try {
@@ -63,6 +54,15 @@ export default function SuperAdminSettings() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || (!user.is_staff && !user.is_superuser)) {
+      navigate('/');
+      return;
+    }
+    fetchConfigs();
+  }, [user, authLoading, navigate, fetchConfigs]);
 
   const openCreate = () => {
     setName('');
@@ -88,7 +88,7 @@ export default function SuperAdminSettings() {
     let parsed;
     try {
       parsed = jsonText.trim() === '' ? {} : JSON.parse(jsonText);
-    } catch (e) {
+    } catch {
       setError('Value is not valid JSON.');
       return;
     }
