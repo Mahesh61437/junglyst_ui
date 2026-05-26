@@ -432,23 +432,23 @@ export const CartProvider = ({ children }) => {
         if (updatedCart.id) setCartId(updatedCart.id);
         const newItems = normalizeItems(updatedCart.items || []);
         await fetchShippingConfigs(newItems);
-        // SHIP-003: real check after backend confirms
-        const realGroups = Object.keys(calculateFinancials(newItems, null, shippingConfigsRef.current).seller_groups);
-        if (realGroups.length > MAX_SELLERS) {
-          const addedItem = newItems.find(i =>
-            i.product?.id === productId && (!variantId || i.variant?.id === variantId)
-          );
-          if (addedItem) {
-            await CartService.updateItem(addedItem.id, existing ? existing.quantity : 0);
-          }
-          const revertedCart = await CartService.getCart();
-          recalc(normalizeItems(revertedCart.items || []), deliveryZoneRef.current);
-          showToast('Your cart supports up to 3 sellers. Remove an item to add from a new seller.', 'warning');
-          return false;
-        }
         recalc(newItems, deliveryZoneRef.current);
       } catch (error) {
-        console.error('Backend sync failed:', error);
+        // Roll back the optimistic update by re-syncing with server.
+        // Surface the server's error message (e.g. SHIP-003 3-seller cap, stock) as a toast.
+        const serverMsg = error?.response?.data?.error;
+        try {
+          const revertedCart = await CartService.getCart();
+          recalc(normalizeItems(revertedCart.items || []), deliveryZoneRef.current);
+        } catch {
+          // ignore — leave optimistic state; next sync will reconcile
+        }
+        if (serverMsg) {
+          showToast(serverMsg, 'warning');
+        } else {
+          console.error('Backend sync failed:', error);
+        }
+        return false;
       }
     }
     return true;

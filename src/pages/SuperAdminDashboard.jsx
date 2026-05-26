@@ -24,8 +24,31 @@ const selectStyle = { ...inputStyle, backgroundColor: 'white', cursor: 'pointer'
 // ─── ProductForm ─────────────────────────────────────────────────────────────
 // Shared form body used inside both Create and Edit product modals.
 function ProductForm({ form, setForm, categories, sellers, mode }) {
-  const selectedCat = categories.find(c => String(c.id) === String(form.category_id));
-  const subCats = selectedCat?.subcategories || [];
+  const selectedCategoryIds = form.category_ids || [];
+  const selectedSubCategoryIds = form.sub_category_ids || [];
+  const selectedCats = selectedCategoryIds
+    .map(id => categories.find(c => String(c.id) === String(id)))
+    .filter(Boolean);
+  const subCatOptions = selectedCats.flatMap(c => (c.subcategories || []).map(s => ({ ...s, _parent: c.name })));
+
+  const toggle = (key, id) => {
+    setForm(f => {
+      const current = (f[key] || []).map(String);
+      const sid = String(id);
+      const next = current.includes(sid) ? current.filter(x => x !== sid) : [...current, sid];
+      if (key === 'category_ids') {
+        const allowedSubs = new Set(
+          next.flatMap(cid => {
+            const c = categories.find(x => String(x.id) === String(cid));
+            return (c?.subcategories || []).map(s => String(s.id));
+          })
+        );
+        const filteredSubs = (f.sub_category_ids || []).filter(s => allowedSubs.has(String(s)));
+        return { ...f, category_ids: next, sub_category_ids: filteredSubs };
+      }
+      return { ...f, [key]: next };
+    });
+  };
 
   const field = (key, label, type = 'text', opts = {}) => (
     <div key={key}>
@@ -107,30 +130,41 @@ function ProductForm({ form, setForm, categories, sellers, mode }) {
         ])}
       </div>
 
-      {/* Category */}
+      {/* Categories — multi-select */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
         <div>
-          <label style={labelStyle}>Category</label>
-          <select
-            value={form.category_id || ''}
-            onChange={e => setForm(f => ({ ...f, category_id: e.target.value, sub_category_id: '' }))}
-            style={selectStyle}
-          >
-            <option value="">— none —</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <label style={labelStyle}>Categories <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(multi)</span></label>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', maxHeight: '170px', overflowY: 'auto', backgroundColor: 'white' }}>
+            {categories.length === 0 ? (
+              <div style={{ padding: '0.6rem 0.75rem', fontSize: '0.78rem', color: '#94a3b8' }}>No categories.</div>
+            ) : categories.map(c => {
+              const checked = selectedCategoryIds.some(x => String(x) === String(c.id));
+              return (
+                <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 0.65rem', fontSize: '0.82rem', cursor: 'pointer', backgroundColor: checked ? '#f0fdf4' : 'white', borderBottom: '1px solid #f8faf9' }}>
+                  <input type="checkbox" checked={checked} onChange={() => toggle('category_ids', c.id)} />
+                  <span>{c.name}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
         <div>
-          <label style={labelStyle}>Subcategory</label>
-          <select
-            value={form.sub_category_id || ''}
-            onChange={e => setForm(f => ({ ...f, sub_category_id: e.target.value }))}
-            style={selectStyle}
-            disabled={!subCats.length}
-          >
-            <option value="">— none —</option>
-            {subCats.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <label style={labelStyle}>Subcategories <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(multi)</span></label>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', maxHeight: '170px', overflowY: 'auto', backgroundColor: subCatOptions.length ? 'white' : '#f8fafc' }}>
+            {selectedCategoryIds.length === 0 ? (
+              <div style={{ padding: '0.6rem 0.75rem', fontSize: '0.78rem', color: '#94a3b8' }}>Pick a category first.</div>
+            ) : subCatOptions.length === 0 ? (
+              <div style={{ padding: '0.6rem 0.75rem', fontSize: '0.78rem', color: '#94a3b8' }}>No subcategories available.</div>
+            ) : subCatOptions.map(s => {
+              const checked = selectedSubCategoryIds.some(x => String(x) === String(s.id));
+              return (
+                <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 0.65rem', fontSize: '0.82rem', cursor: 'pointer', backgroundColor: checked ? '#f0fdf4' : 'white', borderBottom: '1px solid #f8faf9' }}>
+                  <input type="checkbox" checked={checked} onChange={() => toggle('sub_category_ids', s.id)} />
+                  <span>{s.name} <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>· {s._parent}</span></span>
+                </label>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -424,8 +458,10 @@ export default function SuperAdminDashboard() {
       is_rare: product.is_rare || false,
       is_active: product.is_active !== false,
       seller_id: product.seller?.id || '',
-      category_id: product.categories?.[0]?.id || '',
-      sub_category_id: product.sub_category?.id || '',
+      category_ids: (product.categories || []).map(c => String(c.id)),
+      sub_category_ids: (product.sub_categories && product.sub_categories.length > 0)
+        ? product.sub_categories.map(s => String(s.id))
+        : (product.sub_category?.id ? [String(product.sub_category.id)] : []),
       base_price: product.base_price || '',
       gst_rate: product.gst_rate || 0,
       commission_rate: product.commission_rate || 10,
@@ -451,8 +487,8 @@ export default function SuperAdminDashboard() {
         is_active: editProductForm.is_active,
       };
       if (editProductForm.seller_id) payload.seller_id = editProductForm.seller_id;
-      if (editProductForm.category_id) payload.category_id = Number(editProductForm.category_id);
-      if (editProductForm.sub_category_id) payload.sub_category_id = Number(editProductForm.sub_category_id);
+      payload.category_ids = (editProductForm.category_ids || []).map(Number).filter(Boolean);
+      payload.sub_category_ids = (editProductForm.sub_category_ids || []).map(Number).filter(Boolean);
 
       // Update first variant pricing if provided
       if (editingProduct.variants?.length > 0 && editProductForm.base_price !== '') {
@@ -502,8 +538,8 @@ export default function SuperAdminDashboard() {
       co2_requirement: 'Low',
       is_rare: false,
       is_active: true,
-      category_id: '',
-      sub_category_id: '',
+      category_ids: [],
+      sub_category_ids: [],
       base_price: '',
       gst_rate: 0,
       commission_rate: 10,
@@ -541,9 +577,8 @@ export default function SuperAdminDashboard() {
           height: 10,
         }],
       };
-      if (payload.category_id) payload.category_id = Number(payload.category_id);
-      if (payload.sub_category_id) payload.sub_category_id = Number(payload.sub_category_id);
-      delete payload.category_id_empty;
+      payload.category_ids = (payload.category_ids || []).map(Number).filter(Boolean);
+      payload.sub_category_ids = (payload.sub_category_ids || []).map(Number).filter(Boolean);
 
       const res = await api.post('/core/products/admin-create/', payload);
 
@@ -1230,11 +1265,11 @@ export default function SuperAdminDashboard() {
             {promoSellers.map(profile => (
               <div key={profile.id} style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ height: '80px', backgroundColor: profile.brand_color || 'var(--bg-deep)', backgroundImage: profile.banner_url ? `url(${profile.banner_url})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }}>
-                  {(profile.icon_url || profile.logo_url) && (
-                    <img src={profile.icon_url || profile.logo_url} alt="" style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
+                  {profile.icon_url && (
+                    <img src={profile.icon_url} alt={`${profile.store_name} icon`} style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
                   )}
                 </div>
-                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: (profile.icon_url || profile.logo_url) ? '1.75rem' : '1.25rem' }}>
+                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: profile.icon_url ? '1.75rem' : '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <p style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--bg-deep)', margin: '0 0 0.15rem' }}>{profile.store_name}</p>

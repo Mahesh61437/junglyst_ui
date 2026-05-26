@@ -4,7 +4,7 @@ import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Awar
 import SEO from '../components/SEO';
 import api from '../services/api';
 
-const LAUNCH_DATE = new Date('2026-05-25T00:00:00+05:30');
+const LAUNCH_DATE = new Date('2026-06-01T00:00:00+05:30');
 const MAX_ENTRIES = 500;
 const DEFAULT_RESULT_DATE_LABEL = 'soon';
 

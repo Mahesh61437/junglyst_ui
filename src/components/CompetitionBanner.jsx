@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Trophy, ArrowRight } from 'lucide-react';
 
-const LAUNCH_DATE = new Date('2026-05-25T00:00:00+05:30');
+const LAUNCH_DATE = new Date('2026-06-01T00:00:00+05:30');
 const STORAGE_KEY = 'junglyst_competition_banner_dismissed';
 
 function useCountdown(target) {

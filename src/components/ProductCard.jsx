@@ -6,7 +6,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
 import { trackAddToCart, trackAddToWishlist } from '../utils/analytics';
 
-export default function ProductCard({ id, slug, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants, stock }) {
+export default function ProductCard({ id, slug, name, scientific_name, care_level, origin, growth_rate, price, originalPrice, image, trending, reviews, stockStatus, seller, brandColor, variants, stock, category, categories, category_name }) {
   const productPath = `/product/${slug || id}`;
   const { addItemToCart, updateItemQuantity, removeItem, cart } = useCart();
   const navigate = useNavigate();
@@ -33,6 +33,18 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const stockLimit = Number.isFinite(calculatedStock) ? calculatedStock : null;
   const isSoldOut = stockLimit !== null && stockLimit <= 0;
   const isLowStock = stockLimit !== null && stockLimit > 0 && stockLimit < 10;
+
+  const parentCategoryName = (
+    (typeof category === 'string' ? category : category?.name) ||
+    categories?.[0]?.name ||
+    ''
+  ).toLowerCase();
+  const subCategoryName = (category_name || '').toLowerCase();
+  // Care-level rating only makes sense for aquatic plants — gate on the
+  // parent category (e.g. "Aquatic Plants") OR a subcategory tagged aquatic
+  // (e.g. "Aquatic Ferns") so mistagged-by-parent items still show correctly.
+  const isAquaticPlant =
+    parentCategoryName.includes('aquatic') || subCategoryName.includes('aquatic');
 
   const sellerName = sellerInfo.store_name || seller?.full_name || 'Junglyst';
   const sellerSlug = sellerInfo.slug || encodeURIComponent(sellerName);
@@ -92,14 +104,11 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
           {trending && (
             <span style={{ backgroundColor: '#FF5722', color: 'white', fontSize: '0.58rem', fontWeight: 900, padding: '0.25rem 0.6rem', borderRadius: '50px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trending</span>
           )}
-          {care_level && (
+          {care_level && isAquaticPlant && (
             <span style={{ backgroundColor: 'rgba(10,48,41,0.82)', backdropFilter: 'blur(6px)', color: 'white', fontSize: '0.55rem', fontWeight: 800, padding: '0.25rem 0.55rem', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{care_level}</span>
           )}
           {isSoldOut && (
             <span style={{ backgroundColor: 'rgba(239,68,68,0.9)', color: 'white', fontSize: '0.58rem', fontWeight: 900, padding: '0.25rem 0.6rem', borderRadius: '50px', textTransform: 'uppercase' }}>Sold Out</span>
-          )}
-          {isLowStock && !isSoldOut && (
-            <span style={{ backgroundColor: 'rgba(245,158,11,0.9)', color: 'white', fontSize: '0.58rem', fontWeight: 900, padding: '0.25rem 0.6rem', borderRadius: '50px', textTransform: 'uppercase' }}>Only {stockLimit} left</span>
           )}
         </div>
 
@@ -153,6 +162,20 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
 
         {/* Spacer pushes footer to bottom */}
         <div style={{ flexGrow: 1 }} />
+
+        {/* Low-stock urgency banner — sits right above the buy action */}
+        {isLowStock && !isSoldOut && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            backgroundColor: '#fff7ed', border: '1px solid #fed7aa',
+            color: '#c2410c', fontSize: '0.68rem', fontWeight: 800,
+            letterSpacing: '0.02em', padding: '0.4rem 0.6rem',
+            borderRadius: '8px', marginBottom: '0.6rem'
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ea580c', flexShrink: 0, animation: 'pc-pulse 1.6s ease-in-out infinite' }} />
+            Only {stockLimit} left in stock
+          </div>
+        )}
 
         {/* ── Footer: price + cart action ──────────────────────────────── */}
         <div className="product-card-footer" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
@@ -226,6 +249,7 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
       </div>
 
       <style>{`
+        @keyframes pc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .product-card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(0,0,0,0.09); }
         .product-card:hover .pc-img { transform: scale(1.06); }
         @media (max-width: 640px) {

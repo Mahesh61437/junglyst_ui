@@ -50,9 +50,17 @@ export default function SellerOnboardingPreview({ formData }) {
             </span>
           </div>
 
-          <h1 style={{ fontSize: '1.75rem', fontFamily: 'serif', lineHeight: 1.1, marginBottom: '0.5rem' }}>
-             {formData.storeName || 'Your Studio Name'}
-          </h1>
+          {formData.logoUrl ? (
+            <img
+              src={formData.logoUrl}
+              alt={formData.storeName || 'Your Studio Name'}
+              style={{ maxHeight: '44px', maxWidth: '220px', objectFit: 'contain', display: 'block', marginBottom: '0.5rem', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
+            />
+          ) : (
+            <h1 style={{ fontSize: '1.75rem', fontFamily: 'serif', lineHeight: 1.1, marginBottom: '0.5rem' }}>
+               {formData.storeName || 'Your Studio Name'}
+            </h1>
+          )}
 
           <p style={{ fontSize: '0.75rem', color: '#E5C48B', fontWeight: 500, marginBottom: '1.5rem' }}>
             {formData.tagline || 'Your botanical signature...'}
@@ -96,8 +104,8 @@ export default function SellerOnboardingPreview({ formData }) {
           justifyContent: 'center',
           overflow: 'hidden'
         }}>
-          {formData.logoUrl ? (
-            <img src={formData.logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {(formData.iconUrl || formData.logoUrl) ? (
+            <img src={formData.iconUrl || formData.logoUrl} alt={`${formData.storeName || 'Store'} icon`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             <Leaf size={32} color={brandColor} />
           )}

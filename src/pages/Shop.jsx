@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { trackSearch } from '../utils/analytics';
 import SEO from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +22,18 @@ export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState(_saved?.sortBy || 'Featured');
+
+  // ── Page lives in the URL (?page=2) so it survives refresh, sharing, and
+  //    opening in multiple tabs.  Page 1 is the clean URL (no param).
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const setPage = useCallback((newPage) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (newPage <= 1) next.delete('page');
+      else next.set('page', String(newPage));
+      return next;
+    });
+  }, [setSearchParams]);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   useEffect(() => {
@@ -54,7 +66,6 @@ export default function Shop() {
   const [minPrice, setMinPrice] = useState(_saved?.minPrice || '');
   const [maxPrice, setMaxPrice] = useState(_saved?.maxPrice || '');
   const [selectedSubCat, setSelectedSubCat] = useState(_saved?.selectedSubCat || '');
-  const [page, setPage] = useState(_saved?.page || 1);
 
   const { data: categoryData = [] } = useQuery({
     queryKey: ['categories'],
@@ -74,8 +85,8 @@ export default function Shop() {
 
   // Persist filter state to sessionStorage so back navigation can restore it
   useEffect(() => {
-    sessionStorage.setItem('shopFilters', JSON.stringify({ categories, difficulties, page, sortBy, inStock, minPrice, maxPrice, selectedSubCat }));
-  }, [categories, difficulties, page, sortBy, inStock, minPrice, maxPrice, selectedSubCat]);
+    sessionStorage.setItem('shopFilters', JSON.stringify({ categories, difficulties, sortBy, inStock, minPrice, maxPrice, selectedSubCat }));
+  }, [categories, difficulties, sortBy, inStock, minPrice, maxPrice, selectedSubCat]);
 
   const gridRef = useRef(null);
   const isFirstRender = useRef(true);
@@ -100,12 +111,13 @@ export default function Shop() {
   const sortParam = useMemo(() => {
     if (sortBy === 'Price: Low to High') return 'price';
     if (sortBy === 'Price: High to Low') return '-price';
-    return '-rating'; // Featured → sort by rating desc
+    return null; // Featured → no ordering param → backend uses seller-fair feed
   }, [sortBy]);
 
   // Build the full params object sent to the API
   const apiParams = useMemo(() => {
-    const p = { page, ordering: sortParam };
+    const p = { page };
+    if (sortParam) p.ordering = sortParam;   // omit entirely for Featured
     if (searchTerm.trim()) p.search = searchTerm.trim();
     if (activeCats.length > 0) p.category = activeCats.join(',');
     if (activeDiffs.length > 0) p.care_level = activeDiffs.join(',');
@@ -445,9 +457,50 @@ export default function Shop() {
       {/* ── Page Header ── */}
       <div style={{ marginBottom: '3rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <h1 style={{ fontSize: '2.25rem', fontFamily: 'var(--font-serif)', margin: '0 0 0.5rem 0' }}>
-            The Collection
-          </h1>
+          {searchTerm ? (
+            <>
+              <p style={{
+                fontSize: '0.65rem', fontWeight: 800, color: 'var(--brand-gold)',
+                textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0,
+              }}>
+                Search Results
+              </p>
+              <h1 style={{ fontSize: '2.25rem', fontFamily: 'var(--font-serif)', margin: '0 0 0.25rem 0' }}>
+                Results for "{searchTerm}"
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 600 }}>
+                  {isFetching && !isLoading
+                    ? 'Updating…'
+                    : `${totalCount} match${totalCount !== 1 ? 'es' : ''} found`}
+                </span>
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSearchParams(prev => {
+                      const next = new URLSearchParams(prev);
+                      next.delete('search');
+                      next.delete('page');
+                      return next;
+                    });
+                  }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                    padding: '0.3rem 0.75rem', borderRadius: '100px',
+                    border: '1px solid #e2e8f0', backgroundColor: 'white',
+                    fontSize: '0.7rem', fontWeight: 700, color: '#374151',
+                    cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  <X size={11} /> Clear search
+                </button>
+              </div>
+            </>
+          ) : (
+            <h1 style={{ fontSize: '2.25rem', fontFamily: 'var(--font-serif)', margin: '0 0 0.5rem 0' }}>
+              The Collection
+            </h1>
+          )}
 
           <div style={{ display: 'flex', gap: '0.5rem', width: '100%', alignItems: 'center' }}>
             {/* Mobile filter trigger */}

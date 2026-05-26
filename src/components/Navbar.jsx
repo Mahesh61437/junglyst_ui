@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Search, ShoppingCart, User, Menu, Heart, LogOut, X, ChevronRight, Store, LayoutDashboard, Package, Bell, ShieldCheck, SlidersHorizontal, MapPin, Truck, Trophy, ArrowRight, Bug } from 'lucide-react';
+import { ProductService } from '../services/ProductService';
 
-const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
+const COMPETITION_LAUNCH = new Date('2026-06-01T00:00:00+05:30');
 
 function TopBar() {
   const isOpen = Date.now() < COMPETITION_LAUNCH.getTime();
@@ -84,7 +86,10 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(new URLSearchParams(location.search).get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const profileRef = useRef(null);
+  const searchRef = useRef(null);
 
   const isGrower = user?.is_staff && (user?.role === 'grower' || user?.role === 'admin');
 
@@ -99,27 +104,22 @@ export default function Navbar() {
     setIsProfileOpen(false);
   }, [location]);
 
-  // Debounce search input
+  // Debounce raw input into a search-preview query (no URL navigation here).
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(location.search);
-      const currentSearch = params.get('search') || '';
-      
-      if (searchInput !== currentSearch) {
-        if (searchInput) {
-          params.set('search', searchInput);
-        } else {
-          params.delete('search');
-        }
-        // Only navigate if we are on shop page or if there's actually something to search
-        if (location.pathname.startsWith('/shop') || searchInput) {
-          navigate(`/shop?${params.toString()}`);
-        }
-      }
-    }, 400);
-
+    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 250);
     return () => clearTimeout(timer);
-  }, [searchInput, navigate, location.pathname]);
+  }, [searchInput]);
+
+  // Live preview results for dropdown — only fires when input has content.
+  const { data: previewData, isFetching: isPreviewLoading } = useQuery({
+    queryKey: ['navbar-search-preview', debouncedSearch],
+    queryFn: () => ProductService.getProducts({ search: debouncedSearch, page: 1 }),
+    enabled: !!debouncedSearch,
+    staleTime: 30_000,
+    keepPreviousData: true,
+  });
+  const previewResults = (previewData?.results || []).slice(0, 5);
+  const previewTotal = previewData?.count ?? 0;
 
   // Sync input with URL if it changes externally (e.g. back button)
   useEffect(() => {
@@ -128,6 +128,30 @@ export default function Navbar() {
       setSearchInput(query);
     }
   }, [location.search]);
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close search dropdown on navigation
+  useEffect(() => { setIsSearchOpen(false); }, [location.pathname, location.search]);
+
+  const commitSearch = (q) => {
+    const trimmed = (q ?? searchInput).trim();
+    setIsSearchOpen(false);
+    if (trimmed) {
+      navigate(`/shop?search=${encodeURIComponent(trimmed)}`);
+    } else {
+      navigate('/shop');
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -178,22 +202,122 @@ export default function Navbar() {
           >
             <Menu size={24} />
           </button>
-          <div style={{ position: 'relative', width: '280px' }}>
-            <input
-              type="text"
-              placeholder="Search Junglyst..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              style={{
-                width: '100%', padding: '0.6rem 0.5rem 0.6rem 2.5rem',
-                border: 'none', borderBottom: '1px solid var(--border-subtle)',
-                fontSize: '0.9rem', outline: 'none', backgroundColor: 'transparent',
-                transition: 'border-color var(--transition-fast)'
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--brand-gold)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
-            />
-            <Search size={18} style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+          <div ref={searchRef} style={{ position: 'relative', width: '280px' }}>
+            <form
+              onSubmit={(e) => { e.preventDefault(); commitSearch(); }}
+              style={{ position: 'relative' }}
+            >
+              <input
+                type="text"
+                placeholder="Search Junglyst..."
+                value={searchInput}
+                onChange={(e) => { setSearchInput(e.target.value); setIsSearchOpen(true); }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'var(--brand-gold)';
+                  if (searchInput.trim()) setIsSearchOpen(true);
+                }}
+                onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; }}
+                style={{
+                  width: '100%', padding: '0.6rem 0.5rem 0.6rem 2.5rem',
+                  border: 'none', borderBottom: '1px solid var(--border-subtle)',
+                  fontSize: '0.9rem', outline: 'none', backgroundColor: 'transparent',
+                  transition: 'border-color var(--transition-fast)'
+                }}
+              />
+              <Search size={18} style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchInput(''); setIsSearchOpen(false); }}
+                  aria-label="Clear search"
+                  style={{
+                    position: 'absolute', right: '0.25rem', top: '50%', transform: 'translateY(-50%)',
+                    background: '#f1f5f9', border: 'none', borderRadius: '50%',
+                    width: '20px', height: '20px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#64748b'
+                  }}
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </form>
+
+            {/* Dropdown — only when input has content and is open */}
+            {isSearchOpen && debouncedSearch && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0,
+                backgroundColor: 'white', borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.12)',
+                overflow: 'hidden', zIndex: 100,
+              }}>
+                {isPreviewLoading && previewResults.length === 0 ? (
+                  <div style={{ padding: '1.25rem 1rem', textAlign: 'center', fontSize: '0.8rem', color: '#9ca3af' }}>
+                    Searching…
+                  </div>
+                ) : previewResults.length === 0 ? (
+                  <div style={{ padding: '1.25rem 1rem', textAlign: 'center', fontSize: '0.8rem', color: '#9ca3af' }}>
+                    No matches for "{debouncedSearch}"
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
+                    {previewResults.map(p => {
+                      const img = getImageUrl(p.image);
+                      return (
+                        <Link
+                          key={p.id}
+                          to={`/product/${p.slug || p.id}`}
+                          onClick={() => setIsSearchOpen(false)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.65rem',
+                            padding: '0.55rem 0.75rem', textDecoration: 'none',
+                            color: 'var(--text-primary)', borderBottom: '1px solid #f1f5f1',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <div style={{
+                            width: '40px', height: '40px', borderRadius: '8px',
+                            backgroundColor: '#f1f5f1', flexShrink: 0, overflow: 'hidden',
+                          }}>
+                            {img && (
+                              <img src={img} alt={p.name}
+                                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              fontSize: '0.82rem', fontWeight: 600,
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }}>{p.name}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                              ₹{Number(p.price).toLocaleString('en-IN')}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => commitSearch()}
+                  style={{
+                    width: '100%', padding: '0.7rem 1rem',
+                    backgroundColor: 'var(--bg-deep)', color: 'white',
+                    border: 'none', cursor: 'pointer',
+                    fontSize: '0.75rem', fontWeight: 800,
+                    textTransform: 'uppercase', letterSpacing: '0.1em',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                  }}
+                >
+                  View All {previewTotal > 0 ? `(${previewTotal})` : ''} <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

@@ -9,7 +9,7 @@ import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'luc
 import HeroCarousel from '../components/HeroCarousel';
 import api from '../services/api';
 
-const COMPETITION_LAUNCH = new Date('2026-05-25T00:00:00+05:30');
+const COMPETITION_LAUNCH = new Date('2026-06-01T00:00:00+05:30');
 
 function useCompetitionCountdown() {
   const [timeLeft, setTimeLeft] = useState(getLeft);
@@ -69,7 +69,7 @@ function CompetitionPromo() {
               Aquascape<br />Competition 2026
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontSize: '0.88rem', margin: '0 0 1.5rem', maxWidth: '380px' }}>
-              Show off the aquascape you've built. Submit photos, tell your story, and win <strong style={{ color: '#c9972b' }}>₹1,000</strong>. Winner announced on May 25, 2026.
+              Show off the aquascape you've built. Submit photos, tell your story, and win <strong style={{ color: '#c9972b' }}>₹1,000</strong>. Winner announced on June 1, 2026.
             </p>
             <Link
               to="/competition"
@@ -220,7 +220,7 @@ function FeaturedSellers({ sellers }) {
                     {/* Icon / logo badge */}
                     <div style={{ position: 'absolute', bottom: '-20px', left: '1.25rem', width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'white', padding: '3px', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', overflow: 'hidden', border: '2px solid white' }}>
                       <img
-                        src={getImageUrl(s.icon_url || s.logo_url) || '/assets/default-logo.jpg'}
+                        src={getImageUrl(s.icon_url) || '/assets/default-logo.jpg'}
                         alt={s.store_name}
                         onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
                         style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '9px' }}
@@ -386,7 +386,7 @@ export default function Home() {
                 care_level={p.care_level} origin={p.origin} growth_rate={p.growth_rate}
                 price={p.price} originalPrice={p.compare_at_price} image={p.image}
                 trending={p.is_trending} reviews={p.rating} stock={p.stock}
-                variants={p.variants} seller={p.seller} />
+                variants={p.variants} seller={p.seller} category={p.category} />
             ))}
           </div>
         )}
