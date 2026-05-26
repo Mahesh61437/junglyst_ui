@@ -220,7 +220,7 @@ function FeaturedSellers({ sellers }) {
                     {/* Icon / logo badge */}
                     <div style={{ position: 'absolute', bottom: '-20px', left: '1.25rem', width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'white', padding: '3px', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', overflow: 'hidden', border: '2px solid white' }}>
                       <img
-                        src={getImageUrl(s.icon_url || s.logo_url) || '/assets/default-logo.jpg'}
+                        src={getImageUrl(s.icon_url) || '/assets/default-logo.jpg'}
                         alt={s.store_name}
                         onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
                         style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '9px' }}

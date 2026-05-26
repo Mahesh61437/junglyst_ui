@@ -1203,11 +1203,11 @@ export default function SuperAdminDashboard() {
             {promoSellers.map(profile => (
               <div key={profile.id} style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ height: '80px', backgroundColor: profile.brand_color || 'var(--bg-deep)', backgroundImage: profile.banner_url ? `url(${profile.banner_url})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }}>
-                  {(profile.icon_url || profile.logo_url) && (
-                    <img src={profile.icon_url || profile.logo_url} alt="" style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
+                  {profile.icon_url && (
+                    <img src={profile.icon_url} alt={`${profile.store_name} icon`} style={{ position: 'absolute', bottom: '-20px', left: '1rem', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', objectFit: 'cover', backgroundColor: 'white' }} />
                   )}
                 </div>
-                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: (profile.icon_url || profile.logo_url) ? '1.75rem' : '1.25rem' }}>
+                <div style={{ padding: '1.5rem 1.25rem 1rem', paddingTop: profile.icon_url ? '1.75rem' : '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <p style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--bg-deep)', margin: '0 0 0.15rem' }}>{profile.store_name}</p>

@@ -1641,16 +1641,25 @@ export default function SellerDashboard() {
                         <div style={{
                           width: '80px', height: '80px', backgroundColor: 'white', borderRadius: '20px',
                           padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+                          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                          overflow: 'hidden'
                         }}>
-                          {spotlight.logo_url ? (
-                            <img src={getImageUrl(spotlight.logo_url)} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '15px' }} />
+                          {(spotlight.icon_url || spotlight.logo_url) ? (
+                            <img src={getImageUrl(spotlight.icon_url || spotlight.logo_url)} alt={`${spotlight.store_name} icon`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '15px' }} />
                           ) : (
                             <Leaf size={40} color={spotlight.brand_color || '#1b2d2a'} />
                           )}
                         </div>
                         <div style={{ color: 'white' }}>
-                          <h2 style={{ fontSize: '2rem', fontFamily: 'serif', margin: 0 }}>{spotlight.store_name}</h2>
+                          {spotlight.logo_url ? (
+                            <img
+                              src={getImageUrl(spotlight.logo_url)}
+                              alt={spotlight.store_name}
+                              style={{ maxHeight: '48px', maxWidth: '260px', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.35))' }}
+                            />
+                          ) : (
+                            <h2 style={{ fontSize: '2rem', fontFamily: 'serif', margin: 0 }}>{spotlight.store_name}</h2>
+                          )}
                           <p style={{ fontSize: '0.9rem', opacity: 0.8, margin: '0.25rem 0 0' }}>{spotlight.expertise || 'Verified Seller'}</p>
                         </div>
                       </div>
@@ -1834,10 +1843,18 @@ export default function SellerDashboard() {
                         {spotlight.banner_url && <img src={spotlight.banner_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />}
                         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', padding: '0 2rem' }}>
                           <div style={{ width: '50px', height: '50px', backgroundColor: 'white', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            {spotlight.logo_url ? <img src={spotlight.logo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Leaf size={24} color={spotlight.brand_color} />}
+                            {(spotlight.icon_url || spotlight.logo_url) ? <img src={spotlight.icon_url || spotlight.logo_url} alt={`${spotlight.store_name} icon`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Leaf size={24} color={spotlight.brand_color} />}
                           </div>
                           <div style={{ marginLeft: '1rem', color: 'white' }}>
-                            <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{spotlight.store_name}</h4>
+                            {spotlight.logo_url ? (
+                              <img
+                                src={spotlight.logo_url}
+                                alt={spotlight.store_name}
+                                style={{ maxHeight: '28px', maxWidth: '180px', objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.4))' }}
+                              />
+                            ) : (
+                              <h4 style={{ margin: 0, fontSize: '1.1rem' }}>{spotlight.store_name}</h4>
+                            )}
                             <p style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8 }}>{spotlight.expertise}</p>
                           </div>
                         </div>
@@ -1877,6 +1894,7 @@ export default function SellerDashboard() {
                               bio: "Welcome to The Obsidian Fern. We specialize in specimens that thrive in the shadows of the forest floor. Our nursery in the Western Ghats focuses on long-term health and spectral stability for advanced collectors.",
                               brand_color: "#1b2d2a",
                               logo_url: "https://images.unsplash.com/photo-1512428559083-a401c469b60d?auto=format&fit=crop&q=80&w=200",
+                              icon_url: "https://images.unsplash.com/photo-1512428559083-a401c469b60d?auto=format&fit=crop&q=80&w=200",
                               banner_url: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&q=80&w=2000"
                             })}
                             style={{ padding: '0.6rem 1.25rem', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8faf9', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer', color: '#1b2d2a' }}
