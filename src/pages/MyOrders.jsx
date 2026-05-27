@@ -4,6 +4,7 @@ import api from '../services/api';
 import { Package, Truck, CheckCircle, Clock, XCircle, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
 import { useScrollRestoration } from '../utils/useScrollRestoration';
 import Pagination from '../components/Pagination';
+import SocialLinks from '../components/SocialLinks';
 
 // Covers both master Order statuses and sub-order SubOrderStatuses
 const STATUS_META = {
@@ -267,6 +268,11 @@ export default function MyOrders() {
           />
         </div>
       )}
+
+      <div style={{ marginTop: '4rem', paddingTop: '2.5rem', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: '#94a3b8', margin: 0 }}>Stay close to Junglyst</p>
+        <SocialLinks variant="light" size={18} buttonSize={42} gap={0.6} />
+      </div>
     </div>
   );
 }

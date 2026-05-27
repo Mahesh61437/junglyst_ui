@@ -3347,7 +3347,7 @@ export default function SellerDashboard() {
                         });
                       }
                     } catch { }
-                    return [emptyRow(), emptyRow()];
+                    return Array.from({ length: 10 }, emptyRow);
                   });
                   const [subcatMap, setSubcatMap] = useState({});
                   const [downloading, setDownloading] = useState(false);
@@ -3465,7 +3465,7 @@ export default function SellerDashboard() {
                   const resetAll = () => {
                     rows.forEach(r => r.images.forEach(img => URL.revokeObjectURL(img.preview)));
                     localStorage.removeItem(DRAFT_KEY);
-                    setRows([emptyRow(), emptyRow()]);
+                    setRows(Array.from({ length: 10 }, emptyRow));
                     setLastSaved(null);
                     setDraftRestored(false);
                     setOpenImageRow(null);
@@ -3491,13 +3491,12 @@ export default function SellerDashboard() {
                         'Base Price (₹)', 'Stock Qty',
                         'Weight Category (light/heavy)', 'Packed Weight (grams)',
                         'Box Length (cm)', 'Box Width (cm)', 'Box Height (cm)',
-                        'GST %', 'Images (filenames)', 'SKU (optional)',
+                        'Images (filenames)', 'SKU (optional)',
                       ];
                       const data = rows.map(row => {
                         const selectedCats = (row.category_ids || []).map(cid => categories.find(c => String(c.id) === String(cid))).filter(Boolean);
                         const availableSubs = selectedCats.flatMap(c => (c.subcategories || subcatMap[c.id] || []));
                         const selectedSubs = (row.sub_category_ids || []).map(sid => availableSubs.find(s => String(s.id) === String(sid))).filter(Boolean);
-                        const primaryCat = selectedCats[0];
                         return [
                           row.product_name, row.scientific_name, row.origin,
                           selectedCats.map(c => c.name).join(', '),
@@ -3506,7 +3505,6 @@ export default function SellerDashboard() {
                           row.base_price, row.stock,
                           row.item_category, row.packed_weight_grams,
                           row.box_length, row.box_width, row.box_height,
-                          primaryCat?.gst_percentage ?? '',
                           row.images.map(img => img.name).join(', '),
                           row.sku,
                         ];
@@ -3532,12 +3530,14 @@ export default function SellerDashboard() {
                       {label}{note && <span style={{ display: 'block', fontWeight: 400, opacity: 0.6, textTransform: 'none', fontSize: '0.6rem' }}>{note}</span>}
                     </th>
                   );
-                  const TOTAL_COLS = 19; // for colspan on image panel row
+                  const TOTAL_COLS = 18; // for colspan on image panel row
 
                   // Compact multi-select widget for the bulk-upload row cells
                   const MultiSelectCell = ({ options, values, onChange, placeholder, emptyLabel, disabled }) => {
                     const [open, setOpen] = useState(false);
+                    const [query, setQuery] = useState('');
                     const rootRef = useRef(null);
+                    const searchRef = useRef(null);
                     useEffect(() => {
                       if (!open) return;
                       const handler = (e) => {
@@ -3545,6 +3545,12 @@ export default function SellerDashboard() {
                       };
                       document.addEventListener('mousedown', handler);
                       return () => document.removeEventListener('mousedown', handler);
+                    }, [open]);
+                    useEffect(() => {
+                      if (open) {
+                        setQuery('');
+                        setTimeout(() => searchRef.current?.focus(), 0);
+                      }
                     }, [open]);
                     const selectedNames = values
                       .map(v => options.find(o => String(o.id) === String(v))?.name)
@@ -3556,6 +3562,13 @@ export default function SellerDashboard() {
                         : selectedNames.length === 1
                           ? selectedNames[0]
                           : `${selectedNames.length} selected`;
+                    const q = query.trim().toLowerCase();
+                    const filteredOptions = q
+                      ? options.filter(o =>
+                          (o.name || '').toLowerCase().includes(q) ||
+                          (o._parent || '').toLowerCase().includes(q)
+                        )
+                      : options;
                     return (
                       <div ref={rootRef} style={{ position: 'relative' }}>
                         <button
@@ -3577,28 +3590,43 @@ export default function SellerDashboard() {
                         {open && !disabled && (
                           <div style={{
                             position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 20,
-                            minWidth: '180px', maxWidth: '260px', maxHeight: '220px', overflowY: 'auto',
+                            minWidth: '220px', maxWidth: '280px',
                             backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px',
                             boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
+                            display: 'flex', flexDirection: 'column',
                           }}>
-                            {options.length === 0 ? (
-                              <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: '#94a3b8' }}>No options.</div>
-                            ) : options.map(opt => {
-                              const checked = values.some(v => String(v) === String(opt.id));
-                              return (
-                                <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.65rem', cursor: 'pointer', fontSize: '0.78rem', backgroundColor: checked ? '#f0fdf4' : 'white', borderBottom: '1px solid #f8faf9' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={e => {
-                                      if (e.target.checked) onChange([...values, String(opt.id)]);
-                                      else onChange(values.filter(v => String(v) !== String(opt.id)));
-                                    }}
-                                  />
-                                  <span style={{ whiteSpace: 'normal' }}>{opt.name}{opt._parent ? <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}> · {opt._parent}</span> : null}</span>
-                                </label>
-                              );
-                            })}
+                            <div style={{ position: 'sticky', top: 0, padding: '0.4rem', borderBottom: '1px solid #f1f5f4', backgroundColor: 'white', borderRadius: '8px 8px 0 0' }}>
+                              <input
+                                ref={searchRef}
+                                type="text"
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                placeholder="Search…"
+                                style={{ width: '100%', padding: '0.35rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.75rem', outline: 'none', boxSizing: 'border-box' }}
+                              />
+                            </div>
+                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                              {options.length === 0 ? (
+                                <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: '#94a3b8' }}>No options.</div>
+                              ) : filteredOptions.length === 0 ? (
+                                <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: '#94a3b8' }}>No matches.</div>
+                              ) : filteredOptions.map(opt => {
+                                const checked = values.some(v => String(v) === String(opt.id));
+                                return (
+                                  <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.65rem', cursor: 'pointer', fontSize: '0.78rem', backgroundColor: checked ? '#f0fdf4' : 'white', borderBottom: '1px solid #f8faf9' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={e => {
+                                        if (e.target.checked) onChange([...values, String(opt.id)]);
+                                        else onChange(values.filter(v => String(v) !== String(opt.id)));
+                                      }}
+                                    />
+                                    <span style={{ whiteSpace: 'normal' }}>{opt.name}{opt._parent ? <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}> · {opt._parent}</span> : null}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -3682,7 +3710,6 @@ export default function SellerDashboard() {
                               {colHead('Box L', 'cm')}
                               {colHead('Box W', 'cm')}
                               {colHead('Box H', 'cm')}
-                              {colHead('GST %', 'auto')}
                               {colHead('Photos', `max ${MAX_IMAGES}`)}
                               {colHead('SKU', 'optional')}
                               <th style={{ padding: '0.75rem 0.6rem', backgroundColor: '#1b2d2a', color: 'white', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', width: '80px', position: 'sticky', top: 0, zIndex: 1 }}>Actions</th>
@@ -3691,9 +3718,7 @@ export default function SellerDashboard() {
                           <tbody>
                             {rows.map((row, idx) => {
                               const selectedCats = (row.category_ids || []).map(cid => categories.find(c => String(c.id) === String(cid))).filter(Boolean);
-                              const primaryCat = selectedCats[0];
                               const subcatOptions = selectedCats.flatMap(c => ((c.subcategories && c.subcategories.length) ? c.subcategories : (subcatMap[c.id] || [])).map(s => ({ ...s, _parent: c.name })));
-                              const gstVal = primaryCat ? primaryCat.gst_percentage : '—';
                               const rowBg = idx % 2 === 0 ? 'white' : '#fafbfa';
                               const imgOpen = openImageRow === idx;
                               const imgCount = row.images.length;
@@ -3743,11 +3768,6 @@ export default function SellerDashboard() {
                                     {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_length} onChange={e => updateRow(idx, 'box_length', e.target.value)} />)}
                                     {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_width} onChange={e => updateRow(idx, 'box_width', e.target.value)} />)}
                                     {td(<input style={{ ...inputStyle, width: '60px' }} type="number" min="1" placeholder="10" value={row.box_height} onChange={e => updateRow(idx, 'box_height', e.target.value)} />)}
-                                    {td(
-                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: primaryCat ? '#166534' : '#94a3b8', backgroundColor: primaryCat ? '#f0fdf4' : '#f8fafc', padding: '0.3rem 0.6rem', borderRadius: '6px', whiteSpace: 'nowrap' }}>
-                                        {primaryCat ? `${gstVal}%` : '—'}
-                                      </span>
-                                    )}
                                     {td(
                                       <button
                                         onClick={() => toggleImageRow(idx)}
@@ -3858,7 +3878,7 @@ export default function SellerDashboard() {
                       {/* Footer tips */}
                       <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px', padding: '1.25rem 1.5rem' }}>
                         <div style={{ fontSize: '0.78rem', color: '#166534', lineHeight: 1.7 }}>
-                          <strong>Tips:</strong> Click <em>Add photos</em> on any row to attach up to 5 images — the first one becomes the cover. GST fills automatically once you pick the first category. You can pick multiple categories and sub-categories per row. Sub-categories unlock after at least one category is selected. Duplicate a row to list another variant of the same plant (photos won't carry over). Download Excel exports filenames for your records.
+                          <strong>Tips:</strong> Click <em>Add photos</em> on any row to attach up to 5 images — the first one becomes the cover. You can pick multiple categories and sub-categories per row. Sub-categories unlock after at least one category is selected. Duplicate a row to list another variant of the same plant (photos won't carry over). Download Excel exports filenames for your records.
                         </div>
                       </div>
                     </div>

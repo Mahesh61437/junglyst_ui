@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { OrderService } from '../services/OrderService';
 import { Package, Truck, CheckCircle, Clock, ArrowLeft, MapPin, ExternalLink, ShieldCheck } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
+import SocialLinks from '../components/SocialLinks';
 
 const SUB_STATUS_META = {
   pending:           { label: 'Awaiting Payment',  color: '#6b7280', bg: '#f3f4f6' },
@@ -340,6 +341,13 @@ export default function OrderTracking() {
                  <div>
                     <h5 style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.25rem' }}>Order Guarantee</h5>
                     <p style={{ fontSize: '0.7rem', color: '#64748b', lineHeight: 1.5 }}>Your botanical investment is secured under our vitality guarantee. Any issues in transit will be managed by our concierge.</p>
+                 </div>
+              </div>
+
+              <div style={{ marginTop: '2rem', padding: '1.5rem', textAlign: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '2rem' }}>
+                 <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#94a3b8', marginBottom: '0.85rem' }}>Tag us when it arrives</p>
+                 <div style={{ display: 'flex', justifyContent: 'center' }}>
+                   <SocialLinks variant="light" size={16} buttonSize={36} gap={0.5} />
                  </div>
               </div>
            </div>
