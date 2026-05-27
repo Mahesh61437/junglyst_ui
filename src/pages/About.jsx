@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Leaf, ShieldCheck, Heart, Award, ArrowRight } from 'lucide-react';
 import SEO from '../components/SEO';
+import SocialLinks from '../components/SocialLinks';
 
 export default function About() {
   return (
@@ -83,6 +84,11 @@ export default function About() {
             <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
               <Link to="/shop" className="btn btn-primary" style={{ padding: '1.25rem 3.5rem' }}>Browse the Gallery</Link>
               <Link to="/contact" className="btn btn-outline" style={{ padding: '1.25rem 3.5rem' }}>Get in Touch</Link>
+            </div>
+
+            <div style={{ marginTop: '5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--brand-gold)' }}>Follow Our Journey</p>
+              <SocialLinks variant="light" size={18} buttonSize={44} gap={0.75} />
             </div>
           </div>
         </div>

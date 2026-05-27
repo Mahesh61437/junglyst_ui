@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock } from 'lucide-react';
 import SEO from '../components/SEO';
+import SocialLinks from '../components/SocialLinks';
 import api from '../services/api';
 
 const TOPICS = [
@@ -74,6 +75,11 @@ export default function Contact() {
                   <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.25rem' }}>We respond to emails within 1 business day.</p>
                 </div>
               </div>
+            </div>
+
+            <div style={{ marginTop: '2rem' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8', marginBottom: '0.75rem' }}>Follow Junglyst</p>
+              <SocialLinks variant="light" size={18} buttonSize={42} gap={0.6} />
             </div>
 
             <div style={{ marginTop: '2rem', padding: '1.25rem 1.5rem', background: '#f0fdf4', borderRadius: '14px', border: '1px solid #bbf7d0' }}>

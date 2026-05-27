@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import NaturalLogo from './NaturalLogo';
+import SocialLinks from './SocialLinks';
 
 export default function Footer() {
 
@@ -30,6 +31,9 @@ export default function Footer() {
             }}>
               Junglyst is a curated marketplace connecting discerning collectors with verified growers of rare botanical specimens. Each plant is a piece of living art.
             </p>
+            <div style={{ marginTop: '1.75rem' }}>
+              <SocialLinks variant="light" size={16} buttonSize={36} gap={0.6} />
+            </div>
           </div>
 
           {/* The Collection */}

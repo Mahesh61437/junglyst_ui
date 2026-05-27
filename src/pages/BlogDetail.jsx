@@ -3,6 +3,7 @@ import { ChevronLeft, Calendar, Clock, User } from 'lucide-react';
 import { blogs } from '../data/blogs';
 import SEO from '../components/SEO';
 import BlogFeaturedProducts from '../components/BlogFeaturedProducts';
+import SocialLinks from '../components/SocialLinks';
 
 export default function BlogDetail() {
   const { slug } = useParams();
@@ -166,7 +167,25 @@ export default function BlogDetail() {
               <p><strong>Category:</strong> {blog.category}</p>
             </div>
           </div>
-          
+
+          {/* Follow / share */}
+          <div style={{
+            marginTop: '3rem',
+            padding: '2rem',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1rem',
+            textAlign: 'center',
+          }}>
+            <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: '#94a3b8', margin: 0 }}>Enjoyed this read?</p>
+            <p style={{ fontSize: '0.95rem', color: '#334155', margin: 0, maxWidth: '480px', lineHeight: 1.6 }}>Follow Junglyst for grower stories, care tips, and rare specimen drops.</p>
+            <SocialLinks variant="light" size={18} buttonSize={42} gap={0.6} />
+          </div>
+
           {/* Featured Products related to this blog */}
           <BlogFeaturedProducts
             tags={blog.productTags || []}

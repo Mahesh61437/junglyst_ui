@@ -5,6 +5,7 @@ import { trackOrderPlaced } from '../utils/analytics';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { getImageUrl } from '../utils/imageUtils';
+import SocialLinks from '../components/SocialLinks';
 
 export default function Success() {
   const location = useLocation();
@@ -406,6 +407,11 @@ export default function Success() {
           <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>
             Thank you for your purchase! We're committed to delivering the finest botanical specimens with care and expertise.
           </p>
+
+          <div style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.9rem' }}>
+            <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b', margin: 0 }}>Share your new specimen — tag us</p>
+            <SocialLinks variant="light" size={18} buttonSize={42} gap={0.6} />
+          </div>
         </div>
       </div>
     </div>
