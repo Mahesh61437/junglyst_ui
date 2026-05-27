@@ -192,15 +192,17 @@ export default function Shop() {
 
   // Sync search from URL — skip the very first render so that page restored
   // from sessionStorage (on back navigation) isn't immediately reset to 1.
+  // Depend on the search *value* (not the whole searchParams object) so that
+  // changing ?page=N doesn't trigger a reset back to page 1.
+  const urlSearchQuery = searchParams.get('search') || '';
   useEffect(() => {
     if (isFirstSearchSync.current) {
       isFirstSearchSync.current = false;
       return;
     }
-    const query = searchParams.get('search') || '';
-    if (query !== searchTerm) setSearchTerm(query);
+    if (urlSearchQuery !== searchTerm) setSearchTerm(urlSearchQuery);
     setPage(1);
-  }, [searchParams, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlSearchQuery, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearAllFilters = () => {
     setCategories(Object.keys(categories).reduce((acc, k) => ({ ...acc, [k]: false }), {}));
