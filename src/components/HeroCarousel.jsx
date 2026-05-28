@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin, Trophy, Clock } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
-
-const COMPETITION_LAUNCH = new Date('2026-06-01T00:00:00+05:30');
+import { useCompetitionStatus, getLaunchDate, DEFAULT_LAUNCH_DATE } from '../services/CompetitionService';
 
 const COMPETITION_SLIDE = {
   id: '__competition',
@@ -27,10 +26,10 @@ const FALLBACK_SLIDES = [
   },
 ];
 
-function buildSlides(sellers) {
+function buildSlides(sellers, launchDate) {
   const base = (sellers && sellers.length > 0) ? sellers : FALLBACK_SLIDES;
   // Prepend competition slide only if the competition is still open
-  if (Date.now() < COMPETITION_LAUNCH.getTime()) {
+  if (Date.now() < launchDate.getTime()) {
     return [COMPETITION_SLIDE, ...base];
   }
   return base;
@@ -38,7 +37,8 @@ function buildSlides(sellers) {
 
 function useCountdown(target) {
   const calc = () => {
-    const diff = target - Date.now();
+    if (!target) return null;
+    const diff = target.getTime() - Date.now();
     if (diff <= 0) return null;
     return {
       days: Math.floor(diff / 86400000),
@@ -49,14 +49,15 @@ function useCountdown(target) {
   };
   const [t, setT] = useState(calc);
   useEffect(() => {
+    setT(calc());
     const id = setInterval(() => setT(calc()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [target?.getTime()]);
   return t;
 }
 
-function CompetitionSlideContent({ transitioning }) {
-  const tl = useCountdown(COMPETITION_LAUNCH);
+function CompetitionSlideContent({ transitioning, launchDate }) {
+  const tl = useCountdown(launchDate);
   const pad = n => String(n).padStart(2, '0');
 
   return (
@@ -138,7 +139,9 @@ function CompetitionSlideContent({ transitioning }) {
 }
 
 export default function HeroCarousel({ sellers = [] }) {
-  const slides = buildSlides(sellers);
+  const status = useCompetitionStatus();
+  const launchDate = getLaunchDate(status);
+  const slides = buildSlides(sellers, launchDate);
   const [current, setCurrent] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
@@ -195,7 +198,7 @@ export default function HeroCarousel({ sellers = [] }) {
       <div className="container" style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', alignItems: 'center', justifyContent: isCompetition ? 'center' : 'flex-start' }}>
 
         {slide.id === '__competition' ? (
-          <CompetitionSlideContent transitioning={transitioning} />
+          <CompetitionSlideContent transitioning={transitioning} launchDate={launchDate} />
         ) : (
         <div style={{ maxWidth: '620px', opacity: transitioning ? 0 : 1, transform: transitioning ? 'translateY(12px)' : 'translateY(0)', transition: 'opacity 0.5s, transform 0.5s' }}>
 

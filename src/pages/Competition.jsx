@@ -3,23 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Award, ChevronDown } from 'lucide-react';
 import SEO from '../components/SEO';
 import api from '../services/api';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
 
-const LAUNCH_DATE = new Date('2026-06-01T00:00:00+05:30');
 const MAX_ENTRIES = 500;
 const DEFAULT_RESULT_DATE_LABEL = 'soon';
 
-function formatAnnouncementDate(raw) {
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
 // ─── Countdown ───────────────────────────────────────────────────────────────
 function useCountdown(target) {
-  const [timeLeft, setTimeLeft] = useState(getTimeLeft);
-  function getTimeLeft() {
-    const diff = target - Date.now();
+  const getTimeLeft = () => {
+    if (!target) return null;
+    const diff = target.getTime() - Date.now();
     if (diff <= 0) return null;
     return {
       days: Math.floor(diff / 86400000),
@@ -27,11 +20,13 @@ function useCountdown(target) {
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     };
-  }
+  };
+  const [timeLeft, setTimeLeft] = useState(getTimeLeft);
   useEffect(() => {
+    setTimeLeft(getTimeLeft());
     const t = setInterval(() => setTimeLeft(getTimeLeft()), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [target?.getTime()]);
   return timeLeft;
 }
 
@@ -359,16 +354,11 @@ function SuccessState({ data, announcementDate }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Competition() {
-  const [status, setStatus] = useState(null);
+  const status = useCompetitionStatus();
   const [success, setSuccess] = useState(null);
-  const timeLeft = useCountdown(LAUNCH_DATE);
+  const launchDate = getLaunchDate(status);
+  const timeLeft = useCountdown(launchDate);
   const formRef = useRef();
-
-  useEffect(() => {
-    api.get('/competition/status/')
-      .then(r => setStatus(r.data))
-      .catch(() => {});
-  }, []);
 
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const announcementDate = formatAnnouncementDate(status?.result_announcement_date);

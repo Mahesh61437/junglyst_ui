@@ -8,13 +8,12 @@ import { getImageUrl } from '../utils/imageUtils';
 import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 import api from '../services/api';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
 
-const COMPETITION_LAUNCH = new Date('2026-06-01T00:00:00+05:30');
-
-function useCompetitionCountdown() {
-  const [timeLeft, setTimeLeft] = useState(getLeft);
-  function getLeft() {
-    const diff = COMPETITION_LAUNCH - Date.now();
+function useCompetitionCountdown(target) {
+  const getLeft = () => {
+    if (!target) return null;
+    const diff = target.getTime() - Date.now();
     if (diff <= 0) return null;
     return {
       days: Math.floor(diff / 86400000),
@@ -22,16 +21,21 @@ function useCompetitionCountdown() {
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     };
-  }
+  };
+  const [timeLeft, setTimeLeft] = useState(getLeft);
   useEffect(() => {
+    setTimeLeft(getLeft());
     const t = setInterval(() => setTimeLeft(getLeft()), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [target?.getTime()]);
   return timeLeft;
 }
 
 function CompetitionPromo() {
-  const timeLeft = useCompetitionCountdown();
+  const status = useCompetitionStatus();
+  const launchDate = getLaunchDate(status);
+  const timeLeft = useCompetitionCountdown(launchDate);
+  const announcementDate = formatAnnouncementDate(status?.result_announcement_date);
   if (!timeLeft) return null;
 
   const pad = n => String(n).padStart(2, '0');
@@ -69,7 +73,7 @@ function CompetitionPromo() {
               Aquascape<br />Competition 2026
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontSize: '0.88rem', margin: '0 0 1.5rem', maxWidth: '380px' }}>
-              Show off the aquascape you've built. Submit photos, tell your story, and win <strong style={{ color: '#c9972b' }}>₹1,000</strong>. Winner announced on June 1, 2026.
+              Show off the aquascape you've built. Submit photos, tell your story, and win <strong style={{ color: '#c9972b' }}>₹1,000</strong>.{announcementDate ? <> Winner announced on {announcementDate}.</> : ''}
             </p>
             <Link
               to="/competition"

@@ -1,27 +1,31 @@
 import { Link } from 'react-router-dom';
 import { Trophy } from 'lucide-react';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
 
-const LAUNCH_DATE = new Date('2026-06-01T00:00:00+05:30');
-
-const ITEMS = [
-  { type: 'icon' },
-  { type: 'text', text: 'Aquascape Competition 2026' },
-  { type: 'dot' },
-  { type: 'text', text: '₹1,000 Cash Prize' },
-  { type: 'dot' },
-  { type: 'text', text: '500 Slots Only — Enter Early' },
-  { type: 'dot' },
-  { type: 'text', text: 'Submit Photos of Your Build' },
-  { type: 'dot' },
-  { type: 'text', text: 'Winner Announced June 1, 2026' },
-  { type: 'dot' },
-  { type: 'cta', text: 'Register Now →' },
-  { type: 'dot' },
-  { type: 'text', text: 'Open to All Aquascape Enthusiasts' },
-  { type: 'dot' },
-  { type: 'text', text: 'One Winner — Judged by Junglyst' },
-  { type: 'dot' },
-];
+function buildItems(announcementDate) {
+  const announcementText = announcementDate
+    ? `Winner Announced ${announcementDate}`
+    : 'Winner Announced Soon';
+  return [
+    { type: 'icon' },
+    { type: 'text', text: 'Aquascape Competition 2026' },
+    { type: 'dot' },
+    { type: 'text', text: '₹1,000 Cash Prize' },
+    { type: 'dot' },
+    { type: 'text', text: '500 Slots Only — Enter Early' },
+    { type: 'dot' },
+    { type: 'text', text: 'Submit Photos of Your Build' },
+    { type: 'dot' },
+    { type: 'text', text: announcementText },
+    { type: 'dot' },
+    { type: 'cta', text: 'Register Now →' },
+    { type: 'dot' },
+    { type: 'text', text: 'Open to All Aquascape Enthusiasts' },
+    { type: 'dot' },
+    { type: 'text', text: 'One Winner — Judged by Junglyst' },
+    { type: 'dot' },
+  ];
+}
 
 function TickerItem({ item }) {
   if (item.type === 'icon') {
@@ -68,10 +72,12 @@ function TickerItem({ item }) {
 }
 
 export default function CompetitionTicker() {
-  if (Date.now() >= LAUNCH_DATE.getTime()) return null;
+  const status = useCompetitionStatus();
+  if (Date.now() >= getLaunchDate(status).getTime()) return null;
 
+  const items = buildItems(formatAnnouncementDate(status?.result_announcement_date));
   // Duplicate items to create seamless loop
-  const track = [...ITEMS, ...ITEMS];
+  const track = [...items, ...items];
 
   return (
     <div style={{
