@@ -16,7 +16,7 @@ const inputStyle = {
 
 // Friendly suggestions surfaced when creating a new config.
 const SUGGESTED_KEYS = [
-  { name: 'competition_settings', example: '{\n  "launch_date": "2026-06-01T00:00:00+05:30",\n  "result_announcement_date": "2026-06-15"\n}' },
+  { name: 'competition_settings', example: '{\n  "launch_date": "01-06-2026",\n  "result_announcement_date": "15-06-2026"\n}' },
   { name: 'payment_gateway', example: '{\n  "active": "razorpay"\n}' },
   { name: 'shipment_platform', example: '{\n  "active": "shiprocket"\n}' },
 ];
@@ -159,7 +159,7 @@ export default function SuperAdminSettings() {
 
       <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem' }}>
         <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-          Generic key/value store for platform-wide settings. Each entry has a unique <strong>key</strong> (string) and a <strong>value</strong> (any JSON). Used for things like the competition launch date and result-announcement date, active payment gateway, shipping platform, feature flags, etc.
+          Generic key/value store for platform-wide settings. Each entry has a unique <strong>key</strong> (string) and a <strong>value</strong> (any JSON). Used for things like the competition launch date and result-announcement date, active payment gateway, shipping platform, feature flags, etc. Dates use <code>DD-MM-YYYY</code> format and are interpreted as IST.
         </p>
 
         {error && !modal && (

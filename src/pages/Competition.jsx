@@ -3,17 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Award, ChevronDown } from 'lucide-react';
 import SEO from '../components/SEO';
 import api from '../services/api';
-import { useCompetitionStatus, getLaunchDate } from '../services/CompetitionService';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
 
 const MAX_ENTRIES = 500;
 const DEFAULT_RESULT_DATE_LABEL = 'soon';
-
-function formatAnnouncementDate(raw) {
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-}
 
 // ─── Countdown ───────────────────────────────────────────────────────────────
 function useCountdown(target) {

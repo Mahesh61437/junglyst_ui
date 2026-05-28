@@ -1,13 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Trophy } from 'lucide-react';
-import { useCompetitionStatus, getLaunchDate } from '../services/CompetitionService';
-
-function formatAnnouncement(raw) {
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-}
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
 
 function buildItems(announcementDate) {
   const announcementText = announcementDate
@@ -82,7 +75,7 @@ export default function CompetitionTicker() {
   const status = useCompetitionStatus();
   if (Date.now() >= getLaunchDate(status).getTime()) return null;
 
-  const items = buildItems(formatAnnouncement(status?.result_announcement_date));
+  const items = buildItems(formatAnnouncementDate(status?.result_announcement_date));
   // Duplicate items to create seamless loop
   const track = [...items, ...items];
 
