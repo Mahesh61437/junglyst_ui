@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Trophy, ArrowRight } from 'lucide-react';
+import { useCompetitionStatus, getLaunchDate } from '../services/CompetitionService';
 
-const LAUNCH_DATE = new Date('2026-06-01T00:00:00+05:30');
 const STORAGE_KEY = 'junglyst_competition_banner_dismissed';
 
 function useCountdown(target) {
-  const [timeLeft, setTimeLeft] = useState(getTimeLeft);
-
-  function getTimeLeft() {
-    const diff = target - Date.now();
+  const getTimeLeft = () => {
+    if (!target) return null;
+    const diff = target.getTime() - Date.now();
     if (diff <= 0) return null;
     return {
       days: Math.floor(diff / 86400000),
@@ -17,12 +16,14 @@ function useCountdown(target) {
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     };
-  }
+  };
+  const [timeLeft, setTimeLeft] = useState(getTimeLeft);
 
   useEffect(() => {
+    setTimeLeft(getTimeLeft());
     const timer = setInterval(() => setTimeLeft(getTimeLeft()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [target?.getTime()]);
 
   return timeLeft;
 }
@@ -31,7 +32,8 @@ export default function CompetitionBanner() {
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
   });
-  const timeLeft = useCountdown(LAUNCH_DATE);
+  const status = useCompetitionStatus();
+  const timeLeft = useCountdown(getLaunchDate(status));
 
   if (dismissed || !timeLeft) return null;
 
