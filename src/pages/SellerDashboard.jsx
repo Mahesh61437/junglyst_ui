@@ -349,6 +349,9 @@ export default function SellerDashboard() {
   const [productStatusTab, setProductStatusTab] = useState('published'); // 'published' | 'drafts' | 'archived'
   const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [bulkActing, setBulkActing] = useState(false);
+  const [stockFilter, setStockFilter] = useState('all'); // 'all' | 'low_stock' | 'custom'
+  const [customStockThreshold, setCustomStockThreshold] = useState('');
+  const [appliedStockThreshold, setAppliedStockThreshold] = useState(0);
 
   // Fulfillment state
   const [selectedOrders, setSelectedOrders] = useState(new Set());
@@ -431,12 +434,18 @@ export default function SellerDashboard() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      const stockParams =
+        stockFilter === 'low_stock'
+          ? { stock_lt: 10 }
+          : stockFilter === 'custom' && appliedStockThreshold >= 0
+            ? { stock_lt: appliedStockThreshold }
+            : {};
+
       // Fetch all seller products (all statuses) — backend filters nothing when seller= is passed without is_active
       const prodsData = await ProductService.getProducts({
         seller: user.id,
-        page: productPage,
-        page_size: productPageSize,
-        no_pagination: undefined,
+        no_pagination: 'true',
+        ...stockParams
       });
       if (prodsData && typeof prodsData === 'object' && 'results' in prodsData) {
         setProducts(prodsData.results || []);
@@ -457,7 +466,7 @@ export default function SellerDashboard() {
     if (user && activeTab === 'products') {
       fetchProducts();
     }
-  }, [user, productPage, productPageSize, activeTab]);
+  }, [user, activeTab, stockFilter, appliedStockThreshold]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -2085,6 +2094,27 @@ export default function SellerDashboard() {
                       </div>
                     )}
 
+                    {/* Stock filter - published tab only */}
+                    {productStatusTab === 'published' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>STOCK</span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => setStockFilter('all')} style={{ padding: '0.4rem 1rem', borderRadius: '50px', border: stockFilter === 'all' ? '1.5px solid #10b981' : '1.5px solid #e2e8f0', backgroundColor: stockFilter === 'all' ? '#10b981' : 'white', color: stockFilter === 'all' ? 'white' : '#64748b', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>All</button>
+                          <button onClick={() => setStockFilter('low_stock')} style={{ padding: '0.4rem 1rem', borderRadius: '50px', border: stockFilter === 'low_stock' ? '1.5px solid #ef4444' : '1.5px solid #e2e8f0', backgroundColor: stockFilter === 'low_stock' ? '#ef4444' : 'white', color: stockFilter === 'low_stock' ? 'white' : '#64748b', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>Low Stock (&lt;10)</button>
+                          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: stockFilter === 'custom' ? '#f8fafc' : 'white', border: stockFilter === 'custom' ? '1.5px solid #3b82f6' : '1.5px solid #e2e8f0', borderRadius: '50px', padding: '0.1rem', transition: 'all 0.2s' }}>
+                            <button onClick={() => setStockFilter('custom')} style={{ background: 'none', border: 'none', padding: '0.3rem 0.8rem', color: stockFilter === 'custom' ? '#3b82f6' : '#64748b', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>Custom</button>
+                            {stockFilter === 'custom' && (
+                              <div style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem 0 0.25rem', gap: '0.25rem' }}>
+                                <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>&lt;</span>
+                                <input type="number" min="0" value={customStockThreshold} onChange={e => setCustomStockThreshold(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') setAppliedStockThreshold(customStockThreshold ? parseInt(customStockThreshold) : 0); }} style={{ width: '40px', padding: '0.2rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 700, textAlign: 'center' }} />
+                                <button onClick={() => setAppliedStockThreshold(customStockThreshold ? parseInt(customStockThreshold) : 0)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer', marginLeft: '0.25rem' }}>Apply</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Stock update banner */}
                     {Object.keys(inlineStocks).length > 0 && (
                       <div style={{ padding: '1rem 1.5rem', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2168,20 +2198,47 @@ export default function SellerDashboard() {
                                 </td>
                                 {!isMobile && (
                                   <>
-                                    <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700, color: '#10b981' }}>₹{p.base_price || '—'}</td>
-                                    <td style={{ padding: '1.25rem 1.5rem', fontWeight: 700 }}>₹{p.price || '—'}</td>
+                                    <td style={{ padding: '1.25rem 1.5rem' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                        {(p.variants && p.variants.length > 0 ? p.variants : [{ id: null, base_price: p.base_price }]).map((v, vi) => (
+                                          <div key={v.id || vi} style={{ display: 'flex', alignItems: 'center', height: '30px' }}>
+                                            <span style={{ fontWeight: 700, color: '#10b981' }}>₹{v.base_price || p.base_price || '—'}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '1.25rem 1.5rem' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                        {(p.variants && p.variants.length > 0 ? p.variants : [{ id: null, price: p.price }]).map((v, vi) => (
+                                          <div key={v.id || vi} style={{ display: 'flex', alignItems: 'center', height: '30px' }}>
+                                            <span style={{ fontWeight: 700 }}>₹{v.price || p.price || '—'}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </td>
                                     <td style={{ padding: '1.25rem 1.5rem' }}>
                                       {p.is_draft ? (
                                         <span style={{ color: '#9ca3af', fontSize: '0.82rem' }}>—</span>
                                       ) : (
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock}
-                                          onChange={(e) => setInlineStocks(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                          onClick={e => e.stopPropagation()}
-                                          style={{ width: '70px', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700, textAlign: 'center' }}
-                                        />
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                          {(p.variants && p.variants.length > 0 ? p.variants : [{ id: null, stock: p.stock, name: 'Standard' }]).map((v, vi) => (
+                                            <div key={v.id || vi} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', height: '30px' }}>
+                                              {p.variants && p.variants.length > 1 && (
+                                                <span style={{ fontSize: '0.68rem', color: '#6b7280', minWidth: '64px', flexShrink: 0, fontWeight: 600 }}>
+                                                  {v.name || v.variant_type || 'Standard'}
+                                                </span>
+                                              )}
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={v.id && inlineStocks[v.id] !== undefined ? inlineStocks[v.id] : v.stock}
+                                                onChange={e => { if (v.id) setInlineStocks(prev => ({ ...prev, [v.id]: e.target.value })); }}
+                                                onClick={e => e.stopPropagation()}
+                                                style={{ width: '64px', padding: '0.35rem 0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700, textAlign: 'center', fontSize: '0.85rem' }}
+                                              />
+                                            </div>
+                                          ))}
+                                        </div>
                                       )}
                                     </td>
                                     <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right' }}>
@@ -2200,28 +2257,33 @@ export default function SellerDashboard() {
                               {isMobile && expandedProductId === p.id && (
                                 <tr style={{ backgroundColor: '#f8faf9', borderBottom: '1px solid #edf2ed' }}>
                                   <td colSpan="3" style={{ padding: '1.5rem 2rem' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                      <div>
-                                        <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Seller Payout</p>
-                                        <p style={{ fontWeight: 700, color: '#10b981' }}>₹{p.base_price || '—'}</p>
-                                      </div>
-                                      <div>
-                                        <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Buyer Price</p>
-                                        <p style={{ fontWeight: 700 }}>₹{p.price || '—'}</p>
-                                      </div>
-                                      {!p.is_draft && (
-                                        <div>
-                                          <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Stock</p>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={inlineStocks[p.id] !== undefined ? inlineStocks[p.id] : p.stock}
-                                            onChange={(e) => setInlineStocks(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                            style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
-                                          />
+                                    {!p.is_draft && (p.variants && p.variants.length > 0 ? p.variants : [{ id: null, stock: p.stock, name: 'Standard', base_price: p.base_price, price: p.price }]).map((v, vi) => (
+                                        <div key={v.id || vi} style={{ gridColumn: '1 / -1', borderBottom: '1px dashed #e2e8f0', paddingBottom: '1rem', marginBottom: '1rem' }}>
+                                          <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#1b2d2a', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+                                            {p.variants && p.variants.length > 1 ? (v.name || v.variant_type || 'Standard') : 'Details'}
+                                          </p>
+                                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', alignItems: 'end' }}>
+                                            <div>
+                                              <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Payout</p>
+                                              <p style={{ fontWeight: 700, color: '#10b981', fontSize: '0.85rem' }}>₹{v.base_price || p.base_price || '—'}</p>
+                                            </div>
+                                            <div>
+                                              <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Buyer</p>
+                                              <p style={{ fontWeight: 700, fontSize: '0.85rem' }}>₹{v.price || p.price || '—'}</p>
+                                            </div>
+                                            <div>
+                                              <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Stock</p>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={v.id && inlineStocks[v.id] !== undefined ? inlineStocks[v.id] : v.stock}
+                                                onChange={e => { if (v.id) setInlineStocks(prev => ({ ...prev, [v.id]: e.target.value })); }}
+                                                style={{ width: '100%', padding: '0.35rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700, fontSize: '0.85rem' }}
+                                              />
+                                            </div>
+                                          </div>
                                         </div>
-                                      )}
-                                    </div>
+                                      ))}
                                     <button onClick={() => handleEditProduct(p)} style={{ width: '100%', backgroundColor: '#1b2d2a', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                                       <Pencil size={16} /> {p.is_draft ? 'Continue Editing' : 'Edit Specimen'}
                                     </button>
@@ -4230,7 +4292,7 @@ export default function SellerDashboard() {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                           {newProduct.variants.map((v, idx) => (
-                            <div key={idx} style={{ padding: isMobile ? '1.5rem' : '2.5rem', backgroundColor: '#fcfdfc', borderRadius: '24px', border: '1px solid #edf2ed', position: 'relative' }}>
+                            <div key={idx} style={{ padding: isMobile ? '1.5rem' : '2.5rem', backgroundColor: '#fcfdfc', borderRadius: '24px', border: '2px solid #cbd5e1', position: 'relative' }}>
                               {newProduct.variants.length > 1 && (
                                 <button
                                   type="button"
