@@ -465,6 +465,7 @@ export default function SellerDashboard() {
   useEffect(() => {
     if (user && activeTab === 'products') {
       fetchProducts();
+      setProductPage(1);
     }
   }, [user, activeTab, stockFilter, appliedStockThreshold]);
 
@@ -791,22 +792,21 @@ export default function SellerDashboard() {
   };
 
   const handleBulkStockUpdate = async () => {
+    // inlineStocks is keyed by variant.id and may span MANY products — send them
+    // all in one POST to /core/products/bulk-stock-update/ instead of N PATCHes.
+    const updates = Object.entries(inlineStocks)
+      .map(([variantId, newStock]) => ({ variant_id: variantId, stock: parseInt(newStock) || 0 }))
+      .filter(u => u.variant_id);
+    if (updates.length === 0) return;
+
     setLoading(true);
     try {
-      const promises = Object.entries(inlineStocks).map(([productId, newStock]) => {
-        const product = products.find(p => p.id === productId);
-        if (!product || !product.variants || !product.variants.length) return Promise.resolve();
-        const variantId = product.variants[0].id;
-        return ProductService.patchProduct(productId, {
-          variants: [{ id: variantId, stock: parseInt(newStock) || 0 }]
-        });
-      });
-      await Promise.all(promises);
+      await ProductService.bulkUpdateStock(updates);
       setSuccess("Stock quantities updated successfully");
       setInlineStocks({});
-      fetchData();
+      fetchProducts();
     } catch (err) {
-      setFormError("Failed to update some stocks");
+      setFormError(err.response?.data?.error || "Failed to update stocks");
     } finally {
       setLoading(false);
     }
@@ -2040,7 +2040,12 @@ export default function SellerDashboard() {
                   { key: 'drafts', label: 'Drafts', count: drafts.length, color: '#f59e0b' },
                   { key: 'archived', label: 'Archived', count: archived.length, color: '#9ca3af' },
                 ];
-                const visibleProducts = productStatusTab === 'published' ? published : productStatusTab === 'drafts' ? drafts : archived;
+                const tabProducts = productStatusTab === 'published' ? published : productStatusTab === 'drafts' ? drafts : archived;
+                const tabTotal = tabProducts.length;
+                const totalPages = Math.max(1, Math.ceil(tabTotal / productPageSize));
+                const safePage = Math.min(productPage, totalPages);
+                const pageStart = (safePage - 1) * productPageSize;
+                const visibleProducts = tabProducts.slice(pageStart, pageStart + productPageSize);
                 const allSelected = visibleProducts.length > 0 && visibleProducts.every(p => selectedProducts.has(p.id));
 
                 return (
@@ -2050,7 +2055,7 @@ export default function SellerDashboard() {
                       {tabList.map(tab => (
                         <button
                           key={tab.key}
-                          onClick={() => { setProductStatusTab(tab.key); setSelectedProducts(new Set()); }}
+                          onClick={() => { setProductStatusTab(tab.key); setSelectedProducts(new Set()); setProductPage(1); }}
                           style={{
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
                             padding: '0.55rem 1.1rem', borderRadius: '10px',
@@ -2294,11 +2299,11 @@ export default function SellerDashboard() {
                           ))}
                         </tbody>
                       </table>
-                      {productTotal > 0 && (
+                      {tabTotal > 0 && (
                         <Pagination
-                          page={productPage}
-                          totalPages={Math.max(1, Math.ceil(productTotal / productPageSize))}
-                          totalItems={productTotal}
+                          page={safePage}
+                          totalPages={totalPages}
+                          totalItems={tabTotal}
                           pageSize={productPageSize}
                           onPageChange={setProductPage}
                           onPageSizeChange={(s) => { setProductPageSize(s); setProductPage(1); }}
