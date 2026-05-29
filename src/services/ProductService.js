@@ -58,6 +58,18 @@ export const ProductService = {
     }
   },
 
+  // Bulk-update stock across many variants (and many products) in a single request
+  // updates: [{ variant_id, stock }, ...]
+  bulkUpdateStock: async (updates) => {
+    try {
+      const response = await api.post('/core/products/bulk-stock-update/', { updates });
+      return response.data;
+    } catch (error) {
+      console.error('Error bulk-updating stock:', error);
+      throw error;
+    }
+  },
+
   // Archive a product (soft delete)
   archiveProduct: async (id) => {
     try {
