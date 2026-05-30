@@ -385,25 +385,38 @@ export default function SuperAdminDashboard() {
 
   // ── Seller profile editing ───────────────────────────────────────────────────
 
-  const openEditSeller = (profile) => {
+  const openEditSeller = async (profile) => {
     setEditingSeller(profile);
-    setEditSellerForm({
-      store_name: profile.store_name || '',
-      bio: profile.bio || '',
-      tagline: profile.tagline || '',
-      brand_color: profile.brand_color || '#0A3029',
-      location_city: profile.location_city || '',
-      location_pincode: profile.location_pincode || '',
-      gst_number: profile.gst_number || '',
-      is_active: profile.is_active !== false,
-      identity_verified: profile.identity_verified || false,
-      logo_url: profile.logo_url || '',
-      icon_url: profile.icon_url || '',
-      banner_url: profile.banner_url || '',
-      expertise_tags: (profile.expertise_tags || []).join(', '),
-    });
     setEditSellerError('');
     loadSellerProducts(profile.user);
+    // Hydrate from the admin-edit endpoint so the commission fields (which live
+    // on the linked User and are only exposed via AdminSellerProfileSerializer)
+    // come down with current values.
+    let adminData = profile;
+    try {
+      const res = await api.get(`/sellers/profiles/${profile.id}/admin-edit/`);
+      adminData = res.data || profile;
+    } catch (e) {
+      // Fall back to the cached profile if the admin fetch fails.
+    }
+    setEditSellerForm({
+      store_name: adminData.store_name || '',
+      bio: adminData.bio || '',
+      tagline: adminData.tagline || '',
+      brand_color: adminData.brand_color || '#0A3029',
+      location_city: adminData.location_city || '',
+      location_pincode: adminData.location_pincode || '',
+      gst_number: adminData.gst_number || '',
+      is_active: adminData.is_active !== false,
+      identity_verified: adminData.identity_verified || false,
+      logo_url: adminData.logo_url || '',
+      icon_url: adminData.icon_url || '',
+      banner_url: adminData.banner_url || '',
+      expertise_tags: (adminData.expertise_tags || []).join(', '),
+      seller_commission_rate: adminData.seller_commission_rate ?? '10.00',
+      buyer_commission_rate: adminData.buyer_commission_rate ?? '10.00',
+      price_is_buyer_final: !!adminData.price_is_buyer_final,
+    });
   };
 
   const uploadSellerImage = async (file, field) => {
@@ -1740,6 +1753,50 @@ export default function SuperAdminDashboard() {
                   {label}
                 </label>
               ))}
+            </div>
+
+            {/* Admin-only: commission config for this seller. Never shown to the seller themselves. */}
+            <div style={{ marginBottom: '1.5rem', padding: '1.25rem', borderRadius: '12px', backgroundColor: '#fef9c3', border: '1px solid #fde68a' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#854d0e', margin: '0 0 0.25rem' }}>Commission &amp; Pricing</p>
+              <p style={{ fontSize: '0.7rem', color: '#854d0e', margin: '0 0 1rem' }}>
+                Admin-only. Toggle OFF: buyer pays L × (1 + seller_rate%); payout = L × (1 − buyer_rate%).
+                Toggle ON: buyer pays L exactly; payout = L × (1 − (seller_rate + buyer_rate)%).
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, marginBottom: '0.3rem', color: '#854d0e' }}>Seller commission rate (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={editSellerForm.seller_commission_rate ?? ''}
+                    onChange={e => setEditSellerForm(f => ({ ...f, seller_commission_rate: e.target.value }))}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 800, marginBottom: '0.3rem', color: '#854d0e' }}>Buyer commission rate (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={editSellerForm.buyer_commission_rate ?? ''}
+                    onChange={e => setEditSellerForm(f => ({ ...f, buyer_commission_rate: e.target.value }))}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: '#854d0e' }}>
+                <input
+                  type="checkbox"
+                  checked={!!editSellerForm.price_is_buyer_final}
+                  onChange={e => setEditSellerForm(f => ({ ...f, price_is_buyer_final: e.target.checked }))}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                Price is buyer-final (seller's typed price IS what buyer pays)
+              </label>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginBottom: '2rem' }}>
