@@ -231,8 +231,7 @@ export default function SellerDashboard() {
     growth_rate: 'Moderate', growth_rate_max: 'Moderate',
     is_rare: false,
     variants: [{
-      name: '', variant_type: 'Plant', base_price: '', gst_rate: '0',
-      commission_rate: '10.0', price: '', stock: '',
+      name: '', variant_type: 'Plant', base_price: '', stock: '',
       item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
     }],
     images: [{ image_url: '', is_primary: true }]
@@ -263,25 +262,34 @@ export default function SellerDashboard() {
     }
   };
 
+  // Price is derived server-side from base_price + commission in ProductVariant.save().
+  // The payout breakdown in the modal is computed inline from v.base_price at render time,
+  // so the client doesn't need to mutate v.price / commission_rate / gst_rate on every edit.
+
+  // Trap the browser back button while the product modal is open: pushing a synthetic
+  // history entry on open and listening for popstate makes "back" dismiss the modal
+  // instead of leaving the seller dashboard.
   useEffect(() => {
-    const updatedVariants = newProduct.variants.map(v => {
-      const base = parseFloat(v.base_price) || 0;
-      // Seller price is GST-inclusive. Junglyst adds 10% commission on top.
-      const comm = 10.0;
-      const finalPrice = (base * (1 + comm / 100)).toFixed(2);
+    if (!isModalOpen) return;
 
-      if (v.price !== finalPrice) {
-        return { ...v, price: finalPrice, gst_rate: '0', commission_rate: String(comm) };
+    window.history.pushState({ junglystModal: true }, '');
+
+    const handlePopState = () => {
+      setIsModalOpen(false);
+      setEditingProduct(null);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      // Only pop our synthetic entry if it's still the top of history.
+      // After a popstate (browser back) it's already consumed; after a route
+      // navigation it's been overwritten — both cases skip the pop.
+      if (window.history.state?.junglystModal === true) {
+        window.history.back();
       }
-      return v;
-    });
-
-    const hasChanged = updatedVariants.some((v, i) => v.price !== newProduct.variants[i].price);
-
-    if (hasChanged) {
-      setNewProduct(prev => ({ ...prev, variants: updatedVariants }));
-    }
-  }, [newProduct.variants]);
+    };
+  }, [isModalOpen]);
 
   const [spotlight, setSpotlight] = useState({
     id: null,
@@ -887,15 +895,10 @@ export default function SellerDashboard() {
       delete payload.light_requirements_max;
       delete payload.growth_rate_max;
 
-      // Auto-build variant name from type + optional label (e.g. "Rhizome — Small")
+      // Save the label exactly as the user typed it — variant_type is a separate field.
       payload.variants = payload.variants
         .filter(v => v.base_price !== '' && v.stock !== '')
-        .map(v => ({
-          ...v,
-          name: v.name?.trim()
-            ? `${v.variant_type} — ${v.name.trim()}`
-            : v.variant_type,
-        }));
+        .map(v => ({ ...v, name: v.name?.trim() || '' }));
       payload.images = payload.images.filter(img => img.image_url.trim() !== '');
 
       if (editingProduct) await ProductService.updateProduct(editingProduct.id, payload);
@@ -911,8 +914,7 @@ export default function SellerDashboard() {
           growth_rate: 'Moderate', growth_rate_max: 'Moderate',
           is_rare: false,
           variants: [{
-            name: '', variant_type: 'Plant', base_price: '', gst_rate: '0',
-            commission_rate: '10.0', stock: '',
+            name: '', variant_type: 'Plant', base_price: '', stock: '',
             item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
           }],
           images: [{ image_url: '', is_primary: true }]
@@ -953,8 +955,6 @@ export default function SellerDashboard() {
         name: 'Standard',
         variant_type: 'Pot',
         base_price: '1200',
-        gst_rate: '0',
-        commission_rate: '10.0',
         stock: '15',
         item_category: 'light',
         packed_weight_grams: '800',
@@ -1214,15 +1214,14 @@ export default function SellerDashboard() {
 
       setEditingProduct(p);
 
-      // Sanitize variants — strip backend-only fields that cause PUT validation errors
+      // Sanitize variants — strip backend-only fields that cause PUT validation errors.
+      // Commission and gst rates are admin-managed server-side; not part of the seller form.
       const cleanVariants = p.variants?.length > 0
         ? p.variants.map(v => ({
           id: v.id,
           name: v.name || '',
           variant_type: v.variant_type || 'Plant',
           base_price: v.base_price ?? '',
-          gst_rate: '0',
-          commission_rate: '10.0',
           stock: v.stock ?? '',
           item_category: v.item_category ?? 'light',
           packed_weight_grams: v.packed_weight_grams ?? '',
@@ -1230,7 +1229,7 @@ export default function SellerDashboard() {
           width: v.width ?? '10',
           height: v.height ?? '10',
         }))
-        : [{ name: '', variant_type: 'Plant', base_price: '', gst_rate: '0', commission_rate: '10.0', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
+        : [{ name: '', variant_type: 'Plant', base_price: '', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }];
 
       // Sanitize images — strip backend-only fields
       const cleanImages = p.images?.length > 0
@@ -1460,8 +1459,7 @@ export default function SellerDashboard() {
                     growth_rate: 'Moderate', growth_rate_max: 'Moderate',
                     is_rare: false,
                     variants: [{
-                      name: '', variant_type: 'Plant', base_price: '', gst_rate: '0',
-                      commission_rate: '10.0', price: '', stock: '',
+                      name: '', variant_type: 'Plant', base_price: '', stock: '',
                       item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10'
                     }],
                     images: [{ image_url: '', is_primary: true }]
@@ -4288,7 +4286,7 @@ export default function SellerDashboard() {
                           </h4>
                           <button
                             type="button"
-                            onClick={() => setNewProduct(prev => ({ ...prev, variants: [...prev.variants, { name: '', variant_type: 'Plant', base_price: '', gst_rate: '0', commission_rate: '10.0', price: '', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }] }))}
+                            onClick={() => setNewProduct(prev => ({ ...prev, variants: [...prev.variants, { name: '', variant_type: 'Plant', base_price: '', stock: '', item_category: 'light', packed_weight_grams: '', length: '10', width: '10', height: '10' }] }))}
                             style={{ padding: '0.75rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, backgroundColor: '#fcfdfc', border: '1px solid #edf2ed', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1b2d2a' }}
                           >
                             <Plus size={16} /> ADD VARIATION
@@ -4383,28 +4381,8 @@ export default function SellerDashboard() {
                                   style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', marginBottom: '1.25rem' }}
                                 />
 
-                                {/* Payout breakdown */}
-                                {parseFloat(v.base_price) > 0 && (() => {
-                                  const listed = parseFloat(v.base_price) || 0;
-                                  const commission = listed * 0.10;
-                                  const payout = listed - commission;
-                                  return (
-                                    <div style={{ backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px dashed #e2e8f0' }}>
-                                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Listed price</span>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1b2d2a' }}>₹{listed.toFixed(2)}</span>
-                                      </div>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderBottom: '1px dashed #e2e8f0' }}>
-                                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Platform fee (10%)</span>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ef4444' }}>−₹{commission.toFixed(2)}</span>
-                                      </div>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', backgroundColor: '#f0fdf4' }}>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#15803d' }}>You receive</span>
-                                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#15803d' }}>₹{payout.toFixed(2)}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
+                                {/* Commission and payout details are handled server-side and
+                                    intentionally not shown to sellers — admin-only config. */}
                               </div>
 
                               {/* Shipping fields */}
