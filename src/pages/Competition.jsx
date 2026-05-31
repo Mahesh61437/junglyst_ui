@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react'; // v2
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Award, ChevronDown } from 'lucide-react';
 import SEO from '../components/SEO';
@@ -8,7 +8,7 @@ import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../
 const MAX_ENTRIES = 500;
 const DEFAULT_RESULT_DATE_LABEL = 'soon';
 
-// ─── Countdown ───────────────────────────────────────────────────────────────
+// ??? Countdown ???????????????????????????????????????????????????????????????
 function useCountdown(target) {
   const getTimeLeft = () => {
     if (!target) return null;
@@ -59,7 +59,7 @@ function CountdownUnit({ value, label }) {
   );
 }
 
-// ─── Image Dropzone ───────────────────────────────────────────────────────────
+// ??? Image Dropzone ???????????????????????????????????????????????????????????
 function ImageDropzone({ files, setFiles }) {
   const inputRef = useRef();
   const [dragging, setDragging] = useState(false);
@@ -96,7 +96,7 @@ function ImageDropzone({ files, setFiles }) {
           Drop images here or click to browse
         </p>
         <p style={{ margin: 0, color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>
-          Up to 5 images • JPG, PNG, WEBP accepted
+          Up to 5 images ? JPG, PNG, WEBP accepted
         </p>
         <input
           ref={inputRef}
@@ -152,9 +152,10 @@ function ImageDropzone({ files, setFiles }) {
   );
 }
 
-// ─── Form ─────────────────────────────────────────────────────────────────────
+// ??? Form ?????????????????????????????????????????????????????????????????????
 function EntryForm({ status, onSuccess }) {
-  const [form, setForm] = useState({ name: '', email: '', mobile: '', about_aquarium: '' });
+  const [form, setForm] = useState({ name: '', email: '', mobile: '', about_aquarium: '', instagram_handle: '' });
+  const [followsInstagram, setFollowsInstagram] = useState(false);
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -174,6 +175,8 @@ function EntryForm({ status, onSuccess }) {
       fd.append('email', form.email);
       fd.append('mobile', form.mobile);
       fd.append('about_aquarium', form.about_aquarium);
+      fd.append('instagram_handle', form.instagram_handle);
+      fd.append('follows_instagram', followsInstagram);
       images.forEach(img => fd.append('images', img));
 
       const { data } = await api.post('/competition/enter/', fd, {
@@ -262,12 +265,68 @@ function EntryForm({ status, onSuccess }) {
         </div>
       </div>
 
+      {/* Instagram */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <label style={labelStyle}>Instagram Handle</label>
+        <div style={{ position: 'relative' }}>
+          <span style={{
+            position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
+            color: 'rgba(255,255,255,0.35)', fontSize: '0.9rem', pointerEvents: 'none',
+          }}>@</span>
+          <input
+            value={form.instagram_handle}
+            onChange={e => setForm(prev => ({ ...prev, instagram_handle: e.target.value.replace(/^@/, '') }))}
+            placeholder="yourusername"
+            style={{ ...inputStyle, paddingLeft: '2rem' }}
+            onFocus={e => e.target.style.borderColor = '#c9972b'}
+            onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
+            <div
+              onClick={() => setFollowsInstagram(prev => !prev)}
+              style={{
+                width: '20px', height: '20px', borderRadius: '5px', flexShrink: 0,
+                border: `2px solid ${followsInstagram ? '#c9972b' : 'rgba(255,255,255,0.25)'}`,
+                background: followsInstagram ? 'rgba(201,151,43,0.2)' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}
+            >
+              {followsInstagram && <CheckCircle size={13} color="#c9972b" />}
+            </div>
+            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', userSelect: 'none' }}>
+              I follow <strong style={{ color: '#c9972b' }}>@the.junglyst</strong> on Instagram
+            </span>
+          </label>
+          {!followsInstagram && (
+            <a
+              href="https://www.instagram.com/the.junglyst?igsh=MXNpa3Bvb3lmNmo1cQ=="
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.45rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+                background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)',
+                color: 'white', textDecoration: 'none', letterSpacing: '0.03em', flexShrink: 0,
+              }}
+            >
+              Follow on Instagram
+            </a>
+          )}
+        </div>
+      </div>
+
       <div style={{ marginBottom: '1.25rem' }}>
         <label style={labelStyle}>Tell Us About Your Aquascape *</label>
         <textarea
           value={form.about_aquarium} onChange={set('about_aquarium')} required
           rows={5}
-          placeholder="Describe your setup — tank size, plants used, fish, hardscape, how long it took, what inspired you..."
+          placeholder="Describe your setup ? tank size, plants used, fish, hardscape, how long it took, what inspired you..."
           style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }}
           onFocus={e => e.target.style.borderColor = '#c9972b'}
           onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
@@ -297,7 +356,7 @@ function EntryForm({ status, onSuccess }) {
       {status?.slots_remaining <= 50 && status?.slots_remaining > 0 && (
         <div style={{ background: 'rgba(201,151,43,0.1)', border: '1px solid rgba(201,151,43,0.3)', borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '1.25rem', color: '#c9972b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AlertCircle size={14} />
-          Only {status.slots_remaining} slots remaining — submit soon!
+          Only {status.slots_remaining} slots remaining ? submit soon!
         </div>
       )}
 
@@ -311,7 +370,7 @@ function EntryForm({ status, onSuccess }) {
           opacity: submitting ? 0.7 : 1, cursor: submitting ? 'not-allowed' : 'pointer',
         }}
       >
-        {submitting ? 'Submitting Entry…' : 'Submit My Aquascape'}
+        {submitting ? 'Submitting Entry?' : 'Submit My Aquascape'}
       </button>
 
       <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '1rem' }}>
@@ -321,7 +380,7 @@ function EntryForm({ status, onSuccess }) {
   );
 }
 
-// ─── Success ─────────────────────────────────────────────────────────────────
+// ??? Success ?????????????????????????????????????????????????????????????????
 function SuccessState({ data, announcementDate }) {
   return (
     <motion.div
@@ -352,7 +411,7 @@ function SuccessState({ data, announcementDate }) {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ??? Main Page ????????????????????????????????????????????????????????????????
 export default function Competition() {
   const status = useCompetitionStatus();
   const [success, setSuccess] = useState(null);
@@ -366,12 +425,12 @@ export default function Competition() {
   return (
     <div style={{ backgroundColor: '#060f0d', minHeight: '100vh', color: 'white' }}>
       <SEO
-        title="Aquascape Competition 2026 — Junglyst"
-        description={`Enter Junglyst's first ever Aquascape Competition. Submit photos of your build, win ₹1,000. Open to all — 500 slots only.${announcementDate ? ` Winner announced ${announcementDate}.` : ''}`}
+        title="Aquascape Competition 2026 ? Junglyst"
+        description={`Enter Junglyst's first ever Aquascape Competition. Submit photos of your build, win ?1,000. Open to all ? 500 slots only.${announcementDate ? ` Winner announced ${announcementDate}.` : ''}`}
         path="/competition"
       />
 
-      {/* ── Hero ── */}
+      {/* ?? Hero ?? */}
       <section style={{
         background: 'linear-gradient(160deg, #060f0d 0%, #071823 50%, #060f0d 100%)',
         padding: 'clamp(4rem,10vw,8rem) 1.5rem clamp(3rem,7vw,6rem)',
@@ -405,7 +464,7 @@ export default function Competition() {
           </h1>
 
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 'clamp(0.9rem,2vw,1.1rem)', maxWidth: '560px', margin: '0 auto 2.5rem', lineHeight: 1.75 }}>
-            Share your aquascape with India's aquatic plant community. The most stunning build wins <strong style={{ color: '#c9972b' }}>₹1,000 cash</strong>. Winner selected by the Junglyst team{announcementDate ? <> and announced on <strong style={{ color: '#c9972b' }}>{announcementDate}</strong></> : ''}.
+            Share your aquascape with India's aquatic plant community. The most stunning build wins <strong style={{ color: '#c9972b' }}>?1,000 cash</strong>. Winner selected by the Junglyst team{announcementDate ? <> and announced on <strong style={{ color: '#c9972b' }}>{announcementDate}</strong></> : ''}.
           </p>
 
           {/* Countdown */}
@@ -423,7 +482,7 @@ export default function Competition() {
             </div>
           ) : (
             <div style={{ marginBottom: '2.5rem', padding: '1rem', background: 'rgba(201,151,43,0.1)', borderRadius: '12px', display: 'inline-block' }}>
-              <p style={{ color: '#c9972b', fontWeight: 700, margin: 0 }}>🏆 Submissions Closed — Winner Announcement Day!</p>
+              <p style={{ color: '#c9972b', fontWeight: 700, margin: 0 }}>?? Submissions Closed ? Winner Announcement Day!</p>
             </div>
           )}
 
@@ -447,7 +506,7 @@ export default function Competition() {
         </div>
       </section>
 
-      {/* ── Rules / Info ── */}
+      {/* ?? Rules / Info ?? */}
       <section style={{ padding: 'clamp(3rem,6vw,5rem) 1.5rem', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="container" style={{ maxWidth: '900px' }}>
           <div style={{ textAlign: 'center', marginBottom: 'clamp(2rem,4vw,3.5rem)' }}>
@@ -457,8 +516,8 @@ export default function Competition() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,240px),1fr))', gap: 'clamp(1.5rem,3vw,2rem)' }}>
             {[
               { icon: <Camera size={22} color="#c9972b" />, title: 'Submit Your Build', body: 'Fill in the registration form below with your details, a description of your aquascape, and up to 5 photos.' },
-              { icon: <Users size={22} color="#c9972b" />, title: '500 Slots Only', body: 'The competition is limited to 500 entries. Once slots are full, registrations close — enter early.' },
-              { icon: <Award size={22} color="#c9972b" />, title: '₹1,000 Prize', body: `One winner selected by the Junglyst team${announcementDate ? ` on ${announcementDate}` : ''}. The decision is final and will be announced on the website.` },
+              { icon: <Users size={22} color="#c9972b" />, title: '500 Slots Only', body: 'The competition is limited to 500 entries. Once slots are full, registrations close ? enter early.' },
+              { icon: <Award size={22} color="#c9972b" />, title: '?1,000 Prize', body: `One winner selected by the Junglyst team${announcementDate ? ` on ${announcementDate}` : ''}. The decision is final and will be announced on the website.` },
               { icon: <Trophy size={22} color="#c9972b" />, title: 'Win & Get Featured', body: 'The winning aquascape and its creator will be prominently featured on the Junglyst platform.' },
             ].map((item, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}
@@ -473,7 +532,82 @@ export default function Competition() {
         </div>
       </section>
 
-      {/* ── Registration Form ── */}
+      {/* ?? Rules ?? */}
+      <section style={{ padding: 'clamp(2.5rem,5vw,4rem) 1.5rem' }}>
+        <div className="container" style={{ maxWidth: '700px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 'clamp(1.5rem,3vw,2.5rem)' }}>
+            <span style={{ color: '#c9972b', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', display: 'block', marginBottom: '0.5rem' }}>Rules & Eligibility</span>
+            <h2 style={{ fontSize: 'clamp(1.4rem,3vw,2.25rem)', margin: 0 }}>Competition Rules</h2>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: 'clamp(1.25rem,3vw,2rem)', display: 'flex', flexDirection: 'column', gap: '0' }}>
+            {[
+              {
+                num: '01',
+                title: 'Register on Junglyst.com',
+                body: 'You must complete your entry through the registration form on this page. Entries submitted via any other channel will not be counted.',
+                mandatory: true,
+              },
+              {
+                num: '02',
+                title: 'Real Photographs Only',
+                body: 'All submitted images must be genuine photographs of your own aquascape. AI-generated, heavily composited, or digitally fabricated images will result in immediate disqualification.',
+                mandatory: true,
+              },
+              {
+                num: '03',
+                title: 'Follow @the.junglyst on Instagram',
+                body: 'You must follow our Instagram page to be eligible. Entries from accounts that do not follow us by the time of winner selection will be disqualified.',
+                instaLink: true,
+                mandatory: true,
+              },
+            ].map((rule, i, arr) => (
+              <div key={i} style={{
+                display: 'flex', gap: '1.25rem', alignItems: 'flex-start',
+                paddingBottom: i < arr.length - 1 ? '1.5rem' : 0,
+                marginBottom: i < arr.length - 1 ? '1.5rem' : 0,
+                borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+              }}>
+                <span style={{
+                  flexShrink: 0, width: '36px', height: '36px', borderRadius: '50%',
+                  background: 'rgba(201,151,43,0.12)', border: '1px solid rgba(201,151,43,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.65rem', fontWeight: 800, color: '#c9972b', letterSpacing: '0.05em',
+                }}>
+                  {rule.num}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+                    <h4 style={{ margin: 0, color: 'white', fontSize: '0.95rem', fontWeight: 700 }}>{rule.title}</h4>
+                    {rule.mandatory && (
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#c9972b', background: 'rgba(201,151,43,0.12)', border: '1px solid rgba(201,151,43,0.3)', borderRadius: '100px', padding: '0.15rem 0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        Mandatory
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem', lineHeight: 1.7 }}>{rule.body}</p>
+                  {rule.instaLink && (
+                    <a
+                      href="https://www.instagram.com/the.junglyst?igsh=MXNpa3Bvb3lmNmo1cQ=="
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.65rem',
+                        padding: '0.4rem 0.9rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700,
+                        background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)',
+                        color: 'white', textDecoration: 'none', letterSpacing: '0.03em',
+                      }}
+                    >
+                      Follow @the.junglyst
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ?? Registration Form ?? */}
       <section ref={formRef} style={{ padding: 'clamp(3rem,6vw,6rem) 1.5rem' }}>
         <div className="container" style={{ maxWidth: '680px' }}>
           <div style={{ textAlign: 'center', marginBottom: 'clamp(2rem,4vw,3rem)' }}>
@@ -505,3 +639,4 @@ export default function Competition() {
     </div>
   );
 }
+
