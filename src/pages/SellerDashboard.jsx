@@ -1047,22 +1047,52 @@ export default function SellerDashboard() {
   const [manualAwbSubmitting, setManualAwbSubmitting] = useState({});
   const [rebookSubmitting, setRebookSubmitting] = useState({});
 
-  const handleSaveShipmentDetails = async (subOrderId) => {
-    const dims = shipmentDims[subOrderId] || {};
-    if (!dims.weight || !dims.length || !dims.breadth || !dims.height) {
-      setFormError('Please fill in all shipment fields: weight, length, breadth, and height.');
-      return;
+  // Returns parsed dims from local form state if all 4 values are valid positive
+  // integers (weight 1–30000, others > 0); otherwise null. Used to auto-save on
+  // blur and to let "Ship Now" rescue unsaved input.
+  const getValidLocalDims = (subOrderId) => {
+    const dims = shipmentDims[subOrderId];
+    if (!dims) return null;
+    const w = parseInt(dims.weight, 10);
+    const l = parseInt(dims.length, 10);
+    const b = parseInt(dims.breadth, 10);
+    const h = parseInt(dims.height, 10);
+    if (!Number.isFinite(w) || w < 1 || w > 30000) return null;
+    if (!Number.isFinite(l) || l <= 0) return null;
+    if (!Number.isFinite(b) || b <= 0) return null;
+    if (!Number.isFinite(h) || h <= 0) return null;
+    return { w, l, b, h };
+  };
+
+  const localDimsDifferFromSaved = (subOrderId, parsed) => {
+    if (!parsed) return false;
+    const o = orders.find(x => x.id === subOrderId);
+    if (!o) return true;
+    return (
+      o.actual_weight_grams !== parsed.w ||
+      o.actual_length_cm !== parsed.l ||
+      o.actual_breadth_cm !== parsed.b ||
+      o.actual_height_cm !== parsed.h
+    );
+  };
+
+  const handleSaveShipmentDetails = async (subOrderId, { silent = false } = {}) => {
+    const parsed = getValidLocalDims(subOrderId);
+    if (!parsed) {
+      if (!silent) setFormError('Please fill in all shipment fields: weight, length, breadth, and height.');
+      return false;
     }
     setDimsSubmitting(prev => ({ ...prev, [subOrderId]: true }));
     try {
       const res = await api.patch(`/orders/seller/sub-orders/${subOrderId}/shipment-details/`, {
-        actual_weight_grams: parseInt(dims.weight),
-        actual_length_cm: parseInt(dims.length),
-        actual_breadth_cm: parseInt(dims.breadth),
-        actual_height_cm: parseInt(dims.height),
+        actual_weight_grams: parsed.w,
+        actual_length_cm: parsed.l,
+        actual_breadth_cm: parsed.b,
+        actual_height_cm: parsed.h,
       });
       setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
-      setSuccess('Shipment details saved.');
+      if (!silent) setSuccess('Shipment details saved.');
+      return true;
     } catch (e) {
       const errs = e.response?.data;
       if (errs && typeof errs === 'object') {
@@ -1070,9 +1100,21 @@ export default function SellerDashboard() {
       } else {
         setFormError('Failed to save shipment details.');
       }
+      return false;
     } finally {
       setDimsSubmitting(prev => ({ ...prev, [subOrderId]: false }));
     }
+  };
+
+  // Fires on input blur — silently auto-saves when all 4 fields are valid and
+  // differ from what's already saved. Eliminates the "I filled the form but
+  // can't ship" trap when sellers forget to click Save Details.
+  const handleDimsBlur = (subOrderId) => {
+    const parsed = getValidLocalDims(subOrderId);
+    if (!parsed) return;
+    if (!localDimsDifferFromSaved(subOrderId, parsed)) return;
+    if (dimsSubmitting[subOrderId]) return;
+    handleSaveShipmentDetails(subOrderId, { silent: true });
   };
 
   const handleConfirmSubOrder = async (subOrderId) => {
@@ -1117,6 +1159,18 @@ export default function SellerDashboard() {
     setBulkShipping(true);
     setFormError('');
     setSuccess('');
+    // Persist any locally-edited but unsaved dims before posting /ship/ — the
+    // backend rejects shipments without saved actual_weight/length/breadth/height.
+    for (const id of subOrderIds) {
+      const parsed = getValidLocalDims(id);
+      if (parsed && localDimsDifferFromSaved(id, parsed)) {
+        const ok = await handleSaveShipmentDetails(id, { silent: true });
+        if (!ok) {
+          setBulkShipping(false);
+          return;
+        }
+      }
+    }
     let successCount = 0;
     const errorMessages = [];
     for (const id of subOrderIds) {
@@ -2474,7 +2528,10 @@ export default function SellerDashboard() {
                                   const canConfirm = o.status === 'placed';
                                   const hasPhotos = (o.packaging_photos || []).length > 0;
                                   const hasDims = o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
-                                  const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && hasDims;
+                                  // Accept valid-but-unsaved local dims as "ready" — Ship Now will persist them before booking.
+                                  const hasValidLocalDims = !!getValidLocalDims(o.id);
+                                  const dimsReady = hasDims || hasValidLocalDims;
+                                  const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && dimsReady;
                                   const isInTransit = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
                                   const isCourierBooked = o.status === 'booked';
                                   const isBookingFailed = o.status === 'booking_failed';
@@ -2719,6 +2776,7 @@ export default function SellerDashboard() {
                                                               type="number" min="1" placeholder={placeholder}
                                                               value={shipmentDims[o.id]?.[key] || ''}
                                                               onChange={e => setShipmentDims(prev => ({ ...prev, [o.id]: { ...(prev[o.id] || {}), [key]: e.target.value } }))}
+                                                              onBlur={() => handleDimsBlur(o.id)}
                                                               style={{ flex: 1, padding: '0.4rem 0.6rem', borderRadius: '7px', border: '1px solid #e2e8f0', fontSize: '0.8rem', outline: 'none' }}
                                                             />
                                                           </div>
@@ -2828,7 +2886,7 @@ export default function SellerDashboard() {
                                                   <div style={{ padding: '0.75rem', borderRadius: '10px', backgroundColor: canShip ? '#f0fdf4' : '#fefce8', border: `1px solid ${canShip ? '#bbf7d0' : '#fde68a'}`, fontSize: '0.75rem' }}>
                                                     <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: canShip ? '#15803d' : '#92400e' }}>{canShip ? '✓ Ready to ship' : 'Complete before shipping:'}</p>
                                                     {!hasPhotos && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Upload at least 1 packaging photo</p>}
-                                                    {!hasDims && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Enter actual package weight and dimensions</p>}
+                                                    {!dimsReady && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Enter actual package weight and dimensions</p>}
                                                   </div>
                                                 )}
                                               </div>
