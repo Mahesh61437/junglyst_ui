@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink, Sparkles, CheckCircle2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import ProductCard from '../components/ProductCard';
 import api from '../services/api';
@@ -24,6 +24,7 @@ export default function SellerStore() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 12;
 
   const [sellerInfo, setSellerInfo] = useState({
@@ -91,10 +92,36 @@ export default function SellerStore() {
   const textColor = isLight(sellerInfo.brandColor) ? 'var(--text-primary)' : 'white';
   const accentColor = isLight(sellerInfo.brandColor) ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.7)';
 
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return products;
+    }
+    return products.filter(product => {
+      const name = (product.name || product.title || '').toLowerCase();
+      const query = searchQuery.toLowerCase();
+      return name.includes(query);
+    });
+  }, [products, searchQuery]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return products.slice(start, start + itemsPerPage);
-  }, [products, currentPage]);
+    return filteredProducts.slice(start, start + itemsPerPage);
+  }, [filteredProducts, currentPage]);
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const productsRef = React.useRef(null);
+
+  useEffect(() => {
+    if (productsRef.current) {
+      productsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentPage]);
 
   if (loading) {
     return (
@@ -276,32 +303,193 @@ export default function SellerStore() {
       <div className="container">
         <div style={{ textAlign: 'center', marginBottom: 'clamp(3rem, 6vw, 6rem)' }}>
           <h2 style={{ fontSize: 'clamp(2rem, 6vw, 4rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.75rem' }}>Seasonal Selections</h2>
-          <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af' }}>LATEST {products.length} SPECIMENS FROM THE STORE</p>
+          <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af' }}>
+            {searchQuery ? `${filteredProducts.length} RESULTS` : `LATEST ${products.length} SPECIMENS FROM THE STORE`}
+          </p>
         </div>
 
-        {products.length > 0 ? (
-          <div className="grid-responsive" style={{ display: 'grid' }}>
-            {paginatedProducts.map(product => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                slug={product.slug}
-                name={product.name || product.title}
-                price={product.price}
-                image={product.image_url || product.image}
-                seller={product.seller}
-                brandColor={sellerInfo.brandColor}
-                reviews={product.rating}
-                stock={product.stock}
-                variants={product.variants}
-              />
-            ))}
+        {/* Search Bar */}
+        <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'center' }}>
+          <div style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: '500px',
+            backgroundColor: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '24px',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+          }}>
+            <Search size={20} color="#9ca3af" />
+            <input
+              type="text"
+              placeholder="Search products in this store..."
+              value={searchQuery}
+              onChange={handleSearch}
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: '0.95rem',
+                fontFamily: 'inherit',
+                backgroundColor: 'transparent'
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.5rem',
+                  color: '#9ca3af',
+                  fontSize: '1.2rem'
+                }}
+              >
+                ×
+              </button>
+            )}
           </div>
+        </div>
+
+        {filteredProducts.length > 0 ? (
+          <>
+            <div ref={productsRef} className="grid-responsive" style={{ display: 'grid', marginBottom: '3rem' }}>
+              {paginatedProducts.map(product => (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  slug={product.slug}
+                  name={product.name || product.title}
+                  price={product.price}
+                  image={product.image_url || product.image}
+                  seller={product.seller}
+                  brandColor={sellerInfo.brandColor}
+                  reviews={product.rating}
+                  stock={product.stock}
+                  variants={product.variants}
+                />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pagination-container" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '1.5rem',
+                marginTop: '4rem',
+                marginBottom: '2rem'
+              }}>
+                {/* Page Numbers */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center'
+                }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        border: currentPage === page ? '2px solid #1a1a1a' : '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        backgroundColor: currentPage === page ? '#f3f4f6' : 'white',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: currentPage === page ? 700 : 600,
+                        color: '#1a1a1a',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Previous and Next Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '1rem',
+                  justifyContent: 'center',
+                  width: '100%',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '12px',
+                      backgroundColor: currentPage === 1 ? '#f3f4f6' : 'white',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      color: currentPage === 1 ? '#d1d5db' : '#1a1a1a',
+                      transition: 'all 0.2s ease',
+                      flex: '1 1 auto',
+                      minWidth: '120px',
+                      maxWidth: '180px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <ChevronLeft size={18} /> Previous
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '12px',
+                      backgroundColor: currentPage === totalPages ? '#f3f4f6' : 'white',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      color: currentPage === totalPages ? '#d1d5db' : '#1a1a1a',
+                      transition: 'all 0.2s ease',
+                      flex: '1 1 auto',
+                      minWidth: '120px',
+                      maxWidth: '180px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    Next <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div style={{ padding: 'clamp(4rem, 8vw, 8rem) 2rem', textAlign: 'center', backgroundColor: 'white', border: '1px solid #f3f4f6', borderRadius: '24px' }}>
             <Leaf size={44} color="#e5e7eb" style={{ marginBottom: '1.5rem' }} />
-            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(1.5rem, 4vw, 2rem)', marginBottom: '0.75rem' }}>Collection Dormant</h4>
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>This grower is currently nurturing their next batch of rare specimens.</p>
+            <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(1.5rem, 4vw, 2rem)', marginBottom: '0.75rem' }}>
+              {searchQuery ? 'No Products Found' : 'Collection Dormant'}
+            </h4>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+              {searchQuery ? `No products match "${searchQuery}". Try a different search.` : 'This grower is currently nurturing their next batch of rare specimens.'}
+            </p>
           </div>
         )}
       </div>
