@@ -60,19 +60,44 @@ function CountdownUnit({ value, label }) {
 }
 
 // ??? Image Dropzone ???????????????????????????????????????????????????????????
-function ImageDropzone({ files, setFiles }) {
+const MAX_FILE_MB = 10;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+const ALLOWED_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif']);
+
+function isAllowedFile(f) {
+  // Check MIME type first; fall back to extension for HEIC (browsers often omit MIME)
+  if (['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(f.type)) return true;
+  const ext = '.' + f.name.split('.').pop().toLowerCase();
+  return ALLOWED_EXTS.has(ext);
+}
+
+function ImageDropzone({ files, setFiles, fileErrors, setFileErrors }) {
   const inputRef = useRef();
   const [dragging, setDragging] = useState(false);
 
   const addFiles = (newFiles) => {
-    const valid = Array.from(newFiles).filter(f => f.type.startsWith('image/'));
-    setFiles(prev => {
-      const combined = [...prev, ...valid];
-      return combined.slice(0, 5);
+    const errs = [];
+    const valid = [];
+    Array.from(newFiles).forEach(f => {
+      if (!isAllowedFile(f)) {
+        errs.push(`"${f.name}" — unsupported format. Use JPEG, PNG, WebP, or HEIC.`);
+        return;
+      }
+      if (f.size > MAX_FILE_BYTES) {
+        const mb = (f.size / (1024 * 1024)).toFixed(1);
+        errs.push(`"${f.name}" is ${mb} MB — max allowed is ${MAX_FILE_MB} MB.`);
+        return;
+      }
+      valid.push(f);
     });
+    if (errs.length) setFileErrors(errs);
+    setFiles(prev => [...prev, ...valid].slice(0, 5));
   };
 
-  const removeFile = (i) => setFiles(prev => prev.filter((_, idx) => idx !== i));
+  const removeFile = (i) => {
+    setFiles(prev => prev.filter((_, idx) => idx !== i));
+    setFileErrors([]);
+  };
 
   return (
     <div>
@@ -95,42 +120,75 @@ function ImageDropzone({ files, setFiles }) {
         <p style={{ margin: '0 0 0.35rem', color: 'rgba(255,255,255,0.75)', fontWeight: 600, fontSize: '0.9rem' }}>
           Drop images here or click to browse
         </p>
-        <p style={{ margin: 0, color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>
-          Up to 5 images ? JPG, PNG, WEBP accepted
+        <p style={{ margin: '0 0 0.2rem', color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>
+          Up to 5 images · JPEG, PNG, WebP, HEIC supported
+        </p>
+        <p style={{ margin: 0, color: 'rgba(201,151,43,0.5)', fontSize: '0.72rem', fontWeight: 600 }}>
+          Max {MAX_FILE_MB} MB per image
         </p>
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
           multiple
           style={{ display: 'none' }}
           onChange={e => addFiles(e.target.files)}
         />
       </div>
 
-      {files.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-          {files.map((f, i) => (
-            <div key={i} style={{ position: 'relative' }}>
-              <img
-                src={URL.createObjectURL(f)}
-                alt=""
-                style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '10px', border: '1px solid rgba(201,151,43,0.3)' }}
-              />
-              <button
-                type="button"
-                onClick={() => removeFile(i)}
-                style={{
-                  position: 'absolute', top: '-6px', right: '-6px',
-                  width: '20px', height: '20px', borderRadius: '50%',
-                  background: '#c9972b', border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                }}
-              >
-                <X size={11} color="#0a1f1c" />
-              </button>
+      {/* Client-side file validation errors */}
+      {fileErrors.length > 0 && (
+        <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          {fileErrors.map((e, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem', color: '#fca5a5', fontSize: '0.78rem' }}>
+              <AlertCircle size={13} style={{ flexShrink: 0, marginTop: '2px' }} />
+              {e}
             </div>
           ))}
+        </div>
+      )}
+
+      {files.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+          {files.map((f, i) => {
+            const heic = f.type === 'image/heic' || f.type === 'image/heif' ||
+                         f.name.toLowerCase().endsWith('.heic') || f.name.toLowerCase().endsWith('.heif');
+            return (
+              <div key={i} style={{ position: 'relative' }}>
+                {heic ? (
+                  // Browsers can't render HEIC — show a labelled placeholder instead
+                  <div style={{
+                    width: '80px', height: '80px', borderRadius: '10px',
+                    border: '1px solid rgba(201,151,43,0.4)',
+                    background: 'rgba(201,151,43,0.08)',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: '4px',
+                  }}>
+                    <Camera size={20} color="rgba(201,151,43,0.7)" />
+                    <span style={{ fontSize: '0.55rem', color: 'rgba(201,151,43,0.7)', fontWeight: 700, letterSpacing: '0.05em' }}>HEIC</span>
+                  </div>
+                ) : (
+                  <img
+                    src={URL.createObjectURL(f)}
+                    alt=""
+                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '10px', border: '1px solid rgba(201,151,43,0.3)' }}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  style={{
+                    position: 'absolute', top: '-6px', right: '-6px',
+                    width: '20px', height: '20px', borderRadius: '50%',
+                    background: '#c9972b', border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                  }}
+                >
+                  <X size={11} color="#0a1f1c" />
+                </button>
+              </div>
+            );
+          })}
           {files.length < 5 && (
             <button
               type="button"
@@ -153,48 +211,89 @@ function ImageDropzone({ files, setFiles }) {
 }
 
 // ??? Form ?????????????????????????????????????????????????????????????????????
+const SUPPORT_HANDLE = '@the.junglyst';
+
 function EntryForm({ status, onSuccess }) {
   const [form, setForm] = useState({ name: '', email: '', mobile: '', about_aquarium: '', instagram_handle: '' });
   const [followsInstagram, setFollowsInstagram] = useState(false);
   const [images, setImages] = useState([]);
+  const [fileErrors, setFileErrors] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // { current, total }
   const [error, setError] = useState('');
+  const [hint, setHint] = useState('');
 
   const set = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target.value }));
+
+  const setApiError = (data) => {
+    setError(data?.error || 'Something went wrong. Please try again.');
+    setHint(data?.hint || '');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setHint('');
+    setFileErrors([]);
 
-    if (!images.length) { setError('Please upload at least one image of your aquascape.'); return; }
+    if (!images.length) {
+      setError('Please upload at least one image of your aquascape.');
+      return;
+    }
 
     setSubmitting(true);
-    try {
-      const fd = new FormData();
-      fd.append('name', form.name);
-      fd.append('email', form.email);
-      fd.append('mobile', form.mobile);
-      fd.append('about_aquarium', form.about_aquarium);
-      fd.append('instagram_handle', form.instagram_handle);
-      fd.append('follows_instagram', followsInstagram);
-      images.forEach(img => fd.append('images', img));
 
-      const { data } = await api.post('/competition/enter/', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+    try {
+      // Step 1 — create the entry (no images yet)
+      const { data: entryData } = await api.post('/competition/enter/', {
+        name: form.name,
+        email: form.email,
+        mobile: form.mobile,
+        about_aquarium: form.about_aquarium,
+        instagram_handle: form.instagram_handle,
+        follows_instagram: followsInstagram,
       });
-      onSuccess(data);
+
+      const entryId = entryData.entry_id;
+
+      // Step 2 — upload images one by one
+      let lastImgData = null;
+      for (let i = 0; i < images.length; i++) {
+        setUploadProgress({ current: i + 1, total: images.length });
+        const fd = new FormData();
+        fd.append('image', images[i]);
+        try {
+          const { data: imgData } = await api.post(
+            `/competition/enter/${entryId}/upload-image/`,
+            fd,
+            { headers: { 'Content-Type': 'multipart/form-data' } },
+          );
+          lastImgData = imgData;
+        } catch (imgErr) {
+          setApiError(imgErr?.response?.data);
+          return;
+        }
+      }
+
+      onSuccess({ ...entryData, ...lastImgData });
     } catch (err) {
       const d = err?.response?.data;
-      if (d?.error) setError(d.error);
-      else if (d?.errors) {
+      if (d?.errors) {
         const msgs = Object.values(d.errors).flat();
         setError(msgs[0] || 'Please check your details and try again.');
       } else {
-        setError('Something went wrong. Please try again.');
+        setApiError(d);
       }
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
+  };
+
+  const submitLabel = () => {
+    if (!submitting) return 'Submit My Aquascape';
+    if (!uploadProgress) return 'Creating Entry…';
+    return `Uploading Photo ${uploadProgress.current} of ${uploadProgress.total}…`;
   };
 
   const inputStyle = {
@@ -338,7 +437,7 @@ function EntryForm({ status, onSuccess }) {
 
       <div style={{ marginBottom: '1.75rem' }}>
         <label style={labelStyle}>Aquascape Photos * (up to 5)</label>
-        <ImageDropzone files={images} setFiles={setImages} />
+        <ImageDropzone files={images} setFiles={setImages} fileErrors={fileErrors} setFileErrors={setFileErrors} />
       </div>
 
       <AnimatePresence>
@@ -347,8 +446,15 @@ function EntryForm({ status, onSuccess }) {
             initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: '10px', padding: '0.9rem 1rem', marginBottom: '1.25rem', color: '#fca5a5', fontSize: '0.85rem' }}
           >
-            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-            {error}
+            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <div>{error}</div>
+              {hint && (
+                <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'rgba(252,165,165,0.75)', lineHeight: 1.5 }}>
+                  {hint}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -370,7 +476,7 @@ function EntryForm({ status, onSuccess }) {
           opacity: submitting ? 0.7 : 1, cursor: submitting ? 'not-allowed' : 'pointer',
         }}
       >
-        {submitting ? 'Submitting Entry?' : 'Submit My Aquascape'}
+        {submitLabel()}
       </button>
 
       <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '1rem' }}>
@@ -420,6 +526,11 @@ export default function Competition() {
   const formRef = useRef();
 
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const handleSuccess = (data) => {
+    setSuccess(data);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
   const announcementDate = formatAnnouncementDate(status?.result_announcement_date);
 
   return (
@@ -624,7 +735,7 @@ export default function Competition() {
             {success ? (
               <SuccessState data={success} announcementDate={announcementDate} />
             ) : (
-              <EntryForm status={status} onSuccess={setSuccess} />
+              <EntryForm status={status} onSuccess={handleSuccess} />
             )}
           </div>
         </div>
