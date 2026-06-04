@@ -258,6 +258,7 @@ function EntryForm({ status, onSuccess }) {
 
       // Step 2 — upload images one by one
       let lastImgData = null;
+      let imagesUploaded = 0;
       for (let i = 0; i < images.length; i++) {
         setUploadProgress({ current: i + 1, total: images.length });
         const fd = new FormData();
@@ -269,7 +270,13 @@ function EntryForm({ status, onSuccess }) {
             { headers: { 'Content-Type': 'multipart/form-data' } },
           );
           lastImgData = imgData;
+          imagesUploaded++;
         } catch (imgErr) {
+          // If no images uploaded yet, delete the orphaned entry so the email
+          // stays free and the slot is not consumed
+          if (imagesUploaded === 0) {
+            try { await api.delete(`/competition/enter/${entryId}/cancel/`); } catch (_) {}
+          }
           setApiError(imgErr?.response?.data);
           return;
         }
