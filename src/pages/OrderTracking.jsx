@@ -274,9 +274,11 @@ export default function OrderTracking() {
                    <MapPin size={16} /> Delivery Address
                 </h4>
                 <div style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.8 }}>
-                   <strong>{order.shipping_address?.firstName} {order.shipping_address?.lastName}</strong><br />
-                   {order.shipping_address?.address}<br />
-                   {order.shipping_address?.city}, {order.shipping_address?.zip}
+                   <strong>{order.shipping_address?.full_name}</strong><br />
+                   {order.shipping_address?.address_line1}<br />
+                   {order.shipping_address?.address_line2 && <>{order.shipping_address.address_line2}<br /></>}
+                   {order.shipping_address?.city}, {order.shipping_address?.state} – {order.shipping_address?.pincode}<br />
+                   {order.shipping_address?.phone && <>📞 {order.shipping_address.phone}</>}
                 </div>
              </div>
           </section>
