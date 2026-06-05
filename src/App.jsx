@@ -48,6 +48,8 @@ import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { OrderProvider } from './context/OrderContext';
+import { FeatureFlagsProvider, useFeatureFlag } from './context/FeatureFlagsContext';
+import { Navigate } from 'react-router-dom';
 
 /** Fires Meta Pixel PageView + PostHog $pageview on every SPA navigation */
 function NavigationTracker() {
@@ -58,9 +60,17 @@ function NavigationTracker() {
   return null;
 }
 
+/** Gates a route behind a backend feature flag — redirects home when off. */
+function FeatureGate({ flag, children }) {
+  const enabled = useFeatureFlag(flag);
+  if (!enabled) return <Navigate to="/" replace />;
+  return children;
+}
+
 function App() {
   return (
     <HelmetProvider>
+      <FeatureFlagsProvider>
       <AuthProvider>
       <NotificationProvider>
       <WishlistProvider>
@@ -98,7 +108,7 @@ function App() {
                 <Route path="orders/:id" element={<RequireAuth><OrderTracking /></RequireAuth>} />
                 <Route path="track" element={<TrackOrder />} />
                 <Route path="competition" element={<Competition />} />
-                <Route path="community" element={<Community />} />
+                <Route path="community" element={<FeatureGate flag="community"><Community /></FeatureGate>} />
               </Route>
               
               {/* Auth Portals (Standalone) */}
@@ -121,6 +131,7 @@ function App() {
       </WishlistProvider>
       </NotificationProvider>
     </AuthProvider>
+    </FeatureFlagsProvider>
     </HelmetProvider>
   );
 }
