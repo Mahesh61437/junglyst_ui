@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'; // v2
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Award, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Award, ChevronDown, Heart } from 'lucide-react';
 import SEO from '../components/SEO';
 import api from '../services/api';
 import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
@@ -604,7 +605,7 @@ export default function Competition() {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={scrollToForm}
               className="btn btn-primary"
@@ -612,6 +613,18 @@ export default function Competition() {
             >
               Enter Competition
             </button>
+            <Link
+              to="/competition/entries"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.9rem 1.6rem', borderRadius: '10px',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+                color: 'white', textDecoration: 'none',
+                fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+              }}
+            >
+              <Heart size={14} /> View Gallery
+            </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem' }}>
               <Users size={14} />
               {status ? `${status.total_entries} / ${MAX_ENTRIES} entries` : `${MAX_ENTRIES} slots available`}
