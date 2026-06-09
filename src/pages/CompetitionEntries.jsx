@@ -98,6 +98,7 @@ function Lightbox({ entry, imageIndex, onClose, onPrev, onNext, onSelect }) {
       <img
         src={url}
         alt={`${entry.name} — photo ${imageIndex + 1} of ${images.length}`}
+        decoding="async"
         style={{
           maxWidth: '100%',
           maxHeight: isMobile ? '52vh' : '90vh',
@@ -279,6 +280,7 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
             src={mainImg}
             alt={`${entry.name} — photo ${safeActive + 1} of ${imageCount}`}
             loading="lazy"
+            decoding="async"
             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s' }}
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}

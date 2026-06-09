@@ -62,13 +62,36 @@ export function getLaunchDate(status) {
 
 // ── Entries / Voting / Winners ──────────────────────────────────────────────
 
-export async function fetchEntries({ sort = 'top', limit = 200 } = {}) {
-  const { data } = await api.get('/competition/entries/', { params: { sort, limit } });
-  return data;
+// Short client-side cache so re-opening the gallery (or toggling sorts back and
+// forth) is instant and doesn't re-hit the API — the images stay warm in the
+// browser HTTP cache too. In-flight requests are de-duped per sort key.
+const ENTRIES_CACHE_TTL_MS = 20000;
+const entriesCache = new Map();   // sort -> { data, ts }
+const entriesInflight = new Map(); // sort -> Promise
+
+export function clearEntriesCache() {
+  entriesCache.clear();
+}
+
+export async function fetchEntries({ sort = 'top', limit = 200, force = false } = {}) {
+  const now = Date.now();
+  if (!force) {
+    const hit = entriesCache.get(sort);
+    if (hit && now - hit.ts < ENTRIES_CACHE_TTL_MS) return hit.data;
+    if (entriesInflight.has(sort)) return entriesInflight.get(sort);
+  }
+  const p = api.get('/competition/entries/', { params: { sort, limit } })
+    .then((r) => { entriesCache.set(sort, { data: r.data, ts: Date.now() }); return r.data; })
+    .finally(() => entriesInflight.delete(sort));
+  entriesInflight.set(sort, p);
+  return p;
 }
 
 export async function toggleVote(entryId) {
   const { data } = await api.post(`/competition/entries/${entryId}/vote/`);
+  // The cached entries lists now hold a stale has_voted/vote_count for this user
+  // — drop them so the next fresh load reflects the vote.
+  clearEntriesCache();
   return data; // { voted, vote_count, entry_id }
 }
 
