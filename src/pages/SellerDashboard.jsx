@@ -1046,23 +1046,54 @@ export default function SellerDashboard() {
   const [manualAwbForm, setManualAwbForm] = useState({});   // { [subOrderId]: { show, awb, courier } }
   const [manualAwbSubmitting, setManualAwbSubmitting] = useState({});
   const [rebookSubmitting, setRebookSubmitting] = useState({});
+  const [refreshingLabel, setRefreshingLabel] = useState({});
 
-  const handleSaveShipmentDetails = async (subOrderId) => {
-    const dims = shipmentDims[subOrderId] || {};
-    if (!dims.weight || !dims.length || !dims.breadth || !dims.height) {
-      setFormError('Please fill in all shipment fields: weight, length, breadth, and height.');
-      return;
+  // Returns parsed dims from local form state if all 4 values are valid positive
+  // integers (weight 1–30000, others > 0); otherwise null. Used to auto-save on
+  // blur and to let "Ship Now" rescue unsaved input.
+  const getValidLocalDims = (subOrderId) => {
+    const dims = shipmentDims[subOrderId];
+    if (!dims) return null;
+    const w = parseInt(dims.weight, 10);
+    const l = parseInt(dims.length, 10);
+    const b = parseInt(dims.breadth, 10);
+    const h = parseInt(dims.height, 10);
+    if (!Number.isFinite(w) || w < 1 || w > 30000) return null;
+    if (!Number.isFinite(l) || l <= 0) return null;
+    if (!Number.isFinite(b) || b <= 0) return null;
+    if (!Number.isFinite(h) || h <= 0) return null;
+    return { w, l, b, h };
+  };
+
+  const localDimsDifferFromSaved = (subOrderId, parsed) => {
+    if (!parsed) return false;
+    const o = orders.find(x => x.id === subOrderId);
+    if (!o) return true;
+    return (
+      o.actual_weight_grams !== parsed.w ||
+      o.actual_length_cm !== parsed.l ||
+      o.actual_breadth_cm !== parsed.b ||
+      o.actual_height_cm !== parsed.h
+    );
+  };
+
+  const handleSaveShipmentDetails = async (subOrderId, { silent = false } = {}) => {
+    const parsed = getValidLocalDims(subOrderId);
+    if (!parsed) {
+      if (!silent) setFormError('Please fill in all shipment fields: weight, length, breadth, and height.');
+      return false;
     }
     setDimsSubmitting(prev => ({ ...prev, [subOrderId]: true }));
     try {
       const res = await api.patch(`/orders/seller/sub-orders/${subOrderId}/shipment-details/`, {
-        actual_weight_grams: parseInt(dims.weight),
-        actual_length_cm: parseInt(dims.length),
-        actual_breadth_cm: parseInt(dims.breadth),
-        actual_height_cm: parseInt(dims.height),
+        actual_weight_grams: parsed.w,
+        actual_length_cm: parsed.l,
+        actual_breadth_cm: parsed.b,
+        actual_height_cm: parsed.h,
       });
       setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
-      setSuccess('Shipment details saved.');
+      if (!silent) setSuccess('Shipment details saved.');
+      return true;
     } catch (e) {
       const errs = e.response?.data;
       if (errs && typeof errs === 'object') {
@@ -1070,19 +1101,54 @@ export default function SellerDashboard() {
       } else {
         setFormError('Failed to save shipment details.');
       }
+      return false;
     } finally {
       setDimsSubmitting(prev => ({ ...prev, [subOrderId]: false }));
     }
   };
 
+  // Fires on input blur — silently auto-saves when all 4 fields are valid and
+  // differ from what's already saved. Eliminates the "I filled the form but
+  // can't ship" trap when sellers forget to click Save Details.
+  const handleDimsBlur = (subOrderId) => {
+    const parsed = getValidLocalDims(subOrderId);
+    if (!parsed) return;
+    if (!localDimsDifferFromSaved(subOrderId, parsed)) return;
+    if (dimsSubmitting[subOrderId]) return;
+    handleSaveShipmentDetails(subOrderId, { silent: true });
+  };
+
   const handleConfirmSubOrder = async (subOrderId) => {
+    // Confirm now requires approximate weight + L×B×H so the courier can be
+    // booked immediately and the seller gets a downloadable label.
+    const parsed = getValidLocalDims(subOrderId);
+    if (!parsed) {
+      setFormError('Enter approximate weight and dimensions before confirming — these are needed to generate the shipping label.');
+      // Make sure the dim inputs are visible so the seller knows what to fill.
+      setShipmentDims(prev => ({ ...prev, [subOrderId]: prev[subOrderId] || {} }));
+      setExpandedOrderId(subOrderId);
+      return;
+    }
     setConfirmingOrderId(subOrderId);
+    setFormError('');
     try {
-      const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/confirm/`);
+      const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/confirm/`, {
+        actual_weight_grams: parsed.w,
+        actual_length_cm: parsed.l,
+        actual_breadth_cm: parsed.b,
+        actual_height_cm: parsed.h,
+      });
       setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
-      setSuccess('Order confirmed — 48h dispatch clock started.');
+      setSuccess('Order confirmed — booking courier and generating label.');
+      // The Celery booking task runs async; poll for AWB + label like Ship Now does.
+      pollSubOrderForAWB(subOrderId);
     } catch (e) {
-      setFormError(e.response?.data?.error || 'Failed to confirm order.');
+      const errs = e.response?.data;
+      if (errs && typeof errs === 'object' && !errs.error) {
+        setFormError(Object.values(errs).flat().join(' '));
+      } else {
+        setFormError(errs?.error || 'Failed to confirm order.');
+      }
     } finally {
       setConfirmingOrderId(null);
     }
@@ -1117,6 +1183,18 @@ export default function SellerDashboard() {
     setBulkShipping(true);
     setFormError('');
     setSuccess('');
+    // Persist any locally-edited but unsaved dims before posting /ship/ — the
+    // backend rejects shipments without saved actual_weight/length/breadth/height.
+    for (const id of subOrderIds) {
+      const parsed = getValidLocalDims(id);
+      if (parsed && localDimsDifferFromSaved(id, parsed)) {
+        const ok = await handleSaveShipmentDetails(id, { silent: true });
+        if (!ok) {
+          setBulkShipping(false);
+          return;
+        }
+      }
+    }
     let successCount = 0;
     const errorMessages = [];
     for (const id of subOrderIds) {
@@ -1169,6 +1247,26 @@ export default function SellerDashboard() {
       setFormError(msg);
     }
     setManualAwbSubmitting(prev => ({ ...prev, [subOrderId]: false }));
+  };
+
+  const handleRefreshLabel = async (subOrderId) => {
+    setRefreshingLabel(prev => ({ ...prev, [subOrderId]: true }));
+    setFormError('');
+    try {
+      const res = await api.post(`/orders/seller/sub-orders/${subOrderId}/refresh-label/`);
+      setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
+      setSuccess('Shipping label fetched.');
+    } catch (e) {
+      const status = e.response?.status;
+      const msg = e.response?.data?.error || 'Could not fetch label.';
+      if (status === 202) {
+        setSuccess(msg);
+      } else {
+        setFormError(msg);
+      }
+    } finally {
+      setRefreshingLabel(prev => ({ ...prev, [subOrderId]: false }));
+    }
   };
 
   const handlePackageImageUpload = async (subOrderId, file) => {
@@ -2449,12 +2547,20 @@ export default function SellerDashboard() {
                                   <th style={{ padding: '0.875rem 0.75rem 0.875rem 1.25rem', width: '40px' }}>
                                     <input
                                       type="checkbox"
-                                      checked={dayOrders.some(o => {
-                                        const cs = ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm && !o.awb_number;
-                                        return cs;
-                                      }) && dayOrders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm && !o.awb_number).every(o => selectedOrders.has(o.id))}
+                                      checked={(() => {
+                                        const shippable = dayOrders.filter(o =>
+                                          ((o.status === 'booked' && o.awb_number) || ['confirmed', 'packing'].includes(o.status))
+                                          && (o.packaging_photos || []).length > 0
+                                          && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm
+                                        );
+                                        return shippable.length > 0 && shippable.every(o => selectedOrders.has(o.id));
+                                      })()}
                                       onChange={e => {
-                                        const shippable = dayOrders.filter(o => ['confirmed', 'packing'].includes(o.status) && (o.packaging_photos || []).length > 0 && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm && !o.awb_number);
+                                        const shippable = dayOrders.filter(o =>
+                                          ((o.status === 'booked' && o.awb_number) || ['confirmed', 'packing'].includes(o.status))
+                                          && (o.packaging_photos || []).length > 0
+                                          && o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm
+                                        );
                                         setSelectedOrders(prev => { const next = new Set(prev); shippable.forEach(o => e.target.checked ? next.add(o.id) : next.delete(o.id)); return next; });
                                       }}
                                       style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#1b2d2a' }}
@@ -2471,10 +2577,19 @@ export default function SellerDashboard() {
                                 {dayOrders.map(o => {
                                   const shipment = o.shipment;
                                   const isExpanded = expandedOrderId === o.id;
-                                  const canConfirm = o.status === 'placed';
                                   const hasPhotos = (o.packaging_photos || []).length > 0;
                                   const hasDims = o.actual_weight_grams && o.actual_length_cm && o.actual_breadth_cm && o.actual_height_cm;
-                                  const canShip = ['confirmed', 'packing'].includes(o.status) && hasPhotos && hasDims;
+                                  // Accept valid-but-unsaved local dims as "ready" — Confirm/Ship Now will persist them.
+                                  const hasValidLocalDims = !!getValidLocalDims(o.id);
+                                  const dimsReady = hasDims || hasValidLocalDims;
+                                  // Confirm now books the courier in one step. Dims are required up-front; photos are not.
+                                  const canConfirm = o.status === 'placed' && dimsReady;
+                                  // Ship Now requires the courier to be booked AND the seller has uploaded photo + actuals.
+                                  // Legacy: also allow confirmed/packing (orders confirmed before the new flow shipped).
+                                  const canShip = (
+                                    (o.status === 'booked' && o.awb_number) ||
+                                    ['confirmed', 'packing'].includes(o.status)
+                                  ) && hasPhotos && dimsReady;
                                   const isInTransit = ['shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(o.status);
                                   const isCourierBooked = o.status === 'booked';
                                   const isBookingFailed = o.status === 'booking_failed';
@@ -2553,13 +2668,14 @@ export default function SellerDashboard() {
                                             </td>
                                             <td style={{ padding: '1.25rem 1.5rem' }}>
                                               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                {canConfirm && (
+                                                {o.status === 'placed' && (
                                                   <button
                                                     onClick={() => handleConfirmSubOrder(o.id)}
                                                     disabled={confirmingOrderId === o.id}
+                                                    title={dimsReady ? 'Confirm and book courier' : 'Enter approximate weight + dimensions in the expanded view first'}
                                                     style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: '8px', backgroundColor: confirmingOrderId === o.id ? '#93c5fd' : '#3b82f6', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: 700, cursor: confirmingOrderId === o.id ? 'not-allowed' : 'pointer' }}
                                                   >
-                                                    {confirmingOrderId === o.id ? 'Confirming…' : 'Confirm'}
+                                                    {confirmingOrderId === o.id ? 'Confirming…' : 'Confirm & Book'}
                                                   </button>
                                                 )}
                                                 {canShip && (
@@ -2573,12 +2689,12 @@ export default function SellerDashboard() {
                                                 )}
                                                 {isCourierBooked && !o.awb_number && (
                                                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: '8px', backgroundColor: '#ede9fe', color: '#7c3aed', fontSize: '0.7rem', fontWeight: 700 }}>
-                                                    <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Booking...
+                                                    <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Booking courier…
                                                   </span>
                                                 )}
-                                                {isCourierBooked && o.awb_number && (
+                                                {isCourierBooked && o.awb_number && !canShip && (
                                                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: '8px', backgroundColor: '#ede9fe', color: '#7c3aed', fontSize: '0.7rem', fontWeight: 700 }}>
-                                                    <CheckCircle2 size={11} /> Booked · Awaiting Pickup
+                                                    <CheckCircle2 size={11} /> Label ready · Pack & Ship
                                                   </span>
                                                 )}
                                                 {isBookingFailed && (
@@ -2647,9 +2763,9 @@ export default function SellerDashboard() {
                                                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{o.buyer_pincode || '—'}</span>
                                                 </div>
                                                 <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                                                  {canConfirm && (
+                                                  {o.status === 'placed' && (
                                                     <button onClick={() => handleConfirmSubOrder(o.id)} disabled={confirmingOrderId === o.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: confirmingOrderId === o.id ? '#93c5fd' : '#3b82f6', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: confirmingOrderId === o.id ? 'not-allowed' : 'pointer', flex: 1, justifyContent: 'center' }}>
-                                                      {confirmingOrderId === o.id ? 'Confirming…' : 'Confirm Order'}
+                                                      {confirmingOrderId === o.id ? 'Confirming…' : 'Confirm & Book'}
                                                     </button>
                                                   )}
                                                   {canShip && (
@@ -2685,14 +2801,48 @@ export default function SellerDashboard() {
                                                 </div>
                                               </div>
 
-                                              {/* Right panel: package details + photos */}
+                                              {/* Right panel: buyer + package details + photos */}
                                               <div style={{ minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                                                {/* Buyer / ship-to details */}
+                                                {(o.buyer_full_name || o.buyer_address) && (
+                                                  <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #edf2ed' }}>
+                                                    <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                                                      Ship To
+                                                    </p>
+                                                    <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: '#1b2d2a' }}>
+                                                      {o.buyer_full_name || o.buyer_first_name || 'Buyer'}
+                                                    </p>
+                                                    {o.buyer_address && (o.buyer_address.address_line1 || o.buyer_address.city) && (
+                                                      <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: '#475569', lineHeight: 1.5 }}>
+                                                        {[
+                                                          o.buyer_address.address_line1,
+                                                          o.buyer_address.address_line2,
+                                                          o.buyer_address.landmark,
+                                                        ].filter(Boolean).join(', ')}
+                                                        {(o.buyer_address.address_line1 || o.buyer_address.landmark) && <br />}
+                                                        {[o.buyer_address.city, o.buyer_address.state, o.buyer_address.pincode]
+                                                          .filter(Boolean).join(', ')}
+                                                      </p>
+                                                    )}
+                                                    {o.buyer_phone && (
+                                                      <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem' }}>
+                                                        <span style={{ color: '#64748b' }}>Phone: </span>
+                                                        <a href={`tel:${o.buyer_phone}`} style={{ color: '#1b2d2a', fontWeight: 700, textDecoration: 'none' }}>{o.buyer_phone}</a>
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                )}
 
                                                 {/* Package weight + dimensions */}
                                                 {!isInTransit && (
                                                   <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '12px', border: hasDims ? '1px solid #d1fae5' : '1px solid #fde68a' }}>
                                                     <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.75rem' }}>
-                                                      Package Weight & Dimensions {!hasDims && <span style={{ color: '#d97706' }}>*required before shipping</span>}
+                                                      Package Weight & Dimensions {!hasDims && (
+                                                        <span style={{ color: '#d97706' }}>
+                                                          {o.status === 'placed' ? '*approx — required to book courier' : '*required before pickup'}
+                                                        </span>
+                                                      )}
                                                     </p>
                                                     {hasDims ? (
                                                       <div style={{ fontSize: '0.8rem', color: '#1b2d2a' }}>
@@ -2719,6 +2869,7 @@ export default function SellerDashboard() {
                                                               type="number" min="1" placeholder={placeholder}
                                                               value={shipmentDims[o.id]?.[key] || ''}
                                                               onChange={e => setShipmentDims(prev => ({ ...prev, [o.id]: { ...(prev[o.id] || {}), [key]: e.target.value } }))}
+                                                              onBlur={() => handleDimsBlur(o.id)}
                                                               style={{ flex: 1, padding: '0.4rem 0.6rem', borderRadius: '7px', border: '1px solid #e2e8f0', fontSize: '0.8rem', outline: 'none' }}
                                                             />
                                                           </div>
@@ -2764,11 +2915,25 @@ export default function SellerDashboard() {
                                                     <p style={{ margin: 0, fontWeight: 700, marginBottom: '0.5rem' }}>Shipment Details</p>
                                                     {(o.awb_number || shipment?.awb_number) && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>AWB: <strong style={{ color: '#1b2d2a' }}>{o.awb_number || shipment?.awb_number}</strong></p>}
                                                     {(o.courier_name || shipment?.courier_name) && <p style={{ margin: '0.25rem 0', color: '#64748b' }}>Courier: <strong style={{ color: '#1b2d2a' }}>{o.courier_name || shipment?.courier_name}</strong></p>}
-                                                    {shipment?.label_url && (
-                                                      <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.5rem', color: '#1b2d2a', fontWeight: 700, textDecoration: 'none' }}>
-                                                        <FileText size={12} /> Shipping Label
+                                                    {shipment?.label_url ? (
+                                                      <a href={shipment.label_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.6rem', padding: '0.5rem 0.9rem', borderRadius: '8px', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, textDecoration: 'none', fontSize: '0.72rem' }}>
+                                                        <Download size={12} /> Download Shipping Label
                                                       </a>
-                                                    )}
+                                                    ) : (o.awb_number || shipment?.awb_number) ? (
+                                                      <div style={{ marginTop: '0.6rem' }}>
+                                                        <button
+                                                          onClick={() => handleRefreshLabel(o.id)}
+                                                          disabled={refreshingLabel[o.id]}
+                                                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.9rem', borderRadius: '8px', backgroundColor: 'white', color: '#1b2d2a', border: '1px solid #1b2d2a', fontWeight: 700, fontSize: '0.72rem', cursor: refreshingLabel[o.id] ? 'not-allowed' : 'pointer' }}
+                                                        >
+                                                          {refreshingLabel[o.id] ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={12} />}
+                                                          {refreshingLabel[o.id] ? 'Fetching…' : 'Fetch Shipping Label'}
+                                                        </button>
+                                                        <p style={{ margin: '0.4rem 0 0', fontSize: '0.68rem', color: '#94a3b8' }}>
+                                                          Label may take 30–60s to generate after the AWB is assigned.
+                                                        </p>
+                                                      </div>
+                                                    ) : null}
                                                   </div>
                                                 )}
 
@@ -2823,12 +2988,23 @@ export default function SellerDashboard() {
                                                   </div>
                                                 )}
 
-                                                {/* Pre-ship checklist summary */}
-                                                {!isInTransit && ['confirmed', 'packing'].includes(o.status) && (
+                                                {/* Placed: prompt to enter approx dims and confirm */}
+                                                {o.status === 'placed' && (
+                                                  <div style={{ padding: '0.75rem', borderRadius: '10px', backgroundColor: dimsReady ? '#f0fdf4' : '#eff6ff', border: `1px solid ${dimsReady ? '#bbf7d0' : '#bfdbfe'}`, fontSize: '0.75rem' }}>
+                                                    <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: dimsReady ? '#15803d' : '#1e40af' }}>
+                                                      {dimsReady ? '✓ Ready to confirm & book courier' : 'Next step:'}
+                                                    </p>
+                                                    {!dimsReady && <p style={{ margin: '0.2rem 0', color: '#1d4ed8' }}>• Enter approximate weight and box dimensions, then click <strong>Confirm &amp; Book</strong> — we'll generate the shipping label.</p>}
+                                                    <p style={{ margin: '0.2rem 0', color: '#64748b' }}>Photos &amp; actual measurements aren't needed yet — you'll add them before scheduling pickup.</p>
+                                                  </div>
+                                                )}
+
+                                                {/* Pre-ship checklist summary — for booked / legacy confirmed orders */}
+                                                {!isInTransit && ['booked', 'confirmed', 'packing'].includes(o.status) && (
                                                   <div style={{ padding: '0.75rem', borderRadius: '10px', backgroundColor: canShip ? '#f0fdf4' : '#fefce8', border: `1px solid ${canShip ? '#bbf7d0' : '#fde68a'}`, fontSize: '0.75rem' }}>
-                                                    <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: canShip ? '#15803d' : '#92400e' }}>{canShip ? '✓ Ready to ship' : 'Complete before shipping:'}</p>
+                                                    <p style={{ margin: '0 0 0.4rem', fontWeight: 700, color: canShip ? '#15803d' : '#92400e' }}>{canShip ? '✓ Ready to schedule pickup' : 'Complete before scheduling pickup:'}</p>
                                                     {!hasPhotos && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Upload at least 1 packaging photo</p>}
-                                                    {!hasDims && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Enter actual package weight and dimensions</p>}
+                                                    {!dimsReady && <p style={{ margin: '0.2rem 0', color: '#dc2626' }}>• Confirm actual package weight and dimensions</p>}
                                                   </div>
                                                 )}
                                               </div>

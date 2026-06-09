@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'; // v2
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Award, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Trophy, Camera, Upload, CheckCircle, AlertCircle, X, Clock, Users, Award, ChevronDown, Heart } from 'lucide-react';
 import SEO from '../components/SEO';
 import api from '../services/api';
 import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
@@ -524,6 +525,15 @@ function SuccessState({ data, announcementDate }) {
   );
 }
 
+// Shared CTA style used in multiple places when submissions are closed.
+const ghostBtn = {
+  display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+  padding: '0.9rem 1.6rem', borderRadius: '10px',
+  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+  color: 'white', textDecoration: 'none',
+  fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
+};
+
 // ??? Main Page ????????????????????????????????????????????????????????????????
 export default function Competition() {
   const status = useCompetitionStatus();
@@ -539,6 +549,13 @@ export default function Competition() {
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
   const announcementDate = formatAnnouncementDate(status?.result_announcement_date);
+
+  // ── Submission lockout ──────────────────────────────────────────────────
+  // Once the backend says is_open=false (launch_date passed or slots full),
+  // we surface ZERO "Enter" affordances on this page. The hero, the form
+  // section, and the dropdown CTA all switch to phase-appropriate links.
+  const submissionsOpen = status ? status.is_open !== false : true;
+  const phase = status?.phase || 'submission';
 
   return (
     <div style={{ backgroundColor: '#060f0d', minHeight: '100vh', color: 'white' }}>
@@ -604,17 +621,49 @@ export default function Competition() {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              onClick={scrollToForm}
-              className="btn btn-primary"
-              style={{ padding: '0.9rem 2.5rem', fontSize: '0.95rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}
-            >
-              Enter Competition
-            </button>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+            {submissionsOpen ? (
+              // ── Submissions OPEN: original Enter / Gallery CTAs ─────────────
+              <>
+                <button
+                  onClick={scrollToForm}
+                  className="btn btn-primary"
+                  style={{ padding: '0.9rem 2.5rem', fontSize: '0.95rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}
+                >
+                  Enter Competition
+                </button>
+                <Link
+                  to="/competition/entries"
+                  style={ghostBtn}
+                >
+                  <Heart size={14} /> View Gallery
+                </Link>
+              </>
+            ) : phase === 'results' ? (
+              // ── Results phase: primary "See Winners", secondary "Browse Entries" ─
+              <>
+                <Link to="/competition/winners" className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.9rem 2rem', fontSize: '0.95rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', textDecoration: 'none' }}
+                >
+                  <Trophy size={14} /> See Winners
+                </Link>
+                <Link to="/competition/entries" style={ghostBtn}>
+                  <Heart size={14} /> Browse Entries
+                </Link>
+              </>
+            ) : (
+              // ── Voting phase (or any other "closed" state): push to vote ────
+              <>
+                <Link to="/competition/entries" className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.9rem 2rem', fontSize: '0.95rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', textDecoration: 'none' }}
+                >
+                  <Heart size={14} /> Vote Now
+                </Link>
+              </>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem' }}>
               <Users size={14} />
-              {status ? `${status.total_entries} / ${MAX_ENTRIES} entries` : `${MAX_ENTRIES} slots available`}
+              {status ? `${status.total_entries} ${submissionsOpen ? `/ ${MAX_ENTRIES} ` : ''}entries` : `${MAX_ENTRIES} slots available`}
             </div>
           </div>
         </motion.div>
@@ -725,21 +774,65 @@ export default function Competition() {
         </div>
       </section>
 
-      {/* ?? Registration Form ?? */}
+      {/* ?? Registration Form / Closed-state CTA ?? */}
       <section ref={formRef} style={{ padding: 'clamp(3rem,6vw,6rem) 1.5rem' }}>
         <div className="container" style={{ maxWidth: '680px' }}>
           <div style={{ textAlign: 'center', marginBottom: 'clamp(2rem,4vw,3rem)' }}>
-            <span style={{ color: '#c9972b', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', display: 'block', marginBottom: '0.5rem' }}>Register Now</span>
-            <h2 style={{ fontSize: 'clamp(1.4rem,3vw,2.25rem)', margin: '0 0 0.75rem' }}>Enter Your Aquascape</h2>
-            {status && (
+            <span style={{ color: '#c9972b', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', display: 'block', marginBottom: '0.5rem' }}>
+              {submissionsOpen ? 'Register Now' : (phase === 'results' ? 'Results Are Live' : 'Voting Is Live')}
+            </span>
+            <h2 style={{ fontSize: 'clamp(1.4rem,3vw,2.25rem)', margin: '0 0 0.75rem' }}>
+              {submissionsOpen
+                ? 'Enter Your Aquascape'
+                : (phase === 'results' ? 'See Who Won' : 'Pick Your Favourites')}
+            </h2>
+            {submissionsOpen && status && (
               <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', margin: 0 }}>
                 {status.slots_remaining} of {MAX_ENTRIES} slots remaining
+              </p>
+            )}
+            {!submissionsOpen && (
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.88rem', margin: '0.4rem auto 0', maxWidth: '520px', lineHeight: 1.65 }}>
+                Submissions are closed for the Aquascape Competition 2026.
+                {phase === 'results'
+                  ? ' Head over to the winners page to see who took home the prizes.'
+                  : ' Voting is live — back your favourite aquascape on the gallery.'}
               </p>
             )}
           </div>
 
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: 'clamp(1.5rem,4vw,2.5rem)' }}>
-            {success ? (
+            {!submissionsOpen ? (
+              // ── CLOSED-STATE PANEL ────────────────────────────────────────
+              <div style={{ textAlign: 'center', padding: 'clamp(1rem,3vw,2rem) 0' }}>
+                <Clock size={36} color="rgba(201,151,43,0.55)" style={{ margin: '0 auto 1rem', display: 'block' }} />
+                <h3 style={{ color: 'white', margin: '0 0 0.5rem', fontFamily: 'var(--font-serif)', fontSize: '1.25rem' }}>
+                  Submissions Closed
+                </h3>
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.88rem', lineHeight: 1.7, margin: '0 auto 1.5rem', maxWidth: '440px' }}>
+                  No new entries are being accepted on the website. Thanks to everyone who shared their build —
+                  {phase === 'results' ? ' the winners are now live.' : ' voting is open until the announcement.'}
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {phase === 'results' && (
+                    <Link to="/competition/winners" className="btn btn-primary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.6rem', fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none' }}
+                    >
+                      <Trophy size={14} /> See Winners
+                    </Link>
+                  )}
+                  <Link
+                    to="/competition/entries"
+                    className={phase !== 'results' ? 'btn btn-primary' : undefined}
+                    style={phase !== 'results'
+                      ? { display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.6rem', fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none' }
+                      : ghostBtn}
+                  >
+                    <Heart size={14} /> {phase === 'results' ? 'Browse Entries' : 'Vote Now'}
+                  </Link>
+                </div>
+              </div>
+            ) : success ? (
               <SuccessState data={success} announcementDate={announcementDate} />
             ) : (
               <EntryForm status={status} onSuccess={handleSuccess} />

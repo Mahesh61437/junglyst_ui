@@ -59,3 +59,37 @@ export function getLaunchDate(status) {
   }
   return DEFAULT_LAUNCH_DATE;
 }
+
+// ── Entries / Voting / Winners ──────────────────────────────────────────────
+
+export async function fetchEntries({ sort = 'top', limit = 200 } = {}) {
+  const { data } = await api.get('/competition/entries/', { params: { sort, limit } });
+  return data;
+}
+
+export async function toggleVote(entryId) {
+  const { data } = await api.post(`/competition/entries/${entryId}/vote/`);
+  return data; // { voted, vote_count, entry_id }
+}
+
+export async function fetchWinners() {
+  const { data } = await api.get('/competition/winners/');
+  return data;
+}
+
+export const PRIZE_LABELS = {
+  first: '1st Place',
+  second: '2nd Place',
+  third: '3rd Place',
+  consolation: '4th — Consolation',
+  mystery: 'Mystery Box',
+};
+
+export const PRIZE_COLORS = {
+  first: '#c9972b',
+  second: '#cbd5e1',
+  third: '#b87333',
+  consolation: '#94a3b8',
+  mystery: '#a855f7',
+};
+
