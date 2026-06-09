@@ -30,8 +30,28 @@ const PHASE_BANNER = {
   },
 };
 
-// ── Lightbox ─────────────────────────────────────────────────────────────────
-function Lightbox({ entry, imageIndex, onClose, onPrev, onNext }) {
+// ── Responsive helper ────────────────────────────────────────────────────────
+function useIsMobile(breakpoint = 820) {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= breakpoint
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handler = (e) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+// ── Lightbox (Instagram-style post view) ─────────────────────────────────────
+// Desktop: image on the left, scrollable caption panel on the right.
+// Mobile:  stacked sheet — image on top, caption scrolls below. The whole
+//          sheet is height-capped so a long description never bleeds off-screen.
+function Lightbox({ entry, imageIndex, onClose, onPrev, onNext, onSelect }) {
+  const isMobile = useIsMobile();
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
@@ -49,76 +69,174 @@ function Lightbox({ entry, imageIndex, onClose, onPrev, onNext }) {
   if (!entry) return null;
   const images = entry.image_urls || [];
   const url = images[imageIndex];
+  const multi = images.length > 1;
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={onClose}
+  const navBtn = (dir, onClick, Icon) => (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      aria-label={dir}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.92)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', padding: '1rem',
+        position: 'absolute', [dir === 'Previous photo' ? 'left' : 'right']: '0.6rem',
+        top: '50%', transform: 'translateY(-50%)', zIndex: 5,
+        background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%',
+        width: '40px', height: '40px', cursor: 'pointer', color: 'white',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(4px)',
       }}
-    >
-      <button
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
+    ><Icon size={20} /></button>
+  );
+
+  // Image pane (shared) — letterboxed on black, arrows + counter overlaid.
+  const imagePane = (
+    <div style={{
+      position: 'relative', background: '#000',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flex: isMobile ? '0 0 auto' : '1 1 auto',
+      minHeight: 0, minWidth: 0,
+      maxHeight: isMobile ? '52vh' : '90vh',
+    }}>
+      <img
+        src={url}
+        alt={`${entry.name} — photo ${imageIndex + 1} of ${images.length}`}
         style={{
-          position: 'absolute', top: '1rem', right: '1rem', zIndex: 10,
-          background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
-          width: '40px', height: '40px', cursor: 'pointer', color: 'white',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          maxWidth: '100%',
+          maxHeight: isMobile ? '52vh' : '90vh',
+          width: 'auto', height: 'auto', objectFit: 'contain', display: 'block',
         }}
-      ><X size={20} /></button>
-
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={(e) => { e.stopPropagation(); onPrev(); }}
-            style={{
-              position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
-              background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
-              width: '44px', height: '44px', cursor: 'pointer', color: 'white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          ><ChevronLeft size={22} /></button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onNext(); }}
-            style={{
-              position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)',
-              background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
-              width: '44px', height: '44px', cursor: 'pointer', color: 'white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          ><ChevronRight size={22} /></button>
-        </>
+      />
+      {multi && navBtn('Previous photo', onPrev, ChevronLeft)}
+      {multi && navBtn('Next photo', onNext, ChevronRight)}
+      {multi && (
+        <span style={{
+          position: 'absolute', bottom: '0.6rem', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.7rem', fontWeight: 600,
+          padding: '0.2rem 0.6rem', borderRadius: '999px', backdropFilter: 'blur(4px)',
+        }}>{imageIndex + 1} / {images.length}</span>
       )}
+    </div>
+  );
 
-      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1100px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-        <img
-          src={url}
-          alt={entry.name}
-          style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: '12px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}
-        />
-        <div style={{ textAlign: 'center', maxWidth: '720px' }}>
-          <h3 style={{ color: 'white', margin: '0 0 0.5rem', fontFamily: 'var(--font-serif)' }}>{entry.name}</h3>
+  // Caption pane (shared) — scrollable; reads like a social post.
+  const captionPane = (
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      flex: isMobile ? '1 1 auto' : '0 0 360px',
+      width: isMobile ? '100%' : '360px',
+      minHeight: 0,
+      borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
+    }}>
+      {/* Header — identity (no PII) */}
+      <div style={{ padding: '1.1rem 1.25rem 0.85rem', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+        <h3 style={{ color: 'white', margin: 0, fontFamily: 'var(--font-serif)', fontSize: '1.2rem', lineHeight: 1.2 }}>
+          {entry.name}
+        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
           {entry.instagram_handle && (
             <a
               href={`https://instagram.com/${entry.instagram_handle}`}
               target="_blank" rel="noopener noreferrer"
-              style={{ color: '#c9972b', fontSize: '0.85rem', textDecoration: 'none' }}
-            >@{entry.instagram_handle}</a>
+              style={{ color: '#c9972b', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+            ><AtSign size={12} /> {entry.instagram_handle}</a>
           )}
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.7, marginTop: '0.75rem' }}>
-            {entry.about_aquarium}
-          </p>
-          {images.length > 1 && (
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginTop: '0.75rem' }}>
-              Photo {imageIndex + 1} of {images.length}
-            </p>
+          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Camera size={11} /> {images.length} {images.length === 1 ? 'photo' : 'photos'}
+          </span>
+          {entry.prize_tier && (
+            <span style={{
+              background: 'rgba(201,151,43,0.95)', color: '#0a1f1c',
+              fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+              padding: '0.15rem 0.5rem', borderRadius: '999px',
+              display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+            }}><Trophy size={10} /> {entry.prize_tier_label}</span>
           )}
         </div>
       </div>
-    </motion.div>
+
+      {/* Scrollable description — the actual post body */}
+      <div style={{
+        flex: '1 1 auto', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+        padding: '1rem 1.25rem 1.25rem',
+      }}>
+        <p style={{
+          color: 'rgba(255,255,255,0.82)', fontSize: '0.9rem', lineHeight: 1.75,
+          margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+        }}>
+          {entry.about_aquarium}
+        </p>
+      </div>
+
+      {/* Thumbnail strip — jump between this entry's photos */}
+      {multi && (
+        <div style={{
+          flexShrink: 0, display: 'flex', gap: '0.4rem', padding: '0.65rem 1.25rem',
+          borderTop: '1px solid rgba(255,255,255,0.07)', overflowX: 'auto',
+        }}>
+          {images.map((thumb, i) => (
+            <button
+              key={thumb + i}
+              onClick={(e) => { e.stopPropagation(); onSelect?.(i); }}
+              aria-label={`View photo ${i + 1}`}
+              style={{
+                flex: '0 0 auto', width: '44px', height: '44px', padding: 0,
+                borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', background: 'none',
+                border: `2px solid ${i === imageIndex ? '#c9972b' : 'rgba(255,255,255,0.15)'}`,
+                opacity: i === imageIndex ? 1 : 0.55, transition: 'opacity 0.15s, border-color 0.15s',
+              }}
+            >
+              <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // NOTE: no entrance animation. An opacity transition here (framer-motion OR
+  // CSS keyframes) renders the modal half-transparent because the parent
+  // re-renders/remounts this subtree frequently, restarting the fade. The
+  // backdrop must always be solid — so opacity stays at its default of 1.
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.92)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        padding: isMobile ? '0' : '1.5rem',
+      }}
+    >
+      {/* Close — fixed to the viewport corner so it's always reachable */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        aria-label="Close"
+        style={{
+          position: 'fixed', top: '0.85rem', right: '0.85rem', zIndex: 1010,
+          background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%',
+          width: '42px', height: '42px', cursor: 'pointer', color: 'white',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(4px)',
+        }}
+      ><X size={20} /></button>
+
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          background: '#0c1512',
+          borderRadius: isMobile ? '14px' : '16px',
+          overflow: 'hidden',
+          boxShadow: '0 25px 60px -12px rgba(0,0,0,0.7)',
+          width: isMobile ? '100%' : 'auto',
+          maxWidth: isMobile ? '560px' : '1150px',
+          maxHeight: isMobile ? '92vh' : '90vh',
+          minWidth: 0,
+        }}
+      >
+        {imagePane}
+        {captionPane}
+      </div>
+    </div>
   );
 }
 
@@ -529,6 +647,7 @@ export default function CompetitionEntries() {
             onClose={closeLightbox}
             onPrev={lightboxPrev}
             onNext={lightboxNext}
+            onSelect={setOpenImageIdx}
           />
         )}
       </AnimatePresence>
