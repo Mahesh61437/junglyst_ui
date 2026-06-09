@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Trophy, ChevronLeft, ChevronRight, X, Sparkles, ArrowRight, Camera, LogIn } from 'lucide-react';
+import { Heart, Trophy, ChevronLeft, ChevronRight, X, Sparkles, ArrowRight, Camera, LogIn, AtSign } from 'lucide-react';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
 import { useCompetitionStatus, fetchEntries, toggleVote, formatAnnouncementDate } from '../services/CompetitionService';
@@ -124,7 +124,14 @@ function Lightbox({ entry, imageIndex, onClose, onPrev, onNext }) {
 
 // ── Card ─────────────────────────────────────────────────────────────────────
 function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason }) {
-  const cover = entry.image_urls?.[0];
+  const images = entry.image_urls || [];
+  const imageCount = images.length;
+  // In-card active image so the whole entry's photo set is browsable in place,
+  // making it obvious all photos belong to ONE entry (which gets ONE vote).
+  const [activeImg, setActiveImg] = useState(0);
+  const safeActive = Math.min(activeImg, Math.max(0, imageCount - 1));
+  const mainImg = images[safeActive];
+
   return (
     <motion.article
       layout
@@ -141,17 +148,18 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
         flexDirection: 'column',
       }}
     >
+      {/* Main image — clicking opens the lightbox at the active photo */}
       <button
-        onClick={() => onOpen(entry, 0)}
+        onClick={() => onOpen(entry, safeActive)}
         style={{
           padding: 0, border: 'none', background: 'none', cursor: 'pointer',
           aspectRatio: '4 / 3', overflow: 'hidden', position: 'relative',
         }}
       >
-        {cover ? (
+        {mainImg ? (
           <img
-            src={cover}
-            alt={entry.name}
+            src={mainImg}
+            alt={`${entry.name} — photo ${safeActive + 1} of ${imageCount}`}
             loading="lazy"
             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s' }}
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)'; }}
@@ -162,14 +170,18 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
             <Camera size={28} color="rgba(255,255,255,0.2)" />
           </div>
         )}
-        {entry.image_urls?.length > 1 && (
+        {/* Photo-count chip — signals this is a multi-photo entry */}
+        {imageCount > 1 && (
           <span style={{
             position: 'absolute', top: '0.6rem', right: '0.6rem',
-            background: 'rgba(0,0,0,0.55)', color: 'white',
-            fontSize: '0.7rem', fontWeight: 600,
+            background: 'rgba(0,0,0,0.6)', color: 'white',
+            fontSize: '0.68rem', fontWeight: 700,
             padding: '0.2rem 0.55rem', borderRadius: '999px',
             backdropFilter: 'blur(6px)',
-          }}>+{entry.image_urls.length - 1}</span>
+            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+          }}>
+            <Camera size={11} /> {safeActive + 1}/{imageCount}
+          </span>
         )}
         {entry.prize_tier && (
           <span style={{
@@ -184,32 +196,81 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
         )}
       </button>
 
-      <div style={{ padding: '1rem 1.1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flex: 1 }}>
+      {/* Thumbnail strip — all photos for THIS entry, grouped together */}
+      {imageCount > 1 && (
+        <div style={{
+          display: 'flex', gap: '0.4rem', padding: '0.55rem 0.6rem 0',
+          overflowX: 'auto', scrollbarWidth: 'thin',
+        }}>
+          {images.map((url, i) => (
+            <button
+              key={url + i}
+              onClick={() => setActiveImg(i)}
+              onMouseEnter={() => setActiveImg(i)}
+              aria-label={`View photo ${i + 1}`}
+              style={{
+                flex: '0 0 auto', width: '46px', height: '46px',
+                padding: 0, borderRadius: '8px', cursor: 'pointer',
+                overflow: 'hidden',
+                border: `2px solid ${i === safeActive ? '#c9972b' : 'rgba(255,255,255,0.12)'}`,
+                opacity: i === safeActive ? 1 : 0.6,
+                transition: 'opacity 0.15s, border-color 0.15s',
+                background: 'none',
+              }}
+            >
+              <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ padding: '0.85rem 1.1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.55rem', flex: 1 }}>
+        {/* Entrant identity — name + Instagram only; email/phone never sent by API */}
         <div>
           <h4 style={{ margin: 0, color: 'white', fontSize: '0.95rem', fontWeight: 700 }}>{entry.name}</h4>
           {entry.instagram_handle && (
-            <span style={{ color: 'rgba(201,151,43,0.7)', fontSize: '0.72rem' }}>@{entry.instagram_handle}</span>
+            <a
+              href={`https://instagram.com/${entry.instagram_handle}`}
+              target="_blank" rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                color: 'rgba(201,151,43,0.85)', fontSize: '0.72rem', textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+              }}
+            >
+              <AtSign size={11} /> {entry.instagram_handle}
+            </a>
           )}
         </div>
+
+        {/* "N photos in this entry" — reinforces grouping */}
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+          fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600,
+        }}>
+          <Camera size={11} /> {imageCount} {imageCount === 1 ? 'photo' : 'photos'} in this entry
+        </span>
+
         <p style={{
-          margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: 1.55,
+          margin: 0, color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', lineHeight: 1.55,
           display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
         }}>
           {entry.about_aquarium}
         </p>
 
-        <div style={{ marginTop: 'auto', paddingTop: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+          {/* ONE vote per entry (not per photo) */}
           <button
             onClick={() => onVote(entry)}
             disabled={votingDisabled}
-            title={votingDisabled ? votingDisabledReason : (entry.has_voted ? 'Remove vote' : 'Vote')}
+            title={votingDisabled ? votingDisabledReason : (entry.has_voted ? 'Remove your vote from this entry' : 'Vote for this entry')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
               background: entry.has_voted ? 'rgba(220,38,38,0.15)' : 'rgba(255,255,255,0.04)',
               border: `1px solid ${entry.has_voted ? 'rgba(220,38,38,0.5)' : 'rgba(255,255,255,0.1)'}`,
               color: entry.has_voted ? '#fca5a5' : 'rgba(255,255,255,0.75)',
-              padding: '0.4rem 0.8rem', borderRadius: '999px',
+              padding: '0.4rem 0.85rem', borderRadius: '999px',
               fontSize: '0.8rem', fontWeight: 700,
               cursor: votingDisabled ? 'not-allowed' : 'pointer',
               opacity: votingDisabled ? 0.6 : 1,
@@ -218,15 +279,18 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
           >
             <Heart size={14} fill={entry.has_voted ? '#fca5a5' : 'none'} />
             <span style={{ fontVariantNumeric: 'tabular-nums' }}>{entry.vote_count}</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.8 }}>
+              {entry.vote_count === 1 ? 'vote' : 'votes'}
+            </span>
           </button>
           <button
-            onClick={() => onOpen(entry, 0)}
+            onClick={() => onOpen(entry, safeActive)}
             style={{
               background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
               fontSize: '0.75rem', cursor: 'pointer', padding: 0,
               display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
             }}
-          >View <ArrowRight size={12} /></button>
+          >View all <ArrowRight size={12} /></button>
         </div>
       </div>
     </motion.article>
