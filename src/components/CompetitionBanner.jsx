@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Trophy, ArrowRight } from 'lucide-react';
+import { X, Trophy, ArrowRight, Heart, Sparkles } from 'lucide-react';
 import { useCompetitionStatus, getLaunchDate } from '../services/CompetitionService';
 
-const STORAGE_KEY = 'junglyst_competition_banner_dismissed';
+// Storage key is namespaced by phase, so dismissing the submission banner does
+// NOT hide the voting or results banner that comes later — each phase shows
+// its own message at least once per user.
+const STORAGE_PREFIX = 'junglyst_competition_banner_dismissed_';
 
 function useCountdown(target) {
   const getTimeLeft = () => {
@@ -28,21 +31,93 @@ function useCountdown(target) {
   return timeLeft;
 }
 
-export default function CompetitionBanner() {
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
-  });
-  const status = useCompetitionStatus();
-  const timeLeft = useCountdown(getLaunchDate(status));
+const pad = (n) => String(n).padStart(2, '0');
 
-  if (dismissed || !timeLeft) return null;
+// ── Phase-aware banner content ──────────────────────────────────────────────
+function getBannerContent(phase, timeLeft) {
+  if (phase === 'results') {
+    return {
+      icon: <Sparkles size={14} color="#c9972b" />,
+      label: 'Winners Announced',
+      // Single highlight line in place of countdown
+      secondary: 'The Aquascape Competition 2026 has wrapped — see who took home the prizes.',
+      ctas: [
+        { to: '/competition/winners', text: 'See Winners', primary: true },
+        { to: '/competition/entries', text: 'Browse Entries', primary: false },
+      ],
+    };
+  }
+  if (phase === 'voting') {
+    return {
+      icon: <Heart size={14} color="#c9972b" />,
+      label: 'Voting is Live',
+      secondary: 'Vote for your favourite aquascape — every tap counts.',
+      ctas: [
+        { to: '/competition/entries', text: 'Vote Now', primary: true },
+      ],
+    };
+  }
+  // submission (default)
+  return {
+    icon: <Trophy size={14} color="#c9972b" />,
+    label: 'Aquascape Competition 2026',
+    secondary: timeLeft
+      ? `Closes in ${timeLeft.days}d ${pad(timeLeft.hours)}h ${pad(timeLeft.minutes)}m ${pad(timeLeft.seconds)}s`
+      : '₹1,000 Prize',
+    ctas: [{ to: '/competition', text: 'Enter Now', primary: true }],
+  };
+}
+
+export default function CompetitionBanner() {
+  const status = useCompetitionStatus();
+  const phase = status?.phase || 'submission';
+
+  // Per-phase dismissal: dismissing one phase doesn't suppress the next.
+  const storageKey = `${STORAGE_PREFIX}${phase}`;
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(storageKey) === '1'; } catch { return false; }
+  });
+  // Re-check dismissal when phase changes (status loads async).
+  useEffect(() => {
+    try { setDismissed(localStorage.getItem(storageKey) === '1'); } catch {}
+  }, [storageKey]);
+
+  // Submission-phase fallback: hide the countdown banner once the timer hits zero,
+  // because the `voting` content will take over on the next status fetch.
+  const timeLeft = useCountdown(getLaunchDate(status));
+  if (phase === 'submission' && !timeLeft) return null;
+  if (dismissed) return null;
+
+  const content = getBannerContent(phase, timeLeft);
 
   function dismiss() {
-    try { localStorage.setItem(STORAGE_KEY, '1'); } catch {}
+    try { localStorage.setItem(storageKey, '1'); } catch {}
     setDismissed(true);
   }
 
-  const pad = n => String(n).padStart(2, '0');
+  const primaryCtaStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    backgroundColor: '#c9972b',
+    color: '#0a1f1c',
+    padding: '0.3rem 0.9rem',
+    borderRadius: '100px',
+    fontSize: '0.68rem',
+    fontWeight: 800,
+    textDecoration: 'none',
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+    transition: 'opacity 0.2s',
+    flexShrink: 0,
+  };
+
+  const secondaryCtaStyle = {
+    ...primaryCtaStyle,
+    backgroundColor: 'transparent',
+    color: '#c9972b',
+    border: '1px solid rgba(201,151,43,0.5)',
+  };
 
   return (
     <div style={{
@@ -62,54 +137,39 @@ export default function CompetitionBanner() {
       }}>
         {/* Icon + label */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-          <Trophy size={14} color="#c9972b" />
+          {content.icon}
           <span style={{ color: '#c9972b', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-            Aquascape Competition 2026
+            {content.label}
           </span>
         </div>
 
-        {/* Divider */}
         <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>|</span>
 
-        {/* Prize */}
-        <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.72rem', fontWeight: 600, flexShrink: 0 }}>
-          ₹1,000 Prize
+        {/* Secondary line (countdown / description) */}
+        <span style={{
+          color: 'rgba(255,255,255,0.75)',
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          fontVariantNumeric: 'tabular-nums',
+          // Allow soft wrap when the line is descriptive (results/voting phases)
+          maxWidth: '420px',
+          textAlign: 'center',
+        }}>
+          {content.secondary}
         </span>
 
-        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>|</span>
-
-        {/* Countdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
-          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem' }}>Closes in</span>
-          <span style={{ color: 'white', fontSize: '0.72rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-            {timeLeft.days}d {pad(timeLeft.hours)}h {pad(timeLeft.minutes)}m {pad(timeLeft.seconds)}s
-          </span>
-        </div>
-
-        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', display: 'none' }} className="banner-divider">|</span>
-
-        {/* CTA */}
-        <Link to="/competition" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem',
-          backgroundColor: '#c9972b',
-          color: '#0a1f1c',
-          padding: '0.3rem 0.9rem',
-          borderRadius: '100px',
-          fontSize: '0.68rem',
-          fontWeight: 800,
-          textDecoration: 'none',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          transition: 'opacity 0.2s',
-          flexShrink: 0,
-        }}
-          onMouseOver={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseOut={e => e.currentTarget.style.opacity = '1'}
-        >
-          Enter Now <ArrowRight size={11} />
-        </Link>
+        {/* CTA(s) — direct <Link>s, one click → destination */}
+        {content.ctas.map((cta, i) => (
+          <Link
+            key={cta.to}
+            to={cta.to}
+            style={cta.primary ? primaryCtaStyle : secondaryCtaStyle}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+            onMouseOut={(e) => { e.currentTarget.style.opacity = '1'; }}
+          >
+            {cta.text} <ArrowRight size={11} />
+          </Link>
+        ))}
       </div>
 
       {/* Dismiss button */}
@@ -130,8 +190,8 @@ export default function CompetitionBanner() {
           alignItems: 'center',
           transition: 'color 0.2s',
         }}
-        onMouseOver={e => e.currentTarget.style.color = 'rgba(255,255,255,0.9)'}
-        onMouseOut={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+        onMouseOver={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.9)'; }}
+        onMouseOut={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
       >
         <X size={14} />
       </button>
