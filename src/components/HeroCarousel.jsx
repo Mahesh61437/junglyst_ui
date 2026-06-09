@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin, Trophy, Clock } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin, Trophy, Clock, Heart, Sparkles } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
-import { useCompetitionStatus, getLaunchDate, DEFAULT_LAUNCH_DATE } from '../services/CompetitionService';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
 
 const COMPETITION_SLIDE = {
   id: '__competition',
@@ -26,10 +26,21 @@ const FALLBACK_SLIDES = [
   },
 ];
 
-function buildSlides(sellers, launchDate) {
+// Anchor the announcement date at IST midnight so countdowns / display line up
+// with whatever the admin entered in settings.
+function getAnnouncementDate(status) {
+  const raw = status?.result_announcement_date;
+  if (!raw) return null;
+  const d = new Date(`${raw}T00:00:00+05:30`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function buildSlides(sellers, status) {
   const base = (sellers && sellers.length > 0) ? sellers : FALLBACK_SLIDES;
-  // Prepend competition slide only if the competition is still open
-  if (Date.now() < launchDate.getTime()) {
+  // Keep the competition slide visible through ALL phases — submission, voting,
+  // and results — so the hero always surfaces the live competition state.
+  const phase = status?.phase || 'submission';
+  if (['submission', 'voting', 'results'].includes(phase)) {
     return [COMPETITION_SLIDE, ...base];
   }
   return base;
@@ -56,8 +67,69 @@ function useCountdown(target) {
   return t;
 }
 
-function CompetitionSlideContent({ transitioning, launchDate }) {
-  const tl = useCountdown(launchDate);
+// Per-phase eyebrow + headline + copy + CTAs for the competition hero slide.
+function getCompetitionSlide(phase, announcementLabel) {
+  if (phase === 'results') {
+    return {
+      eyebrowIcon: <Sparkles size={13} color="#c9972b" />,
+      eyebrow: 'Winners Announced',
+      headline: <>The Winners<br />Are In.</>,
+      sub: (
+        <>
+          The Aquascape Competition 2026 has wrapped. See who took home{' '}
+          <strong style={{ color: '#c9972b', fontWeight: 700 }}>₹1,000</strong> and the prizes.
+        </>
+      ),
+      countdownLabel: null,
+      primary: { to: '/competition/winners', text: 'See Winners' },
+      secondary: { to: '/competition/entries', text: 'Browse Entries' },
+    };
+  }
+  if (phase === 'voting') {
+    return {
+      eyebrowIcon: <Heart size={13} color="#c9972b" />,
+      eyebrow: 'Voting is Live',
+      headline: <>Vote for the<br />Best Build.</>,
+      sub: (
+        <>
+          Submissions are closed — now it&apos;s your call. Back your favourite aquascape
+          {announcementLabel ? <>, winner announced <strong style={{ color: '#c9972b', fontWeight: 700 }}>{announcementLabel}</strong></> : ''}.
+        </>
+      ),
+      countdownLabel: 'Voting closes in',
+      primary: { to: '/competition/entries', text: 'Vote Now' },
+      secondary: { to: '/competition/winners', text: 'View Results' },
+    };
+  }
+  // submission (default)
+  return {
+    eyebrowIcon: <Trophy size={13} color="#c9972b" />,
+    eyebrow: 'Aquascape Competition 2026',
+    headline: <>Build.<br />Photograph.<br />Win.</>,
+    sub: (
+      <>
+        Submit photos of your aquascape. The most stunning build wins{' '}
+        <strong style={{ color: '#c9972b', fontWeight: 700 }}>₹1,000 cash</strong>.
+        500 slots only — winner announced on launch day.
+      </>
+    ),
+    countdownLabel: 'Closes in',
+    primary: { to: '/competition', text: 'Enter Competition' },
+    secondary: { to: '/competition', text: 'View Details' },
+  };
+}
+
+function CompetitionSlideContent({ transitioning, status, launchDate }) {
+  const phase = status?.phase || 'submission';
+  const announcementDate = getAnnouncementDate(status);
+  const announcementLabel = formatAnnouncementDate(status?.result_announcement_date);
+  const slide = getCompetitionSlide(phase, announcementLabel);
+
+  // Countdown target: submission → launch date; voting → announcement date; results → none.
+  const countdownTarget = phase === 'submission' ? launchDate
+    : phase === 'voting' ? announcementDate
+    : null;
+  const tl = useCountdown(countdownTarget);
   const pad = n => String(n).padStart(2, '0');
 
   return (
@@ -70,9 +142,9 @@ function CompetitionSlideContent({ transitioning, launchDate }) {
     }}>
       {/* Eyebrow badge */}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(201,151,43,0.15)', border: '1px solid rgba(201,151,43,0.4)', borderRadius: '100px', padding: '0.35rem 0.85rem', marginBottom: '1.4rem' }}>
-        <Trophy size={13} color="#c9972b" />
+        {slide.eyebrowIcon}
         <span style={{ color: '#c9972b', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em' }}>
-          Aquascape Competition 2026
+          {slide.eyebrow}
         </span>
       </div>
 
@@ -85,21 +157,19 @@ function CompetitionSlideContent({ transitioning, launchDate }) {
         marginBottom: '1rem',
         letterSpacing: '-0.02em',
       }}>
-        Build.<br />Photograph.<br />Win.
+        {slide.headline}
       </h1>
 
       {/* Sub-copy */}
       <p style={{ fontSize: 'clamp(0.88rem, 1.6vw, 1rem)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.7, marginBottom: '1rem', maxWidth: '440px', margin: '0 auto 1rem' }}>
-        Submit photos of your aquascape. The most stunning build wins{' '}
-        <strong style={{ color: '#c9972b', fontWeight: 700 }}>₹1,000 cash</strong>.
-        500 slots only — winner announced on launch day.
+        {slide.sub}
       </p>
 
-      {/* Live countdown */}
-      {tl && (
+      {/* Live countdown (submission + voting phases) */}
+      {tl && slide.countdownLabel && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <Clock size={13} color="rgba(255,255,255,0.4)" />
-          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Closes in</span>
+          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{slide.countdownLabel}</span>
           {[
             { val: tl.days, label: 'days' },
             { val: tl.hours, label: 'hrs' },
@@ -122,16 +192,16 @@ function CompetitionSlideContent({ transitioning, launchDate }) {
       {/* CTAs */}
       <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
         <Link
-          to="/competition"
+          to={slide.primary.to}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', padding: '0.875rem 2.25rem', borderRadius: '100px', backgroundColor: '#c9972b', color: '#0a1f1c', fontWeight: 800, fontSize: '0.85rem', textDecoration: 'none', letterSpacing: '0.05em', textTransform: 'uppercase' }}
         >
-          Enter Competition <ArrowRight size={15} />
+          {slide.primary.text} <ArrowRight size={15} />
         </Link>
         <Link
-          to="/competition"
+          to={slide.secondary.to}
           style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600, fontSize: '0.8rem', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase' }}
         >
-          View Details
+          {slide.secondary.text}
         </Link>
       </div>
     </div>
@@ -141,7 +211,7 @@ function CompetitionSlideContent({ transitioning, launchDate }) {
 export default function HeroCarousel({ sellers = [] }) {
   const status = useCompetitionStatus();
   const launchDate = getLaunchDate(status);
-  const slides = buildSlides(sellers, launchDate);
+  const slides = buildSlides(sellers, status);
   const [current, setCurrent] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
@@ -198,7 +268,7 @@ export default function HeroCarousel({ sellers = [] }) {
       <div className="container" style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', alignItems: 'center', justifyContent: isCompetition ? 'center' : 'flex-start' }}>
 
         {slide.id === '__competition' ? (
-          <CompetitionSlideContent transitioning={transitioning} launchDate={launchDate} />
+          <CompetitionSlideContent transitioning={transitioning} status={status} launchDate={launchDate} />
         ) : (
         <div style={{ maxWidth: '620px', opacity: transitioning ? 0 : 1, transform: transitioning ? 'translateY(12px)' : 'translateY(0)', transition: 'opacity 0.5s, transform 0.5s' }}>
 
