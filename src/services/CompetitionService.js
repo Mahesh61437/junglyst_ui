@@ -87,6 +87,11 @@ export async function fetchEntries({ sort = 'top', limit = 200, force = false } 
   return p;
 }
 
+export async function fetchEntry(id) {
+  const { data } = await api.get(`/competition/entries/${id}/`);
+  return data; // single entry with vote_count + has_voted
+}
+
 export async function toggleVote(entryId) {
   const { data } = await api.post(`/competition/entries/${entryId}/vote/`);
   // The cached entries lists now hold a stale has_voted/vote_count for this user

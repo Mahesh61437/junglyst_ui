@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Trophy, ChevronLeft, ChevronRight, X, Sparkles, ArrowRight, Camera, LogIn, AtSign } from 'lucide-react';
+import { Heart, Trophy, ChevronLeft, Sparkles, ArrowRight, Camera, LogIn, AtSign } from 'lucide-react';
 import SEO from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
 import { useCompetitionStatus, fetchEntries, toggleVote, formatAnnouncementDate } from '../services/CompetitionService';
@@ -30,219 +30,8 @@ const PHASE_BANNER = {
   },
 };
 
-// ── Responsive helper ────────────────────────────────────────────────────────
-function useIsMobile(breakpoint = 820) {
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth <= breakpoint
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    const handler = (e) => setIsMobile(e.matches);
-    setIsMobile(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [breakpoint]);
-  return isMobile;
-}
-
-// ── Lightbox (Instagram-style post view) ─────────────────────────────────────
-// Desktop: image on the left, scrollable caption panel on the right.
-// Mobile:  stacked sheet — image on top, caption scrolls below. The whole
-//          sheet is height-capped so a long description never bleeds off-screen.
-function Lightbox({ entry, imageIndex, onClose, onPrev, onNext, onSelect }) {
-  const isMobile = useIsMobile();
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft') onPrev();
-      if (e.key === 'ArrowRight') onNext();
-    };
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [onClose, onPrev, onNext]);
-
-  if (!entry) return null;
-  const images = entry.image_urls || [];
-  const url = images[imageIndex];
-  const multi = images.length > 1;
-
-  const navBtn = (dir, onClick, Icon) => (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      aria-label={dir}
-      style={{
-        position: 'absolute', [dir === 'Previous photo' ? 'left' : 'right']: '0.6rem',
-        top: '50%', transform: 'translateY(-50%)', zIndex: 5,
-        background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%',
-        width: '40px', height: '40px', cursor: 'pointer', color: 'white',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backdropFilter: 'blur(4px)',
-      }}
-    ><Icon size={20} /></button>
-  );
-
-  // Image pane (shared) — letterboxed on black, arrows + counter overlaid.
-  const imagePane = (
-    <div style={{
-      position: 'relative', background: '#000',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flex: isMobile ? '0 0 auto' : '1 1 auto',
-      minHeight: 0, minWidth: 0,
-      maxHeight: isMobile ? '52vh' : '90vh',
-    }}>
-      <img
-        src={url}
-        alt={`${entry.name} — photo ${imageIndex + 1} of ${images.length}`}
-        decoding="async"
-        style={{
-          maxWidth: '100%',
-          maxHeight: isMobile ? '52vh' : '90vh',
-          width: 'auto', height: 'auto', objectFit: 'contain', display: 'block',
-        }}
-      />
-      {multi && navBtn('Previous photo', onPrev, ChevronLeft)}
-      {multi && navBtn('Next photo', onNext, ChevronRight)}
-      {multi && (
-        <span style={{
-          position: 'absolute', bottom: '0.6rem', left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.7rem', fontWeight: 600,
-          padding: '0.2rem 0.6rem', borderRadius: '999px', backdropFilter: 'blur(4px)',
-        }}>{imageIndex + 1} / {images.length}</span>
-      )}
-    </div>
-  );
-
-  // Caption pane (shared) — scrollable; reads like a social post.
-  const captionPane = (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      flex: isMobile ? '1 1 auto' : '0 0 360px',
-      width: isMobile ? '100%' : '360px',
-      minHeight: 0,
-      borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
-    }}>
-      {/* Header — identity (no PII) */}
-      <div style={{ padding: '1.1rem 1.25rem 0.85rem', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
-        <h3 style={{ color: 'white', margin: 0, fontFamily: 'var(--font-serif)', fontSize: '1.2rem', lineHeight: 1.2 }}>
-          {entry.name}
-        </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-          {entry.instagram_handle && (
-            <a
-              href={`https://instagram.com/${entry.instagram_handle}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ color: '#c9972b', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-            ><AtSign size={12} /> {entry.instagram_handle}</a>
-          )}
-          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-            <Camera size={11} /> {images.length} {images.length === 1 ? 'photo' : 'photos'}
-          </span>
-          {entry.prize_tier && (
-            <span style={{
-              background: 'rgba(201,151,43,0.95)', color: '#0a1f1c',
-              fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
-              padding: '0.15rem 0.5rem', borderRadius: '999px',
-              display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-            }}><Trophy size={10} /> {entry.prize_tier_label}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Scrollable description — the actual post body */}
-      <div style={{
-        flex: '1 1 auto', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
-        padding: '1rem 1.25rem 1.25rem',
-      }}>
-        <p style={{
-          color: 'rgba(255,255,255,0.82)', fontSize: '0.9rem', lineHeight: 1.75,
-          margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        }}>
-          {entry.about_aquarium}
-        </p>
-      </div>
-
-      {/* Thumbnail strip — jump between this entry's photos */}
-      {multi && (
-        <div style={{
-          flexShrink: 0, display: 'flex', gap: '0.4rem', padding: '0.65rem 1.25rem',
-          borderTop: '1px solid rgba(255,255,255,0.07)', overflowX: 'auto',
-        }}>
-          {images.map((thumb, i) => (
-            <button
-              key={thumb + i}
-              onClick={(e) => { e.stopPropagation(); onSelect?.(i); }}
-              aria-label={`View photo ${i + 1}`}
-              style={{
-                flex: '0 0 auto', width: '44px', height: '44px', padding: 0,
-                borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', background: 'none',
-                border: `2px solid ${i === imageIndex ? '#c9972b' : 'rgba(255,255,255,0.15)'}`,
-                opacity: i === imageIndex ? 1 : 0.55, transition: 'opacity 0.15s, border-color 0.15s',
-              }}
-            >
-              <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  // NOTE: no entrance animation. An opacity transition here (framer-motion OR
-  // CSS keyframes) renders the modal half-transparent because the parent
-  // re-renders/remounts this subtree frequently, restarting the fade. The
-  // backdrop must always be solid — so opacity stays at its default of 1.
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.92)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center',
-        padding: isMobile ? '0' : '1.5rem',
-      }}
-    >
-      {/* Close — fixed to the viewport corner so it's always reachable */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-        aria-label="Close"
-        style={{
-          position: 'fixed', top: '0.85rem', right: '0.85rem', zIndex: 1010,
-          background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%',
-          width: '42px', height: '42px', cursor: 'pointer', color: 'white',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)',
-        }}
-      ><X size={20} /></button>
-
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          background: '#0c1512',
-          borderRadius: isMobile ? '14px' : '16px',
-          overflow: 'hidden',
-          boxShadow: '0 25px 60px -12px rgba(0,0,0,0.7)',
-          width: isMobile ? '100%' : 'auto',
-          maxWidth: isMobile ? '560px' : '1150px',
-          maxHeight: isMobile ? '92vh' : '90vh',
-          minWidth: 0,
-        }}
-      >
-        {imagePane}
-        {captionPane}
-      </div>
-    </div>
-  );
-}
-
 // ── Card ─────────────────────────────────────────────────────────────────────
-function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason }) {
+function EntryCard({ entry, onVote, votingDisabled, votingDisabledReason }) {
   const images = entry.image_urls || [];
   const imageCount = images.length;
   // In-card active image so the whole entry's photo set is browsable in place,
@@ -250,6 +39,9 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
   const [activeImg, setActiveImg] = useState(0);
   const safeActive = Math.min(activeImg, Math.max(0, imageCount - 1));
   const mainImg = images[safeActive];
+  // Each entry is its own page — using a real <Link> means users can
+  // cmd/ctrl-click or right-click → "Open in new tab" natively.
+  const detailTo = `/competition/entries/${entry.id}`;
 
   return (
     <motion.article
@@ -267,11 +59,11 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
         flexDirection: 'column',
       }}
     >
-      {/* Main image — clicking opens the lightbox at the active photo */}
-      <button
-        onClick={() => onOpen(entry, safeActive)}
+      {/* Main image — a real link to the entry's own page (new-tab friendly) */}
+      <Link
+        to={detailTo}
         style={{
-          padding: 0, border: 'none', background: 'none', cursor: 'pointer',
+          display: 'block', textDecoration: 'none',
           aspectRatio: '4 / 3', overflow: 'hidden', position: 'relative',
         }}
       >
@@ -314,7 +106,7 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
             <Trophy size={11} /> {entry.prize_tier_label}
           </span>
         )}
-      </button>
+      </Link>
 
       {/* Thumbnail strip — all photos for THIS entry, grouped together */}
       {imageCount > 1 && (
@@ -403,14 +195,14 @@ function EntryCard({ entry, onOpen, onVote, votingDisabled, votingDisabledReason
               {entry.vote_count === 1 ? 'vote' : 'votes'}
             </span>
           </button>
-          <button
-            onClick={() => onOpen(entry, safeActive)}
+          <Link
+            to={detailTo}
             style={{
               background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
-              fontSize: '0.75rem', cursor: 'pointer', padding: 0,
+              fontSize: '0.75rem', cursor: 'pointer', padding: 0, textDecoration: 'none',
               display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
             }}
-          >View all <ArrowRight size={12} /></button>
+          >View all <ArrowRight size={12} /></Link>
         </div>
       </div>
     </motion.article>
@@ -427,8 +219,6 @@ export default function CompetitionEntries() {
   const [sort, setSort] = useState('top');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [openEntry, setOpenEntry] = useState(null);
-  const [openImageIdx, setOpenImageIdx] = useState(0);
   const [voteToast, setVoteToast] = useState('');
 
   const phase = status?.phase || 'submission';
@@ -486,18 +276,6 @@ export default function CompetitionEntries() {
     }
   };
 
-  const openLightbox = (entry, idx) => { setOpenEntry(entry); setOpenImageIdx(idx); };
-  const closeLightbox = () => setOpenEntry(null);
-  const lightboxPrev = () => {
-    if (!openEntry) return;
-    const total = openEntry.image_urls?.length || 1;
-    setOpenImageIdx((i) => (i - 1 + total) % total);
-  };
-  const lightboxNext = () => {
-    if (!openEntry) return;
-    const total = openEntry.image_urls?.length || 1;
-    setOpenImageIdx((i) => (i + 1) % total);
-  };
 
   const totalVotes = useMemo(() => entries.reduce((s, e) => s + (e.vote_count || 0), 0), [entries]);
 
@@ -625,7 +403,6 @@ export default function CompetitionEntries() {
                 <EntryCard
                   key={entry.id}
                   entry={entry}
-                  onOpen={openLightbox}
                   onVote={handleVote}
                   votingDisabled={votingDisabled}
                   votingDisabledReason={votingDisabledReason}
@@ -640,19 +417,6 @@ export default function CompetitionEntries() {
           )}
         </div>
       </section>
-
-      <AnimatePresence>
-        {openEntry && (
-          <Lightbox
-            entry={openEntry}
-            imageIndex={openImageIdx}
-            onClose={closeLightbox}
-            onPrev={lightboxPrev}
-            onNext={lightboxNext}
-            onSelect={setOpenImageIdx}
-          />
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {voteToast && (

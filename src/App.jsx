@@ -36,6 +36,7 @@ import OrderTracking from './pages/OrderTracking';
 import TrackOrder from './pages/TrackOrder';
 import Competition from './pages/Competition';
 import CompetitionEntries from './pages/CompetitionEntries';
+import CompetitionEntryDetail from './pages/CompetitionEntryDetail';
 import CompetitionWinners from './pages/CompetitionWinners';
 import Community from './pages/Community';
 import RequireAuth from './components/RequireAuth';
@@ -111,6 +112,7 @@ function App() {
                 <Route path="track" element={<TrackOrder />} />
                 <Route path="competition" element={<Competition />} />
                 <Route path="competition/entries" element={<CompetitionEntries />} />
+                <Route path="competition/entries/:id" element={<CompetitionEntryDetail />} />
                 <Route path="competition/winners" element={<CompetitionWinners />} />
                 <Route path="community" element={<FeatureGate flag="community"><Community /></FeatureGate>} />
               </Route>
