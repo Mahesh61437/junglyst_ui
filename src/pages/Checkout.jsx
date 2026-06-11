@@ -51,6 +51,7 @@ export default function Checkout() {
 
   const sellerGroups = cart?.seller_groups || {};
   const deliveryBlocked = cart?.delivery_blocked;
+  const outOfStockItems = (cart?.items || []).filter(item => item.quantity > (item.variant?.stock ?? Infinity));
 
   // Fire checkout_initiated once when user lands on checkout with a valid cart
   useEffect(() => {
@@ -754,6 +755,16 @@ export default function Checkout() {
               </div>
             </div>
 
+            {outOfStockItems.length > 0 && (
+              <div style={{ padding: '1rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.5 }}>
+                {outOfStockItems.map(item => (
+                  <div key={item.id}>
+                    {item.product?.name} ({item.variant?.name}) is out of stock. Please remove it from your cart to continue.
+                  </div>
+                ))}
+              </div>
+            )}
+
             {error && (
               <div style={{ padding: '1rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.5 }}>
                 {error}
@@ -769,12 +780,12 @@ export default function Checkout() {
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading || deliveryBlocked}
+              disabled={loading || deliveryBlocked || outOfStockItems.length > 0}
               style={{
                 width: '100%', padding: '1.25rem',
-                backgroundColor: loading || deliveryBlocked ? '#94a3b8' : '#1b2d2a',
+                backgroundColor: loading || deliveryBlocked || outOfStockItems.length > 0 ? '#94a3b8' : '#1b2d2a',
                 color: 'white', border: 'none', borderRadius: '14px',
-                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked ? 'not-allowed' : 'pointer',
+                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked || outOfStockItems.length > 0 ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
                 transition: 'opacity 0.2s'
               }}

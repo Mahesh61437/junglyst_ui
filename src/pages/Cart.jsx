@@ -48,6 +48,8 @@ export default function Cart() {
     await checkPincode(pincodeInput);
   };
 
+  const outOfStockItems = cart.items.filter(item => item.quantity > (item.variant?.stock ?? Infinity));
+
   const handleCheckout = () => {
     trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.total_items });
     navigate('/checkout');
@@ -177,6 +179,9 @@ export default function Cart() {
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '0.25rem' }}>
                               <span style={{ fontSize: '0.75rem', color: '#64748b' }}><b>Specimen:</b> {variant.name || 'Standard'}</span>
                               <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'capitalize' }}><b>Type:</b> {variant.item_category || 'light'} item</span>
+                              {variant.stock != null && stock === 0 && (
+                                <span style={{ color: '#dc2626', fontSize: '0.75rem', fontWeight: 800 }}>Out of stock — remove to checkout</span>
+                              )}
                               {stock > 0 && stock < 10 && (
                                 <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 800 }}>Only {stock} remaining</span>
                               )}
@@ -283,12 +288,23 @@ export default function Cart() {
               </div>
             </div>
 
+            {outOfStockItems.length > 0 && (
+              <div style={{ padding: '0.85rem 1rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.8rem', marginBottom: '1rem', lineHeight: 1.5 }}>
+                {outOfStockItems.map(item => (
+                  <div key={item.id}>{item.product?.name} ({item.variant?.name}) is out of stock. Remove it to proceed.</div>
+                ))}
+              </div>
+            )}
+
             <button
               onClick={handleCheckout}
+              disabled={outOfStockItems.length > 0}
               style={{
-                width: '100%', padding: '1.25rem', backgroundColor: 'var(--bg-deep)',
+                width: '100%', padding: '1.25rem',
+                backgroundColor: outOfStockItems.length > 0 ? '#94a3b8' : 'var(--bg-deep)',
                 color: 'white', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1rem',
-                cursor: 'pointer', display: 'flex', alignItems: 'center',
+                cursor: outOfStockItems.length > 0 ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center',
                 justifyContent: 'center', gap: '0.75rem', boxShadow: '0 10px 30px rgba(10, 48, 41, 0.15)',
               }}
             >
