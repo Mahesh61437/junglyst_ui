@@ -23,8 +23,11 @@ export default function SellerStore() {
   const { sellerName } = useParams(); // This is the slug
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const itemsPerPage = 12;
 
   const [sellerInfo, setSellerInfo] = useState({
@@ -43,11 +46,11 @@ export default function SellerStore() {
   });
   const [profileFound, setProfileFound] = useState(true);
 
+  // Fetch the public store profile (once per slug).
   useEffect(() => {
-    const fetchSellerData = async () => {
+    const fetchProfile = async () => {
       setLoading(true);
       try {
-        // Fetch public profile info
         const profileRes = await api.get(`/sellers/store/${sellerName}/`).catch(() => null);
         if (profileRes && profileRes.data) {
           const profile = profileRes.data;
@@ -70,49 +73,81 @@ export default function SellerStore() {
             isVerified: profile.identity_verified
           });
           setProfileFound(true);
-          
-          // Now fetch products using the seller's slug
-          const data = await ProductService.getProducts({ seller_slug: sellerName });
-          const results = data.results || data || [];
-          setProducts(results.filter((p) => p?.is_active !== false));
         } else {
           setProfileFound(false);
         }
       } catch (error) {
-        console.error("Failed to fetch seller data:", error);
+        console.error("Failed to fetch seller profile:", error);
         setProfileFound(false);
       } finally {
         setLoading(false);
       }
     };
-    fetchSellerData();
+    fetchProfile();
     window.scrollTo(0, 0);
   }, [sellerName]);
+
+  // Debounce the search box so we don't hit the API on every keystroke.
+  // Resetting to page 1 whenever the query changes keeps the result set valid.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
+
+  // Fetch the current page of products server-side. The backend paginates
+  // (page_size=20 by default), so the store must request each page explicitly
+  // instead of fetching once and slicing client-side — otherwise only the first
+  // page of a seller's catalogue is ever visible.
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setProductsLoading(true);
+      try {
+        const params = {
+          seller_slug: sellerName,
+          page: currentPage,
+          page_size: itemsPerPage,
+        };
+        if (debouncedSearch) params.search = debouncedSearch;
+        const data = await ProductService.getProducts(params);
+        const results = data.results || data || [];
+        setProducts(results.filter((p) => p?.is_active !== false));
+        setTotalCount(typeof data.count === 'number' ? data.count : results.length);
+      } catch (error) {
+        console.error("Failed to fetch seller products:", error);
+        setProducts([]);
+        setTotalCount(0);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [sellerName, currentPage, debouncedSearch]);
 
   const textColor = isLight(sellerInfo.brandColor) ? 'var(--text-primary)' : 'white';
   const accentColor = isLight(sellerInfo.brandColor) ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.7)';
 
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return products;
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+
+  // Windowed page list: first, last, and the current page ±1, with ellipsis
+  // gaps. Avoids rendering hundreds of buttons for large catalogues.
+  const pageNumbers = useMemo(() => {
+    const pages = [];
+    const window = 1;
+    for (let p = 1; p <= totalPages; p++) {
+      if (p === 1 || p === totalPages || (p >= currentPage - window && p <= currentPage + window)) {
+        pages.push(p);
+      } else if (pages[pages.length - 1] !== '…') {
+        pages.push('…');
+      }
     }
-    return products.filter(product => {
-      const name = (product.name || product.title || '').toLowerCase();
-      const query = searchQuery.toLowerCase();
-      return name.includes(query);
-    });
-  }, [products, searchQuery]);
-
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-
-  const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredProducts.slice(start, start + itemsPerPage);
-  }, [filteredProducts, currentPage]);
+    return pages;
+  }, [totalPages, currentPage]);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1);
   };
 
   const productsRef = React.useRef(null);
@@ -259,7 +294,7 @@ export default function SellerStore() {
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.1em' }}>Mastery Tenure</p>
               </div>
               <div>
-                <p style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>{products.length}</p>
+                <p style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>{totalCount}</p>
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.1em' }}>Specimens</p>
               </div>
             </div>
@@ -304,7 +339,7 @@ export default function SellerStore() {
         <div style={{ textAlign: 'center', marginBottom: 'clamp(3rem, 6vw, 6rem)' }}>
           <h2 style={{ fontSize: 'clamp(2rem, 6vw, 4rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.75rem' }}>Seasonal Selections</h2>
           <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af' }}>
-            {searchQuery ? `${filteredProducts.length} RESULTS` : `LATEST ${products.length} SPECIMENS FROM THE STORE`}
+            {debouncedSearch ? `${totalCount} RESULT${totalCount === 1 ? '' : 'S'}` : `${totalCount} SPECIMENS FROM THE STORE`}
           </p>
         </div>
 
@@ -340,10 +375,7 @@ export default function SellerStore() {
             />
             {searchQuery && (
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setCurrentPage(1);
-                }}
+                onClick={() => setSearchQuery('')}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -359,10 +391,18 @@ export default function SellerStore() {
           </div>
         </div>
 
-        {filteredProducts.length > 0 ? (
+        {productsLoading ? (
+          <div ref={productsRef} style={{ padding: 'clamp(4rem, 8vw, 8rem) 2rem', display: 'flex', justifyContent: 'center' }}>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              style={{ width: '36px', height: '36px', border: '3px solid #e5e7eb', borderTopColor: sellerInfo.brandColor, borderRadius: '50%' }}
+            />
+          </div>
+        ) : products.length > 0 ? (
           <>
             <div ref={productsRef} className="grid-responsive" style={{ display: 'grid', marginBottom: '3rem' }}>
-              {paginatedProducts.map(product => (
+              {products.map(product => (
                 <ProductCard
                   key={product.id}
                   id={product.id}
@@ -398,25 +438,29 @@ export default function SellerStore() {
                   flexWrap: 'wrap',
                   justifyContent: 'center'
                 }}>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        border: currentPage === page ? '2px solid #1a1a1a' : '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        backgroundColor: currentPage === page ? '#f3f4f6' : 'white',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                        fontWeight: currentPage === page ? 700 : 600,
-                        color: '#1a1a1a',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {page}
-                    </button>
+                  {pageNumbers.map((page, idx) => (
+                    page === '…' ? (
+                      <span key={`ellipsis-${idx}`} style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>…</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          border: currentPage === page ? '2px solid #1a1a1a' : '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          backgroundColor: currentPage === page ? '#f3f4f6' : 'white',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          fontWeight: currentPage === page ? 700 : 600,
+                          color: '#1a1a1a',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {page}
+                      </button>
+                    )
                   ))}
                 </div>
 

@@ -53,15 +53,32 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const isSaved = isInWishlist(id);
   const finalImage = getImageUrl(image);
 
-  const prices = variants?.length > 0 ? variants.map(v => parseFloat(v.price)) : [parseFloat(price)];
+  // Prefer in-stock variants so both the displayed "from" price and the
+  // add-to-cart action reflect something the buyer can actually purchase.
+  // A cheaper-but-sold-out variant must not set the price or be the one
+  // added (that was sending a 0-stock variant_id → "Only 0 units available").
+  // Falls back to all variants only when nothing is in stock — the card
+  // renders as Sold Out in that case anyway.
+  const inStockVariants = (variants || []).filter(v => {
+    const s = typeof v.stock === 'number' ? v.stock : parseInt(v.stock || '0', 10);
+    return !isNaN(s) && s > 0;
+  });
+  const purchasableVariants = inStockVariants.length > 0 ? inStockVariants : (variants || []);
+
+  const prices = purchasableVariants.length > 0
+    ? purchasableVariants.map(v => parseFloat(v.price))
+    : [parseFloat(price)];
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
 
   const cartItemIndex = cart.items.findIndex(item => item.product.id === id);
   const cartItem = cartItemIndex >= 0 ? cart.items[cartItemIndex] : null;
   const quantityInCart = cartItem ? cartItem.quantity : 0;
-  
-  const baseVariant = variants?.find(v => parseFloat(v.price) === minPrice) || variants?.[0];
+
+  const baseVariant =
+    purchasableVariants.find(v => parseFloat(v.price) === minPrice) ||
+    purchasableVariants[0] ||
+    variants?.[0];
   const variantId = baseVariant ? baseVariant.id : null;
 
   const productData = { id, name, slug, image, seller, price };

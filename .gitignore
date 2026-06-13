@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Env files — catch every variant. Vite inlines anything VITE_* into the build,
+# so a leaked .env.production would publish secrets to the dist bundle.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
