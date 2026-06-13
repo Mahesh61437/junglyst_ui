@@ -57,8 +57,8 @@ export default function CategoryStrip({ categories = [], selected = null, onSele
             >
               {/* Circle */}
               <div style={{
-                width: '72px',
-                height: '72px',
+                width: '96px',
+                height: '96px',
                 borderRadius: '50%',
                 overflow: 'hidden',
                 border: `2.5px solid ${isActive ? 'var(--brand-gold, #b5932a)' : 'transparent'}`,
@@ -85,7 +85,7 @@ export default function CategoryStrip({ categories = [], selected = null, onSele
                   display: img ? 'none' : 'flex',
                   width: '100%', height: '100%',
                   alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1.4rem',
+                  fontSize: '1.8rem',
                   background: isActive
                     ? 'var(--brand-gold, #b5932a)'
                     : 'var(--bg-deep, #0a1f1c)',
@@ -99,11 +99,11 @@ export default function CategoryStrip({ categories = [], selected = null, onSele
 
               {/* Label */}
               <span style={{
-                fontSize: '0.68rem',
+                fontSize: '0.82rem',
                 fontWeight: isActive ? 800 : 600,
                 color: isActive ? 'var(--brand-gold, #b5932a)' : 'var(--text-secondary, #6b7280)',
                 textAlign: 'center',
-                maxWidth: '76px',
+                maxWidth: '100px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',

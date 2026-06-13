@@ -358,11 +358,20 @@ export default function Home() {
     setSelectedCatName(id ? name : null);
   };
 
-  const visibleProducts = selectedCatName
-    ? products.filter(p => {
-        const catName = typeof p.category === 'string' ? p.category : p.category?.name;
-        return catName === selectedCatName;
-      })
+  // Fetch all published products once so category filtering is purely client-side
+  const { data: allProductsData, isLoading: allProductsLoading } = useQuery({
+    queryKey: ['home-all-products'],
+    queryFn: () => ProductService.getProducts({ page_size: 1000 }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const allProducts = allProductsData?.results || allProductsData?.products || [];
+
+  const visibleProducts = selectedCatId
+    ? allProducts.filter(p =>
+        Array.isArray(p.categories)
+          ? p.categories.some(c => c.id === selectedCatId)
+          : (typeof p.category === 'string' ? p.category : p.category?.name) === selectedCatName
+      )
     : products;
 
   return (
@@ -408,7 +417,7 @@ export default function Home() {
           </div>
         )}
 
-        {loading ? (
+        {loading || allProductsLoading ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             Curating your collection…
           </div>
