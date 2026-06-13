@@ -6,6 +6,7 @@ import { useParams, useNavigate, useSearchParams, useNavigationType } from 'reac
 import { useScrollRestoration } from '../utils/useScrollRestoration';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
+import CategoryStrip from '../components/CategoryStrip';
 import Pagination from '../components/Pagination';
 import { ProductService } from '../services/ProductService';
 import { Search, X, Leaf, SlidersHorizontal, Check, IndianRupee } from 'lucide-react';
@@ -175,6 +176,24 @@ export default function Shop() {
     setCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
     setPage(1);
   };
+
+  // Strip select: clear all cats and activate just the tapped one (or clear if same)
+  const handleStripSelect = useCallback((catId, catName) => {
+    setCategories(prev => {
+      const cleared = Object.keys(prev).reduce((acc, k) => ({ ...acc, [k]: false }), {});
+      if (!catName || prev[catName] === true) return cleared; // deselect on second tap
+      return { ...cleared, [catName]: true };
+    });
+    setPage(1);
+    if (category) navigate('/shop');
+  }, [category, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Derive the active strip category id from the filter state
+  const stripSelectedId = useMemo(() => {
+    if (activeCats.length !== 1) return null;
+    const match = categoryData.find(c => c.name === activeCats[0]);
+    return match?.id ?? null;
+  }, [activeCats, categoryData]);
 
   const handleDifficultyChange = (diff) => {
     setDifficulties(prev => ({ ...prev, [diff]: !prev[diff] }));
@@ -524,6 +543,17 @@ export default function Shop() {
           </div>
         </div>
       </div>
+
+      {/* ── Category strip ── */}
+      {categoryData.length > 0 && (
+        <div style={{ marginBottom: '2rem' }}>
+          <CategoryStrip
+            categories={categoryData}
+            selected={stripSelectedId}
+            onSelect={handleStripSelect}
+          />
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '3rem' }}>
 

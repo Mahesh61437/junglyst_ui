@@ -34,5 +34,14 @@ export const CartService = {
       console.error('Error updating cart item:', error);
       throw error;
     }
-  }
+  },
+
+  getCheckoutNudge: async () => {
+    try {
+      const response = await api.get('/cart/checkout-nudge/');
+      return response.data;
+    } catch {
+      return { recommendations: [] };
+    }
+  },
 };

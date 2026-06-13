@@ -4,7 +4,9 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/OrderService';
 import api from '../services/api';
+import { useAddresses } from '../utils/addressCache';
 import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package, Truck, Calendar, Store } from 'lucide-react';
+import CheckoutRecommendationPopup from '../components/CheckoutRecommendationPopup';
 import { getImageUrl } from '../utils/imageUtils';
 import { load } from '@cashfreepayments/cashfree-js';
 import { trackEvent, trackCheckoutInitiated } from '../utils/analytics';
@@ -31,7 +33,7 @@ export default function Checkout() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [addresses, setAddresses] = useState([]);
+  const { addresses, invalidate: invalidateAddresses } = useAddresses(user);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [saveAddress, setSaveAddress] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
@@ -43,6 +45,8 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showGuestConfirm, setShowGuestConfirm] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
+  const pendingCheckout = useRef(null);
   const [verifying, setVerifying] = useState(false); // polling overlay state
   // Ref to prevent empty-cart guard from redirecting to /cart after order is placed
   const orderPlaced = useRef(false);
@@ -60,39 +64,22 @@ export default function Checkout() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch saved addresses; pre-fill form from default or profile
+  // Pre-fill shipping form from cached addresses or profile
   useEffect(() => {
-    if (!user) {
-      // Guest: no pre-fill needed
-      return;
+    if (!user) return;
+    if (addresses.length > 0) {
+      const def = addresses.find(a => a.is_default) || addresses[0];
+      setSelectedAddressId(def.id);
+      setShipping({ ...def });
+    } else {
+      setShipping(prev => ({
+        ...prev,
+        full_name: user.full_name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+      }));
     }
-    api.get('/shipping/addresses/')
-      .then(res => {
-        const list = res.data.results ?? (Array.isArray(res.data) ? res.data : []);
-        setAddresses(list);
-        if (list.length > 0) {
-          const def = list.find(a => a.is_default) || list[0];
-          setSelectedAddressId(def.id);
-          setShipping({ ...def });
-        } else {
-          // First-time user: pre-fill from profile
-          setShipping(prev => ({
-            ...prev,
-            full_name: user.full_name || '',
-            email: user.email || '',
-            phone: user.phone || '',
-          }));
-        }
-      })
-      .catch(() => {
-        setShipping(prev => ({
-          ...prev,
-          full_name: user.full_name || '',
-          email: user.email || '',
-          phone: user.phone || '',
-        }));
-      });
-  }, [user]);
+  }, [user, addresses]);
 
   // ── Payment status polling (handles UPI in-processing / modal-close edge case) ──
   const startPolling = async (gatewayType, gatewayId) => {
@@ -194,6 +181,12 @@ export default function Checkout() {
 
   const f = (field) => e => setShipping(prev => ({ ...prev, [field]: e.target.value }));
 
+  function handleNudgeProceed() {
+    setShowNudge(false);
+    // Re-submit the form — pendingCheckout.current is already truthy so it skips the nudge
+    document.getElementById('checkout-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -209,6 +202,14 @@ export default function Checkout() {
       return;
     }
 
+    // Show complementary product nudge once before proceeding to payment
+    if (!pendingCheckout.current) {
+      pendingCheckout.current = true;
+      setShowNudge(true);
+      return;
+    }
+    pendingCheckout.current = null;
+
     setLoading(true);
     trackEvent('payment_initiated', { value: cart?.grand_total, num_items: cart?.items?.length, gateway: 'pending' });
     try {
@@ -223,6 +224,7 @@ export default function Checkout() {
         }
         const res = await api.post('/shipping/addresses/', { ...shipping, is_default: isDefault });
         checkoutAddressId = res.data.id;
+        invalidateAddresses();
       }
 
       // Try to resolve backend cart ID for logged-in users
@@ -814,6 +816,11 @@ export default function Checkout() {
     </div>
 
       {/* Guest checkout confirmation modal */}
+
+      <CheckoutRecommendationPopup
+        isOpen={showNudge}
+        onProceed={handleNudgeProceed}
+      />
 
       {showGuestConfirm && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>

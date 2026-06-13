@@ -1,21 +1,29 @@
 import ProductCard from './ProductCard';
 
-export default function Recommendations({ products = [] }) {
+export default function CompleteYourSetup({ products = [] }) {
   if (products.length === 0) return null;
 
   return (
-    <section aria-label="Similar products" style={{ padding: '0 1rem' }}>
+    <section aria-label="Complementary products" style={{ padding: '0 1rem' }}>
       <h2 style={{
         fontSize: '1.75rem',
         fontFamily: 'var(--font-serif)',
         color: 'var(--bg-deep)',
-        marginBottom: '2.5rem',
+        marginBottom: '0.5rem',
         borderBottom: '1px solid var(--border-subtle)',
         paddingBottom: '1rem',
         letterSpacing: '-0.02em'
       }}>
-        Specimens You May Highly Value
+        Complete Your Setup
       </h2>
+      <p style={{
+        fontSize: '0.875rem',
+        color: 'var(--text-muted)',
+        marginBottom: '2rem',
+        marginTop: '0'
+      }}>
+        Everything this specimen needs to thrive
+      </p>
       <div className="grid-responsive">
         {products.map(product => (
           <ProductCard

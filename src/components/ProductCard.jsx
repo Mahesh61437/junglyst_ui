@@ -33,6 +33,7 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
   const stockLimit = Number.isFinite(calculatedStock) ? calculatedStock : null;
   const isSoldOut = stockLimit !== null && stockLimit <= 0;
   const isLowStock = stockLimit !== null && stockLimit > 0 && stockLimit < 10;
+  const isInStock = stockLimit !== null && stockLimit >= 10;
 
   const parentCategoryName = (
     (typeof category === 'string' ? category : category?.name) ||
@@ -163,7 +164,19 @@ export default function ProductCard({ id, slug, name, scientific_name, care_leve
         {/* Spacer pushes footer to bottom */}
         <div style={{ flexGrow: 1 }} />
 
-        {/* Low-stock urgency banner — sits right above the buy action */}
+        {/* Stock status banner — sits right above the buy action */}
+        {isInStock && !isSoldOut && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0',
+            color: '#16a34a', fontSize: '0.68rem', fontWeight: 800,
+            letterSpacing: '0.02em', padding: '0.4rem 0.6rem',
+            borderRadius: '8px', marginBottom: '0.6rem'
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }} />
+            In Stock
+          </div>
+        )}
         {isLowStock && !isSoldOut && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: '0.4rem',
