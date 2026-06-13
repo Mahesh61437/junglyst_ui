@@ -118,5 +118,14 @@ export const ProductService = {
       console.error('Error fetching subcategories:', error);
       throw error;
     }
-  }
+  },
+
+  getRecommendations: async (slug) => {
+    try {
+      const response = await api.get(`/core/products/${slug}/recommendations/`);
+      return response.data;
+    } catch {
+      return { similar: [], complementary: [] };
+    }
+  },
 };

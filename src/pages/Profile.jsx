@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useAddresses } from '../utils/addressCache';
 import { useWishlist } from '../context/WishlistContext';
 import {
   User, Mail, MapPin, Package, Heart, LogOut,
@@ -29,8 +30,7 @@ export default function Profile() {
   const navigate = useNavigate();
 
   // Address management state
-  const [addresses, setAddresses] = useState([]);
-  const [addrLoading, setAddrLoading] = useState(false);
+  const { addresses, loading: addrLoading, invalidate: invalidateAddresses } = useAddresses(user);
   const [addrForm, setAddrForm] = useState({
     full_name: '', email: '', phone: '',
     address_line1: '', address_line2: '',
@@ -72,21 +72,7 @@ export default function Profile() {
   useEffect(() => {
     if (!user) return;
     if (activeTab === 'history') fetchOrders();
-    else if (activeTab === 'addresses') fetchAddresses();
   }, [user, activeTab]);
-
-  const fetchAddresses = async () => {
-    setAddrLoading(true);
-    try {
-      const res = await api.get('/shipping/addresses/');
-      const list = res.data.results ?? (Array.isArray(res.data) ? res.data : []);
-      setAddresses(list);
-    } catch (e) {
-      console.error('Failed to fetch addresses:', e);
-    } finally {
-      setAddrLoading(false);
-    }
-  };
 
   const openNewAddrForm = () => {
     setEditingAddrId(null);
@@ -110,19 +96,16 @@ export default function Profile() {
 
   const handleSaveAddr = async (e) => {
     e.preventDefault();
-    setAddrLoading(true);
     try {
       if (editingAddrId) {
         await api.put(`/shipping/addresses/${editingAddrId}/`, addrForm);
       } else {
         await api.post('/shipping/addresses/', addrForm);
       }
-      await fetchAddresses();
+      invalidateAddresses();
       cancelAddrForm();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to save address.');
-    } finally {
-      setAddrLoading(false);
     }
   };
 
@@ -130,7 +113,7 @@ export default function Profile() {
     if (!window.confirm('Delete this address?')) return;
     try {
       await api.delete(`/shipping/addresses/${id}/`);
-      setAddresses(prev => prev.filter(a => a.id !== id));
+      invalidateAddresses();
     } catch {
       alert('Failed to delete address.');
     }
@@ -139,7 +122,7 @@ export default function Profile() {
   const handleSetDefault = async (id) => {
     try {
       await api.patch(`/shipping/addresses/${id}/`, { is_default: true });
-      await fetchAddresses();
+      invalidateAddresses();
     } catch {
       alert('Failed to update default address.');
     }

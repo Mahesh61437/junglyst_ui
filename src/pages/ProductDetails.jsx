@@ -29,6 +29,7 @@ import { useToast } from '../context/ToastContext';
 import { trackProductViewed, trackAddToCart, trackAddToWishlist } from '../utils/analytics';
 import ReviewSection from '../components/ReviewSection';
 import Recommendations from '../components/Recommendations';
+import CompleteYourSetup from '../components/CompleteYourSetup';
 import TrustBadges from '../components/TrustBadges';
 import { getImageUrl } from '../utils/imageUtils';
 import api from '../services/api';
@@ -87,6 +88,7 @@ export default function ProductDetails() {
   const id = slug; // ProductService auto-detects UUID vs slug
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
+  const [recs, setRecs] = useState({ similar: [], complementary: [] });
   const [loading, setLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [activeTab, setActiveTab] = useState('description');
@@ -224,6 +226,12 @@ export default function ProductDetails() {
     fetchProduct();
     window.scrollTo(0, 0);
   }, [id]);
+
+  useEffect(() => {
+    if (product?.slug) {
+      ProductService.getRecommendations(product.slug).then(setRecs);
+    }
+  }, [product?.slug]);
 
   const stockLimit = useMemo(() => {
     const raw =
@@ -1029,7 +1037,8 @@ export default function ProductDetails() {
         {/* Branded Bottom Flow */}
         <div style={{ marginTop: '8rem', display: 'flex', flexDirection: 'column', gap: '6rem' }}>
           <MoreFromSeller sellerId={product.seller?.id} sellerName={sellerStoreName} sellerSlug={sellerProfile.slug} currentProductId={product.id} />
-          <Recommendations category={product.category?.name || product.category} currentProductId={product.id} />
+          <Recommendations products={recs.similar} />
+          <CompleteYourSetup products={recs.complementary} />
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: 0 }} />
           <ReviewSection productId={product.id} />
         </div>
