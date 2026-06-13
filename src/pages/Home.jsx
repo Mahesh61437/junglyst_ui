@@ -4,10 +4,12 @@ import { motion } from 'framer-motion';
 import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
+import CategoryStrip from '../components/CategoryStrip';
 import { getImageUrl } from '../utils/imageUtils';
 import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 import api from '../services/api';
+import { ProductService } from '../services/ProductService';
 import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
 
 function useCompetitionCountdown(target) {
@@ -342,6 +344,27 @@ export default function Home() {
   const featuredSellers = data?.featured_sellers || [];
   const stats = data?.stats || null;
 
+  const { data: categoryData = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: ProductService.getCategories,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const [selectedCatId, setSelectedCatId] = useState(null);
+  const [selectedCatName, setSelectedCatName] = useState(null);
+
+  const handleCatSelect = (id, name) => {
+    setSelectedCatId(id);
+    setSelectedCatName(id ? name : null);
+  };
+
+  const visibleProducts = selectedCatName
+    ? products.filter(p => {
+        const catName = typeof p.category === 'string' ? p.category : p.category?.name;
+        return catName === selectedCatName;
+      })
+    : products;
+
   return (
     <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', overflowX: 'hidden' }}>
       <SEO
@@ -361,7 +384,7 @@ export default function Home() {
 
       {/* Products — direct path to purchase */}
       <section className="container" style={{ padding: 'clamp(3.5rem,7vw,6.5rem) 1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'clamp(1.75rem,3.5vw,3rem)', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'clamp(1.25rem,2.5vw,2rem)', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <span style={{ width: '18px', height: '1px', backgroundColor: 'var(--brand-gold)' }} />
@@ -374,18 +397,29 @@ export default function Home() {
           </Link>
         </div>
 
+        {/* Category strip */}
+        {categoryData.length > 0 && (
+          <div style={{ marginBottom: 'clamp(1.5rem,3vw,2.5rem)' }}>
+            <CategoryStrip
+              categories={categoryData}
+              selected={selectedCatId}
+              onSelect={handleCatSelect}
+            />
+          </div>
+        )}
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             Curating your collection…
           </div>
-        ) : products.length === 0 ? (
+        ) : visibleProducts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
             <Leaf size={36} color="var(--border-subtle)" style={{ marginBottom: '1rem', display: 'block', margin: '0 auto 1rem' }} />
-            <p>No specimens available right now. Check back soon.</p>
+            <p>{selectedCatName ? `No ${selectedCatName} available right now.` : 'No specimens available right now. Check back soon.'}</p>
           </div>
         ) : (
           <div className="grid-responsive">
-            {products.map(p => (
+            {visibleProducts.map(p => (
               <ProductCard key={p.id} id={p.id} slug={p.slug} name={p.name} scientific_name={p.scientific_name}
                 care_level={p.care_level} origin={p.origin} growth_rate={p.growth_rate}
                 price={p.price} originalPrice={p.compare_at_price} image={p.image}
