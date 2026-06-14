@@ -6,8 +6,9 @@ import {
   Package, Users, IndianRupee, Truck, CheckCircle, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
-  Tag, Layers, Percent, Weight, Trash2, RefreshCw,
+  Tag, Layers, Percent, Weight, Trash2, RefreshCw, Sliders,
 } from 'lucide-react';
+import { loadCombosConfig, saveCombosConfig, resetCombosConfig, DEFAULT_COMBOS } from '../config/combosConfig';
 
 // ─── shared label style ──────────────────────────────────────────────────────
 const labelStyle = {
@@ -239,6 +240,201 @@ function CatField({ label, value, onChange, type = 'text', placeholder = '' }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
+// ─── CombosManager ────────────────────────────────────────────────────────────
+function CombosManager() {
+  const [combos, setCombos] = React.useState(() => loadCombosConfig());
+  const [saved, setSaved] = React.useState(false);
+
+  const updateCombo = (idx, field, value) =>
+    setCombos(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+
+  const updateKeywords = (idx, raw) =>
+    updateCombo(idx, 'keywords', raw.split(',').map(s => s.trim()).filter(Boolean));
+
+  const updateFilterTag = (comboIdx, tagIdx, field, value) =>
+    setCombos(prev => prev.map((c, i) => {
+      if (i !== comboIdx) return c;
+      const tags = c.filterTags.map((t, j) =>
+        j !== tagIdx ? t : {
+          ...t,
+          [field]: field === 'match'
+            ? value.split(',').map(s => s.trim()).filter(Boolean)
+            : value,
+        }
+      );
+      return { ...c, filterTags: tags };
+    }));
+
+  const addFilterTag = (comboIdx) =>
+    setCombos(prev => prev.map((c, i) =>
+      i !== comboIdx ? c : {
+        ...c,
+        filterTags: [...c.filterTags, { key: `tag_${Date.now()}`, label: '', match: [] }],
+      }
+    ));
+
+  const removeFilterTag = (comboIdx, tagIdx) =>
+    setCombos(prev => prev.map((c, i) =>
+      i !== comboIdx ? c : { ...c, filterTags: c.filterTags.filter((_, j) => j !== tagIdx) }
+    ));
+
+  const handleSave = () => {
+    saveCombosConfig(combos);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleReset = () => {
+    if (!window.confirm('Reset all combos to factory defaults?')) return;
+    resetCombosConfig();
+    setCombos(DEFAULT_COMBOS);
+  };
+
+  const accentColor = '#00c2e0';
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Combos Configuration</h2>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+            Edit the product-matching keywords and filter chips for each combo tile on the home page.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={handleReset}
+            style={{ padding: '0.55rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', color: '#64748b' }}>
+            Reset to Defaults
+          </button>
+          <button onClick={handleSave}
+            style={{ padding: '0.55rem 1.25rem', borderRadius: '8px', border: 'none', background: saved ? '#22c55e' : 'var(--brand-gold, #d4a843)', color: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.3s' }}>
+            {saved ? 'Saved!' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {combos.map((combo, ci) => (
+          <div key={combo.id} style={{
+            background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0',
+            overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          }}>
+            {/* Header bar */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              padding: '0.9rem 1.25rem',
+              background: combo.bgGrad || '#f8fafc',
+              borderBottom: `3px solid ${combo.accent}`,
+            }}>
+              <span style={{
+                width: 12, height: 12, borderRadius: '50%',
+                background: combo.accent, flexShrink: 0,
+              }} />
+              <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'white' }}>{combo.label}</span>
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginLeft: '0.25rem' }}>{combo.tagline}</span>
+              <span style={{
+                marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
+                padding: '0.2rem 0.6rem', borderRadius: '999px',
+                background: 'rgba(255,255,255,0.15)', color: 'white',
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>{combo.type}</span>
+            </div>
+
+            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Label & Tagline */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={labelStyle}>Display Label</label>
+                  <input value={combo.label} onChange={e => updateCombo(ci, 'label', e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Tagline</label>
+                  <input value={combo.tagline} onChange={e => updateCombo(ci, 'tagline', e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+
+              {/* Product keywords */}
+              <div>
+                <label style={labelStyle}>Product Matching Keywords <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(comma-separated — used to find products for this combo)</span></label>
+                <input
+                  value={combo.keywords.join(', ')}
+                  onChange={e => updateKeywords(ci, e.target.value)}
+                  style={inputStyle}
+                  placeholder="e.g. aquatic, moss, co2, fertilizer"
+                />
+                <div style={{ marginTop: '0.4rem', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                  {combo.keywords.map(kw => (
+                    <span key={kw} style={{
+                      padding: '0.15rem 0.55rem', borderRadius: '999px', fontSize: '0.7rem',
+                      background: `${combo.accent}22`, color: combo.accent, fontWeight: 700,
+                    }}>{kw}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter tags */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Filter Chips (Panel)</label>
+                  <button onClick={() => addFilterTag(ci)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', borderRadius: '6px', border: `1px solid ${combo.accent}`, background: 'white', color: combo.accent, fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
+                    <Plus size={12} /> Add Filter
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {combo.filterTags.map((tag, ti) => (
+                    <div key={ti} style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr 2fr auto',
+                      gap: '0.6rem', alignItems: 'center',
+                      padding: '0.6rem 0.75rem', borderRadius: '8px',
+                      background: '#f8fafc', border: '1px solid #e2e8f0',
+                    }}>
+                      <div>
+                        <label style={{ ...labelStyle, marginBottom: '0.2rem' }}>Key</label>
+                        <input value={tag.key} onChange={e => updateFilterTag(ci, ti, 'key', e.target.value)}
+                          style={{ ...inputStyle, padding: '0.4rem 0.6rem', fontSize: '0.78rem' }}
+                          disabled={tag.key === 'all'} />
+                      </div>
+                      <div>
+                        <label style={{ ...labelStyle, marginBottom: '0.2rem' }}>Label</label>
+                        <input value={tag.label} onChange={e => updateFilterTag(ci, ti, 'label', e.target.value)}
+                          style={{ ...inputStyle, padding: '0.4rem 0.6rem', fontSize: '0.78rem' }}
+                          disabled={tag.key === 'all'} />
+                      </div>
+                      <div>
+                        <label style={{ ...labelStyle, marginBottom: '0.2rem' }}>Match Keywords (comma-separated)</label>
+                        <input
+                          value={tag.key === 'all' ? '— matches everything —' : (tag.match || []).join(', ')}
+                          onChange={e => updateFilterTag(ci, ti, 'match', e.target.value)}
+                          style={{ ...inputStyle, padding: '0.4rem 0.6rem', fontSize: '0.78rem' }}
+                          disabled={tag.key === 'all'}
+                          placeholder="e.g. moss, fern, aquatic"
+                        />
+                      </div>
+                      <button
+                        onClick={() => removeFilterTag(ci, ti)}
+                        disabled={tag.key === 'all'}
+                        style={{
+                          alignSelf: 'flex-end', marginBottom: '1px',
+                          padding: '0.4rem', borderRadius: '6px', border: 'none',
+                          background: tag.key === 'all' ? '#f1f5f9' : '#fee2e2',
+                          color: tag.key === 'all' ? '#cbd5e1' : '#ef4444',
+                          cursor: tag.key === 'all' ? 'not-allowed' : 'pointer',
+                        }}>
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function SuperAdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -1088,6 +1284,7 @@ export default function SuperAdminDashboard() {
             { id: 'orders',       label: 'Orders',       icon: <Package size={15} /> },
             { id: 'settlements',  label: 'Settlements',  icon: <IndianRupee size={15} /> },
             { id: 'categories',   label: 'Categories',   icon: <Layers size={15} /> },
+            { id: 'combos',       label: 'Combos',       icon: <Sliders size={15} /> },
             { id: 'bugs',         label: 'Bug Reports',  icon: <Tag size={15} /> },
           ].map(tab => (
             <button
@@ -2071,6 +2268,8 @@ export default function SuperAdminDashboard() {
         </section>
 
         </>}
+
+        {activePage === 'combos' && <CombosManager />}
 
       </main>
 
