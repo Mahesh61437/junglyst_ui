@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { X, ArrowRight } from 'lucide-react';
 import ProductCard from './ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
+import { loadCombosConfig } from '../config/combosConfig';
 
 // ─── Per-slot component definitions ──────────────────────────────────────────
 // Each slot knows what TYPE of product it expects.
@@ -35,78 +36,16 @@ const COMBO_SLOTS = {
   ],
 };
 
-// ─── Combo definitions ────────────────────────────────────────────────────────
-const COMBOS = [
-  {
-    id: 'aquarium',
-    label: 'Aquarium Combo',
-    tagline: 'Plants · Fertilizers · CO2 · Equipment',
-    type: 'aquarium',
-    accent: '#00c2e0',
-    bgGrad: 'linear-gradient(160deg, #071a2e 0%, #0c2d4a 100%)',
-    waterColor: 'rgba(0,140,200,0.16)',
-    substrateColor: '#3a2808',
-    keywords: ['aquatic', 'aquarium', 'fertilizer', 'co2', 'carbon', 'moss', 'fern', 'java', 'substrate', 'plant'],
-    filterTags: [
-      { key: 'all',        label: 'All' },
-      { key: 'plant',      label: 'Aquatic Plants', match: ['aquatic', 'moss', 'fern', 'java', 'plant'] },
-      { key: 'fertilizer', label: 'Fertilizers',    match: ['fertilizer', 'fert', 'nutrient'] },
-      { key: 'co2',        label: 'CO2',            match: ['co2', 'carbon', 'diffuser'] },
-      { key: 'equipment',  label: 'Equipment',      match: ['aquarium', 'tank', 'filter', 'pump', 'light'] },
-    ],
-  },
-  {
-    id: 'terrarium',
-    label: 'Terrarium Combo',
-    tagline: 'Plants · Substrate · Decor · Botanicals',
-    type: 'terrarium',
-    accent: '#4ade80',
-    bgGrad: 'linear-gradient(160deg, #0d2010 0%, #1a3a16 100%)',
-    waterColor: 'rgba(20,80,20,0.18)',
-    substrateColor: '#4a2d08',
-    keywords: ['terrarium', 'tropical', 'fern', 'moss', 'botanical', 'substrate', 'vivarium', 'orchid', 'bromeliad', 'plant'],
-    filterTags: [
-      { key: 'all',       label: 'All' },
-      { key: 'plant',     label: 'Plants',    match: ['fern', 'moss', 'orchid', 'bromeliad', 'tropical', 'plant'] },
-      { key: 'substrate', label: 'Substrate', match: ['substrate', 'soil', 'mix', 'peat', 'coco'] },
-      { key: 'decor',     label: 'Decor',     match: ['botanical', 'wood', 'rock', 'stone', 'decor'] },
-    ],
-  },
-  {
-    id: 'aquarium-fert',
-    label: 'Aquarium Fertilizers',
-    tagline: 'Root Tabs · Liquid Ferts · CO2 Boosters',
-    type: 'aquarium',
-    accent: '#38bdf8',
-    bgGrad: 'linear-gradient(160deg, #061422 0%, #0c2840 100%)',
-    waterColor: 'rgba(0,120,190,0.16)',
-    substrateColor: '#2a1c04',
-    keywords: ['aquarium', 'aquatic', 'fertilizer', 'fert', 'root', 'tab', 'liquid', 'co2', 'carbon', 'nutrient'],
-    filterTags: [
-      { key: 'all',    label: 'All' },
-      { key: 'root',   label: 'Root Tabs',    match: ['root', 'tab', 'capsule'] },
-      { key: 'liquid', label: 'Liquid Ferts', match: ['liquid', 'solution', 'micro', 'macro'] },
-      { key: 'co2',    label: 'CO2 / Carbon', match: ['co2', 'carbon', 'excel', 'boost'] },
-    ],
-  },
-  {
-    id: 'terrarium-fert',
-    label: 'Terrarium Fertilizers',
-    tagline: 'Boosters · Tonics · Foliar Sprays',
-    type: 'terrarium',
-    accent: '#a3e635',
-    bgGrad: 'linear-gradient(160deg, #111a05 0%, #203010 100%)',
-    waterColor: 'rgba(40,90,10,0.18)',
-    substrateColor: '#3d2205',
-    keywords: ['fertilizer', 'fert', 'nutrient', 'booster', 'tonic', 'foliar', 'terrarium', 'tropical', 'plant'],
-    filterTags: [
-      { key: 'all',    label: 'All' },
-      { key: 'liquid', label: 'Liquid',       match: ['liquid', 'solution', 'tonic'] },
-      { key: 'powder', label: 'Powder / Dry', match: ['powder', 'dry', 'granule', 'slow'] },
-      { key: 'foliar', label: 'Foliar Spray', match: ['foliar', 'spray', 'mist'] },
-    ],
-  },
-];
+// ─── Combo definitions loaded from config (admin-editable via SuperAdminDashboard) ──
+function useCombos() {
+  const [combos, setCombos] = useState(() => loadCombosConfig());
+  useEffect(() => {
+    const handler = () => setCombos(loadCombosConfig());
+    window.addEventListener('combos-config-updated', handler);
+    return () => window.removeEventListener('combos-config-updated', handler);
+  }, []);
+  return combos;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function matchesKeywords(product, keywords) {
@@ -573,6 +512,7 @@ function ComboPanel({ combo, allProducts, onClose }) {
 
 // ─── Public export ────────────────────────────────────────────────────────────
 export default function CombosSection({ allProducts = [] }) {
+  const combos = useCombos();
   const [activeCombo, setActiveCombo] = useState(null);
   const handleOpen  = useCallback(combo => setActiveCombo(combo), []);
   const handleClose = useCallback(() => setActiveCombo(null), []);
@@ -598,7 +538,7 @@ export default function CombosSection({ allProducts = [] }) {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 'clamp(0.85rem,2vw,1.5rem)' }}>
-            {COMBOS.map(combo => {
+            {combos.map(combo => {
               const slots = COMBO_SLOTS[combo.type];
               const slotProducts = pickSlotProducts(slots, allProducts, combo.keywords);
               return <ComboTile key={combo.id} combo={combo} slotProducts={slotProducts} onClick={handleOpen} />;
