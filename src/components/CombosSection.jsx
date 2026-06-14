@@ -132,225 +132,171 @@ const ZONE_POSITIONS = [
   { left: '56%',  top:    '74%', width: '15%', maxH: '24%' },
 ];
 
-// ─── Aquarium tile — video-based ─────────────────────────────────────────────
-function AquariumVideoTile({ combo, hovered }) {
+// ─── Single combo tile — circular ────────────────────────────────────────────
+function ComboTile({ combo, slotProducts, onClick }) {
+  const [hovered, setHovered]     = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   const videoRef = useRef(null);
-  const [ended, setEnded] = useState(false);
+  const btnRef   = useRef(null);
   const a = combo.accent;
 
-  const video  = combo.id === 'aquarium-fert' ? AQUARIUM_FERT_VIDEO  : AQUARIUM_VIDEO;
-  const poster = combo.id === 'aquarium-fert' ? AQUARIUM_FERT_POSTER : AQUARIUM_POSTER;
-
-  useEffect(() => {
+  const startPlay = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (hovered) {
-      setEnded(false);
-      v.currentTime = 0;
-      v.play().catch(() => {});
-    } else if (!ended) {
-      v.pause();
-    }
-  }, [hovered]);
+    setShowVideo(true);
+    v.currentTime = 0;
+    v.play().catch(() => {});
+  }, []);
 
-  // keep video visible once it reaches the last frame
-  const showVideo = hovered || ended;
-
-  return (
-    <div style={{
-      position: 'relative', width: '100%', aspectRatio: '17/10',
-      borderRadius: '10px', overflow: 'hidden', userSelect: 'none',
-    }}>
-      {/* Poster image — shown by default, fades out on hover */}
-      <img
-        src={poster}
-        alt={combo.label}
-        style={{
-          position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          objectFit: 'cover',
-          zIndex: 1,
-          opacity: showVideo ? 0 : 1,
-          transition: 'opacity 0.35s ease',
-        }}
-      />
-
-      {/* Video — plays once; stays on last frame via `ended` state */}
-      <video
-        ref={videoRef}
-        src={video}
-        muted
-        playsInline
-        preload="metadata"
-        onEnded={() => setEnded(true)}
-        style={{
-          position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          objectFit: 'cover',
-          zIndex: 2,
-          opacity: showVideo ? 1 : 0,
-          transition: 'opacity 0.35s ease',
-        }}
-      />
-
-      {/* Vignette */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 3,
-        background: 'linear-gradient(to top, rgba(7,26,46,0.55) 0%, transparent 45%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Accent border glow */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 4,
-        borderRadius: '10px',
-        boxShadow: hovered ? `inset 0 0 0 2px ${a}60` : `inset 0 0 0 1.5px ${a}25`,
-        transition: 'box-shadow 0.3s ease',
-        pointerEvents: 'none',
-      }} />
-    </div>
-  );
-}
-
-// ─── Terrarium tile — video-based ────────────────────────────────────────────
-function TerrariumVideoTile({ combo, hovered }) {
-  const videoRef = useRef(null);
-  const [ended, setEnded] = useState(false);
-
-  const video  = combo.id === 'terrarium-fert' ? TERRARIUM_FERT_VIDEO  : TERRARIUM_VIDEO;
-  const poster = combo.id === 'terrarium-fert' ? TERRARIUM_FERT_POSTER : TERRARIUM_POSTER;
-
-  useEffect(() => {
+  const stopPlay = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (hovered) {
-      setEnded(false);
-      v.currentTime = 0;
-      v.play().catch(() => {});
-    } else if (!ended) {
-      v.pause();
-    }
-  }, [hovered]);
+    v.pause();
+    setShowVideo(false);
+  }, []);
 
-  const showVideo = hovered || ended;
+  // On touch devices there is no hover, and a tap must open the modal — so we
+  // can't use touch to drive the video. Instead we play the (muted, inline) video
+  // only while the circle sits in the CENTRAL band of the screen (rootMargin
+  // shrinks the active zone to the middle ~40%). This sequences playback by scroll
+  // position — videos play as they pass the middle instead of all firing at once —
+  // and a tap still goes straight to the modal (no tap/click conflict).
+  useEffect(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+    if (!isTouch) return; // desktop uses hover handlers, not visibility
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) startPlay();
+        else stopPlay();
+      },
+      { rootMargin: '-30% 0px -30% 0px', threshold: 0 }
+    );
+    observer.observe(btn);
+    return () => observer.disconnect();
+  }, [startPlay, stopPlay]);
+
+  // Desktop: hover plays video, mouse-out pauses
+  const handleEnter = () => { setHovered(true);  startPlay(); };
+  const handleLeave = () => { setHovered(false); stopPlay();  };
+
+  const isAquarium = combo.type === 'aquarium';
+  const videoSrc = isAquarium
+    ? (combo.id === 'aquarium-fert' ? AQUARIUM_FERT_VIDEO  : AQUARIUM_VIDEO)
+    : (combo.id === 'terrarium-fert' ? TERRARIUM_FERT_VIDEO : TERRARIUM_VIDEO);
+  const posterSrc = isAquarium
+    ? (combo.id === 'aquarium-fert' ? AQUARIUM_FERT_POSTER : AQUARIUM_POSTER)
+    : (combo.id === 'terrarium-fert' ? TERRARIUM_FERT_POSTER : TERRARIUM_POSTER);
+
+  const openModal = () => { setHovered(false); onClick(combo); };
 
   return (
-    <div style={{
-      position: 'relative', width: '100%', aspectRatio: '17/10',
-      borderRadius: '10px', overflow: 'hidden', userSelect: 'none',
-    }}>
-      {/* Poster image */}
-      <img
-        src={poster}
-        alt={combo.label}
-        style={{
-          position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          objectFit: 'cover',
-          objectPosition: 'center 35%',
-          zIndex: 1,
-          opacity: showVideo ? 0 : 1,
-          transition: 'opacity 0.35s ease',
-        }}
-      />
-
-      {/* Video — plays once, holds last frame */}
-      <video
-        ref={videoRef}
-        src={video}
-        muted
-        playsInline
-        preload="metadata"
-        onEnded={() => setEnded(true)}
-        style={{
-          position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          objectFit: 'cover',
-          zIndex: 2,
-          opacity: showVideo ? 1 : 0,
-          transition: 'opacity 0.35s ease',
-        }}
-      />
-
-      {/* Vignette */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 3,
-        background: 'linear-gradient(to top, rgba(7,26,46,0.55) 0%, transparent 45%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Accent border glow */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 4,
-        borderRadius: '10px',
-        boxShadow: hovered
-          ? `inset 0 0 0 2px ${combo.accent}60`
-          : `inset 0 0 0 1.5px ${combo.accent}25`,
-        transition: 'box-shadow 0.3s ease',
-        pointerEvents: 'none',
-      }} />
-    </div>
-  );
-}
-
-// ─── Unified illustration dispatcher ─────────────────────────────────────────
-function TankIllustration({ combo, hovered }) {
-  if (combo.type === 'aquarium') {
-    return <AquariumVideoTile combo={combo} hovered={hovered} />;
-  }
-  return <TerrariumVideoTile combo={combo} hovered={hovered} />;
-}
-
-// ─── Single combo tile ────────────────────────────────────────────────────────
-function ComboTile({ combo, slotProducts, onClick }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={() => onClick(combo)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={() => setHovered(true)}
-      onBlur={() => setHovered(false)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={openModal}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(); } }}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+      onFocus={handleEnter}
+      onBlur={handleLeave}
       aria-label={`Open ${combo.label}`}
       style={{
-        background: combo.bgGrad, border: `1.5px solid ${combo.accent}28`,
-        borderRadius: '22px', padding: 0, cursor: 'pointer',
-        textAlign: 'left', width: '100%', overflow: 'hidden',
-        transition: 'transform 0.25s, box-shadow 0.25s',
-        transform: hovered ? 'translateY(-5px) scale(1.015)' : 'none',
-        boxShadow: hovered
-          ? `0 22px 50px rgba(0,0,0,0.45), 0 0 0 1px ${combo.accent}30`
-          : '0 4px 20px rgba(0,0,0,0.3)',
-        display: 'flex', flexDirection: 'column',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.9rem',
+        cursor: 'pointer', outline: 'none',
       }}
     >
-      <div style={{ padding: '0.85rem 0.85rem 0.3rem' }}>
-        <TankIllustration combo={combo} hovered={hovered} />
+      {/* Circle */}
+      <div
+        ref={btnRef}
+        style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '1 / 1',
+          borderRadius: '50%',
+          transition: 'transform 0.3s cubic-bezier(0.34,1.45,0.64,1)',
+          transform: hovered ? 'scale(1.06)' : 'scale(1)',
+        }}
+      >
+        {/* Outer glow ring */}
+        <div style={{
+          position: 'absolute', inset: '-4px',
+          borderRadius: '50%',
+          background: hovered
+            ? `conic-gradient(from 180deg, ${a}, ${a}88, ${a}22, ${a}88, ${a})`
+            : `conic-gradient(from 180deg, ${a}55, ${a}18, ${a}08, ${a}18, ${a}55)`,
+          transition: 'all 0.4s ease',
+          filter: hovered ? `blur(1px) drop-shadow(0 0 10px ${a}80)` : 'blur(0.5px)',
+          zIndex: 0,
+        }} />
+
+        {/* Inner circle clip — contains poster + video */}
+        <div style={{
+          position: 'absolute', inset: '4px',
+          borderRadius: '50%', overflow: 'hidden', zIndex: 1,
+          background: combo.bgGrad,
+        }}>
+          <img
+            src={posterSrc}
+            alt={combo.label}
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%', objectFit: 'cover',
+              objectPosition: combo.id === 'terrarium' ? 'center 35%' : 'center',
+              opacity: showVideo ? 0 : 1,
+              transition: 'opacity 0.3s ease',
+            }}
+          />
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            muted playsInline preload="auto"
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%', objectFit: 'cover',
+              opacity: showVideo ? 1 : 0,
+              transition: 'opacity 0.3s ease',
+            }}
+          />
+        </div>
+
+        {/* Play indicator — hidden while playing */}
+        <div style={{
+          position: 'absolute', bottom: '14%', left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 3, pointerEvents: 'none',
+          opacity: hovered ? 0 : 0.75,
+          transition: 'opacity 0.25s ease',
+        }}>
+          <div style={{
+            width: 0, height: 0,
+            borderTop: '5px solid transparent',
+            borderBottom: '5px solid transparent',
+            borderLeft: '8px solid white',
+            filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))',
+          }} />
+        </div>
       </div>
-      <div style={{
-        padding: '0.7rem 1rem 0.9rem',
-        borderTop: `1px solid ${combo.accent}14`,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem',
-      }}>
-        <div>
-          <div style={{ fontSize: 'clamp(0.85rem,1.8vw,0.98rem)', fontWeight: 800, color: 'white', lineHeight: 1.2 }}>
-            {combo.label}
-          </div>
-          <div style={{ fontSize: '0.67rem', color: `${combo.accent}99`, fontWeight: 600, marginTop: '0.18rem' }}>
-            {combo.tagline}
-          </div>
+
+      {/* Label below circle */}
+      <div style={{ textAlign: 'center', lineHeight: 1.3 }}>
+        <div style={{
+          fontSize: 'clamp(0.78rem,1.6vw,0.95rem)', fontWeight: 800,
+          color: hovered ? a : 'white',
+          transition: 'color 0.25s ease',
+        }}>
+          {combo.label}
         </div>
         <div style={{
-          width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
-          backgroundColor: hovered ? `${combo.accent}28` : `${combo.accent}14`,
-          border: `1px solid ${combo.accent}35`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'background-color 0.2s',
+          fontSize: '0.65rem', color: `${a}88`, fontWeight: 600,
+          marginTop: '0.2rem',
         }}>
-          <ArrowRight size={12} color={combo.accent} />
+          {combo.tagline}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -362,9 +308,32 @@ function ComboPanel({ combo, allProducts, onClose }) {
   const [page, setPage] = useState(1);
   const scrollRef = useRef(null);
 
+  // Full scroll lock while the modal is open: freeze the background page with
+  // position:fixed (prevents background scroll + scroll-chaining on every device,
+  // incl. iOS where overflow:hidden alone leaks) and restore scroll position on close.
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const prev = {
+      position: body.style.position, top: body.style.top,
+      left: body.style.left, right: body.style.right,
+      width: body.style.width, overflow: body.style.overflow,
+    };
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      body.style.overflow = prev.overflow;
+      window.scrollTo(0, scrollY);
+    };
   }, []);
 
   useEffect(() => {
@@ -445,7 +414,7 @@ function ComboPanel({ combo, allProducts, onClose }) {
         </div>
 
         {/* Products */}
-        <div ref={scrollRef} style={{ overflowY: 'auto', flex: 1, padding: 'clamp(1rem,3vw,1.5rem) clamp(1rem,3vw,1.75rem)' }}>
+        <div ref={scrollRef} style={{ overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', flex: 1, padding: 'clamp(1rem,3vw,1.5rem) clamp(1rem,3vw,1.75rem)' }}>
           {visibleProducts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🪴</div>
@@ -533,11 +502,15 @@ export default function CombosSection({ allProducts = [] }) {
             </div>
             <h2 style={{ fontSize: 'clamp(1.4rem,3.5vw,2.25rem)', margin: '0 0 0.45rem', color: 'white', fontFamily: 'var(--font-serif)' }}>Shop by Setup</h2>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.38)', lineHeight: 1.6, maxWidth: '420px' }}>
-              Hover to watch your setup assemble. Tap to browse products.
+              Hover to play. Tap to browse products for your setup.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 'clamp(0.85rem,2vw,1.5rem)' }}>
+          <style>{`
+            .combos-circle-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(1rem,3vw,2rem); width: 100%; }
+            @media (max-width: 560px) { .combos-circle-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; } }
+          `}</style>
+          <div className="combos-circle-grid">
             {combos.map(combo => {
               const slots = COMBO_SLOTS[combo.type];
               const slotProducts = pickSlotProducts(slots, allProducts, combo.keywords);
