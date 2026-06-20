@@ -234,9 +234,11 @@ export default function Checkout() {
         } catch { }
       }
 
-      // Build item list (used when no backend cart is available)
+      // Build item list (used when no backend cart is available).
+      // Exclude phantom rows: items with no variant id, and items clamped to
+      // quantity 0 (e.g. flagged out of stock) which must never be ordered.
       const itemList = cart.items
-        .filter(item => item.variant?.id)
+        .filter(item => item.variant?.id && item.quantity >= 1)
         .map(item => ({ variant_id: item.variant.id, quantity: item.quantity }));
 
       if (itemList.length === 0) {
