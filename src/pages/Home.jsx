@@ -5,7 +5,7 @@ import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
-import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy, BookOpen, Clock } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy, BookOpen, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 import api from '../services/api';
 import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
@@ -180,90 +180,150 @@ function TrustStrip() {
 }
 
 // ─── Featured Sellers ─────────────────────────────────────────────────────────
-// Shows up to 3 featured growers as cards — promotes sellers, drives store visits.
-// On mobile: full-width stacked. On tablet+: 3-column grid.
+// Horizontal scroll carousel on a dark green background — showcases all growers.
 function FeaturedSellers({ sellers }) {
-  const visible = sellers.slice(0, 3);
-  if (!visible.length) return null;
+  const [trackEl, setTrackEl] = useState(null);
+  if (!sellers.length) return null;
+
+  const scroll = dir => {
+    if (!trackEl) return;
+    trackEl.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  };
 
   return (
-    <section style={{ backgroundColor: '#f8fafc', padding: 'clamp(3rem,6vw,5.5rem) 0' }}>
-      <div className="container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'clamp(1.5rem,3vw,2.5rem)', flexWrap: 'wrap', gap: '1rem' }}>
+    <section style={{ backgroundColor: '#071a14', padding: 'clamp(3rem,6vw,5.5rem) 0', overflow: 'hidden' }}>
+      {/* Header */}
+      <div className="container" style={{ marginBottom: 'clamp(1.75rem,3.5vw,2.75rem)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <span style={{ color: 'var(--brand-gold)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em', display: 'block', marginBottom: '0.4rem' }}>Meet the growers</span>
-            <h2 style={{ fontSize: 'clamp(1.4rem,3vw,2.25rem)', margin: 0 }}>Featured Sanctuaries</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <ShieldCheck size={13} color="#c9972b" />
+              <span style={{ color: '#c9972b', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>Meet the growers</span>
+            </div>
+            <h2 style={{ fontSize: 'clamp(1.5rem,3.5vw,2.75rem)', margin: 0, color: 'white', fontFamily: 'var(--font-serif)' }}>
+              Featured Sanctuaries
+            </h2>
+            <p style={{ marginTop: '0.5rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', lineHeight: 1.6, maxWidth: '380px' }}>
+              Verified botanical specialists curated for quality, expertise, and passion.
+            </p>
           </div>
-          <Link to="/sellers" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--brand-gold)', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            All growers <ArrowRight size={13} />
-          </Link>
-        </div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${Math.min(visible.length, 3)}, minmax(0, 1fr))`,
-          gap: '1.25rem',
-          maxWidth: visible.length === 1 ? '420px' : 'none',
-        }}>
-          {visible.map((s, i) => (
-            <motion.div key={s.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-              <Link to={`/store/${s.slug}`} style={{ display: 'block', textDecoration: 'none' }}>
-                <div style={{ borderRadius: '20px', overflow: 'hidden', backgroundColor: 'white', border: '1px solid var(--border-subtle)', transition: 'transform 0.22s, box-shadow 0.22s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-                  onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.1)'; }}
-                  onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}
-                >
-                  {/* Banner */}
-                  <div style={{ position: 'relative', height: '160px', overflow: 'hidden', backgroundColor: s.brand_color || 'var(--bg-deep)' }}>
-                    <img
-                      src={getImageUrl(s.banner_url) || '/assets/default-banner.jpg'}
-                      alt={s.store_name}
-                      onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%)' }} />
-
-                    {/* Icon / logo badge */}
-                    <div style={{ position: 'absolute', bottom: '-20px', left: '1.25rem', width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'white', padding: '3px', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', overflow: 'hidden', border: '2px solid white' }}>
-                      <img
-                        src={getImageUrl(s.icon_url) || '/assets/default-logo.jpg'}
-                        alt={s.store_name}
-                        onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '9px' }}
-                      />
-                    </div>
-
-                    {/* Verified badge */}
-                    <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', backgroundColor: 'rgba(10,31,28,0.75)', backdropFilter: 'blur(6px)', padding: '0.3rem 0.6rem', borderRadius: '100px' }}>
-                      <ShieldCheck size={11} color="var(--brand-gold)" />
-                      <span style={{ fontSize: '0.6rem', color: 'var(--brand-gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Verified</span>
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ padding: '1.75rem 1.25rem 1.25rem' }}>
-                    <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{s.store_name}</h3>
-                    {s.tagline && (
-                      <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {s.tagline}
-                      </p>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      {s.location_city && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                          <MapPin size={11} /> {s.location_city}
-                        </span>
-                      )}
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 700 }}>
-                        Visit <ArrowRight size={12} />
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Scroll arrows */}
+            {[{ dir: -1, Icon: ChevronLeft }, { dir: 1, Icon: ChevronRight }].map(({ dir, Icon }) => (
+              <button
+                key={dir}
+                onClick={() => scroll(dir)}
+                style={{ width: '40px', height: '40px', borderRadius: '50%', border: '1px solid rgba(201,151,43,0.35)', backgroundColor: 'rgba(201,151,43,0.1)', color: '#c9972b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
+                onMouseOver={e => { e.currentTarget.style.backgroundColor = 'rgba(201,151,43,0.25)'; }}
+                onMouseOut={e => { e.currentTarget.style.backgroundColor = 'rgba(201,151,43,0.1)'; }}
+              >
+                <Icon size={18} />
+              </button>
+            ))}
+            <Link to="/sellers" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#c9972b', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
+              All growers <ArrowRight size={13} />
+            </Link>
+          </div>
         </div>
       </div>
+
+      {/* Scrollable track */}
+      <div
+        ref={setTrackEl}
+        style={{
+          display: 'flex',
+          gap: '1.25rem',
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          paddingLeft: 'max(1.5rem, calc((100vw - 1200px) / 2))',
+          paddingRight: 'max(1.5rem, calc((100vw - 1200px) / 2))',
+          paddingBottom: '0.75rem',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
+        {sellers.map((s, i) => (
+          <motion.div
+            key={s.id}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.07, type: 'spring', damping: 28, stiffness: 260 }}
+            style={{ flexShrink: 0, scrollSnapAlign: 'start', width: 'clamp(240px, 28vw, 300px)' }}
+          >
+            <Link to={`/store/${s.slug}`} style={{ display: 'block', textDecoration: 'none', height: '100%' }}>
+              <motion.div
+                whileHover={{ y: -6 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+                style={{
+                  borderRadius: '20px',
+                  overflow: 'hidden',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  backdropFilter: 'blur(8px)',
+                  height: '100%',
+                }}
+              >
+                {/* Full-bleed banner with gradient overlay */}
+                <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: s.brand_color || '#0A3029' }}>
+                  <img
+                    src={getImageUrl(s.banner_url) || '/assets/default-banner.jpg'}
+                    alt={s.store_name}
+                    onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s' }}
+                  />
+                  {/* Gradient — rich at bottom for text legibility */}
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(7,26,20,0.92) 0%, rgba(7,26,20,0.4) 45%, transparent 100%)' }} />
+
+                  {/* Verified badge */}
+                  <div style={{ position: 'absolute', top: '0.85rem', left: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', backgroundColor: 'rgba(10,31,28,0.8)', backdropFilter: 'blur(8px)', padding: '0.3rem 0.65rem', borderRadius: '100px', border: '1px solid rgba(201,151,43,0.3)' }}>
+                    <ShieldCheck size={10} color="#c9972b" />
+                    <span style={{ fontSize: '0.58rem', color: '#c9972b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Verified</span>
+                  </div>
+
+                  {/* Logo badge */}
+                  <div style={{ position: 'absolute', bottom: '0.85rem', right: '0.85rem', width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'white', padding: '2px', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.9)' }}>
+                    <img
+                      src={getImageUrl(s.icon_url) || '/assets/default-logo.jpg'}
+                      alt={s.store_name}
+                      onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                    />
+                  </div>
+
+                  {/* Store name overlaid on image bottom */}
+                  <div style={{ position: 'absolute', bottom: '0.9rem', left: '1rem', right: '3.5rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'white', lineHeight: 1.25, fontFamily: 'var(--font-serif)', textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
+                      {s.store_name}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Card body */}
+                <div style={{ padding: '1rem 1.15rem 1.25rem' }}>
+                  {s.tagline && (
+                    <p style={{ margin: '0 0 0.9rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {s.tagline}
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {s.location_city ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.38)', fontWeight: 500 }}>
+                        <MapPin size={10} /> {s.location_city}
+                      </span>
+                    ) : <span />}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: '#c9972b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Visit <ArrowRight size={11} />
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Hide webkit scrollbar via inline style injection */}
+      <style>{`.seller-track::-webkit-scrollbar{display:none}`}</style>
     </section>
   );
 }
@@ -540,11 +600,11 @@ export default function Home() {
         )}
       </section>
 
-      {/* Featured seller cards — promotes growers, drives store visits */}
-      {!loading && <FeaturedSellers sellers={featuredSellers} />}
-
       {/* Plant Journal — editorial section with shoppable care guides */}
       <PlantJournalSection />
+
+      {/* Featured seller cards — horizontal scroll carousel after editorial content */}
+      {!loading && <FeaturedSellers sellers={featuredSellers} />}
 
       {/* Trust badges — reinforces credibility after content engagement */}
       <TrustStrip />
