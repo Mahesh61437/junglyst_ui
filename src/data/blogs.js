@@ -1,4 +1,118 @@
 export const blogs = [
+  // ── General Family Guides (featured, shown first) ────────────────────────
+  {
+    id: 16,
+    slug: 'aquatic-plants-complete-guide',
+    title: "Aquatic Plants: The Complete Collector's Guide",
+    description: "Everything you need to know about choosing, placing, and caring for aquatic plants — from your first moss to rare collector specimens.",
+    category: "Aquatic Plants",
+    difficulty: "Easy",
+    readTime: "20 min read",
+    image: "https://images.unsplash.com/photo-1583505494967-c55814e1d52a?auto=format&fit=crop&q=80&w=1200",
+    author: "Junglyst Editorial",
+    publishedDate: "2026-06-01",
+    isGeneralGuide: true,
+    productTags: ["anubias", "java fern", "cryptocoryne", "moss", "bucephalandra"],
+    content: `
+      <h2>The Complete Aquatic Plant Guide</h2>
+
+      <p>Aquatic plants are the foundation of any successful planted aquarium. They filter water, provide oxygen, create habitat for fish and invertebrates, and transform a glass box into a living, breathing ecosystem. This guide covers everything you need to know — from your very first purchase to building an advanced collection.</p>
+
+      <h3>Why Aquatic Plants?</h3>
+      <p>Plants are not just decoration. They are biological filters that consume ammonia and nitrate, outcompete algae for nutrients, and produce oxygen through photosynthesis. A well-planted tank is inherently more stable and requires far less intervention than a fish-only setup.</p>
+
+      <h3>The Main Plant Groups</h3>
+      <p><strong>Mosses:</strong> The most forgiving entry point into the hobby. Java moss, Christmas moss, and Flame moss grow on any surface and tolerate almost any water condition. Perfect for beginners and experts alike.</p>
+      <p><strong>Ferns:</strong> Java fern and its variants are nearly indestructible epiphytes — attach them to rock or driftwood and they grow for years without substrate. Ideal for low-tech tanks.</p>
+      <p><strong>Anubias:</strong> Slow-growing, bullet-proof rosette plants perfect for low-light tanks. The golden rule: never bury the rhizome or it will rot.</p>
+      <p><strong>Cryptocorynes (Crypts):</strong> Root-feeding rosettes that colour-shift based on lighting intensity. Peaceful, slow, and remarkably adaptable to a wide range of water parameters.</p>
+      <p><strong>Stem Plants:</strong> Fast-growing column plants like Rotala, Limnophila, and Ludwigia create lush, colourful backgrounds — but need CO₂ to look their best.</p>
+      <p><strong>Carpeting Plants:</strong> Ground-cover species like Monte Carlo, Hemianthus callitrichoides, and Marsilea create a lawn-like effect across the substrate. Demanding, but stunning when established.</p>
+      <p><strong>Rare Collectors' Plants:</strong> Bucephalandra, Eriocaulon, and tissue-culture specials for the serious aquascaping hobbyist.</p>
+
+      <h3>Matching Plants to Your Setup</h3>
+      <p><strong>No CO₂, low light:</strong> Anubias, Java fern, Cryptocoryne, mosses. The slowest growers but the most forgiving and beginner-friendly.</p>
+      <p><strong>Moderate light with liquid carbon:</strong> Add Bucephalandra, Amazon sword, Vallisneria. Growth is steady without the complexity of pressurised gas.</p>
+      <p><strong>Pressurised CO₂ + high light:</strong> Unlocks stem plants, carpeting species, and rare fast-growers. The most rewarding setup but requires the most management.</p>
+
+      <h3>The Three Non-Negotiables</h3>
+      <ol>
+        <li><strong>Light:</strong> The primary driver of photosynthesis. Match light intensity to your plant selection — high-light plants in a low-light tank will simply melt away.</li>
+        <li><strong>Nutrients:</strong> Macro (N, P, K) and micro (Fe, Mn, Zn) nutrients keep plants healthy. Dosing frequency varies by plant load and light level.</li>
+        <li><strong>CO₂:</strong> Carbon is the building block of plant tissue. Even liquid carbon supplements make a noticeable difference in growth rate and colour.</li>
+      </ol>
+
+      <h3>Buying Your First Plants</h3>
+      <p>Start with just 3–5 species. Choose one from each growth category: one fast (a stem plant), one medium (a crypt or sword), and one slow (anubias or java fern). This variety consumes nutrients efficiently and creates visual depth without overwhelming you with maintenance demands.</p>
+
+      <h3>Quarantine and Pest Prevention</h3>
+      <p>Always quarantine new plants for 2 weeks. A 2-minute dip in 3% hydrogen peroxide solution kills snail eggs and surface algae spores before they can establish in your display tank. Rinse thoroughly, then acclimate slowly.</p>
+
+      <h3>Long-Term Success</h3>
+      <p>Plants compound beautifully over time. A tank that looks sparse at month one looks completely transformed at month six. Resist the urge to constantly rearrange — give plants time to anchor and establish, and they will reward you with exponential growth and increasingly stable water parameters.</p>
+    `
+  },
+  {
+    id: 17,
+    slug: 'terrarium-plants-complete-guide',
+    title: "Terrarium Plants: A Builder's Handbook",
+    description: "A comprehensive guide to selecting and growing plants in closed and open terrariums — from humidity-loving tropicals to drought-tolerant succulents.",
+    category: "Terrarium",
+    difficulty: "Easy",
+    readTime: "18 min read",
+    image: "https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&q=80&w=1200",
+    author: "Junglyst Editorial",
+    publishedDate: "2026-06-01",
+    isGeneralGuide: true,
+    productTags: ["moss", "fern", "peperomia", "terrarium", "cryptanthus"],
+    content: `
+      <h2>Terrarium Plants: A Builder's Handbook</h2>
+
+      <p>A terrarium is a miniature world in glass — a self-sustaining ecosystem that brings a slice of rainforest, desert, or cloud forest indoors. Choosing the right plants is the single biggest factor in whether your build thrives for years or struggles within weeks.</p>
+
+      <h3>Closed vs Open Terrariums</h3>
+      <p><strong>Closed terrariums</strong> trap moisture and create a humid microclimate through condensation cycling. They support tropical, humidity-loving plants and require almost no watering once established. The glass fogs every morning and clears by afternoon — this is healthy, normal behaviour, not a sign of disease.</p>
+      <p><strong>Open terrariums</strong> allow airflow and dry out more quickly. They suit succulents, cacti, air plants (Tillandsia), and plants from arid or Mediterranean climates that need free-draining, dry-between-waterings conditions.</p>
+
+      <h3>Best Plants by Terrarium Type</h3>
+
+      <h4>Closed Tropical Terrariums</h4>
+      <ul>
+        <li><strong>Mosses (Hypnum, Thuidium, Mnium):</strong> The backbone of any closed build. They carpet the soil, climb hardscape, and thrive in near-constant high humidity.</li>
+        <li><strong>Ferns (Microsorum, Asplenium, Selaginella):</strong> Elegant, fast-growing, and highly adaptable to low-light, high-humidity conditions.</li>
+        <li><strong>Peperomia:</strong> Compact, varied foliage in hundreds of forms — perfect for filling mid-ground space without overcrowding.</li>
+        <li><strong>Fittonia (Nerve Plant):</strong> Striking veined foliage in green, white, red, or pink. A statement centrepiece plant for tropical builds.</li>
+        <li><strong>Miniature orchids (Lepanthes, Pleurothallis):</strong> For advanced builders — tiny, jewel-like flowers that thrive in shaded, humid enclosures.</li>
+      </ul>
+
+      <h4>Open & Desert Terrariums</h4>
+      <ul>
+        <li><strong>Echeveria, Haworthia, Gasteria:</strong> Classic succulent genera that handle dry soil and bright light beautifully.</li>
+        <li><strong>Tillandsia (Air Plants):</strong> No soil needed — just bright indirect light and a weekly misting or soak.</li>
+        <li><strong>Cacti:</strong> Bold structure, minimal water, maximum visual drama.</li>
+      </ul>
+
+      <h3>Substrate and Layering</h3>
+      <p>The classic terrarium substrate stack: <strong>drainage layer</strong> (gravel or LECA, ~4 cm) → <strong>weed-barrier mesh</strong> (stops soil falling in) → <strong>substrate</strong> (50% potting soil + 30% coco coir + 20% perlite for tropical; pure gritty cactus mix for desert). Never mix the layers — proper stratification prevents root rot.</p>
+
+      <h3>Hardscape and Planting Design</h3>
+      <p>Cork bark, slate, and spider wood create the structural skeleton. Plant taller species at the back, creeping species at the front. Leave at least 30% of the floor open — plants grow, and overcrowded terrariums become maintenance headaches within a year. Restraint now means beauty later.</p>
+
+      <h3>Light and Placement</h3>
+      <p>Most tropical terrariums need 10–12 hours of bright, indirect light daily — or 8–10 hours under a full-spectrum grow LED. Avoid south-facing windowsills in summer; direct sun through glass creates a greenhouse effect that cooks the interior. A north-facing window supplemented with a grow light is often the ideal solution.</p>
+
+      <h3>Maintenance Calendar</h3>
+      <p><strong>Weekly:</strong> Check condensation levels (should be light, not constant streaming), remove any dead leaves before they mould.</p>
+      <p><strong>Monthly:</strong> Trim overgrown plants, add a small amount of liquid fertiliser at ¼ strength recommended dose.</p>
+      <p><strong>Quarterly:</strong> Deep inspection of substrate moisture, check for pest activity, replace any struggling plants before they affect neighbours.</p>
+
+      <h3>Troubleshooting</h3>
+      <p><strong>Mould patches:</strong> Usually a sign of poor airflow or overwatering. Increase ventilation temporarily, remove all visibly affected material.</p>
+      <p><strong>Browning leaf tips:</strong> Humidity too low in open builds, or salt buildup from fertiliser — flush with distilled water.</p>
+      <p><strong>Leggy, stretched growth:</strong> The plant is reaching for light that isn't strong enough — move closer to a light source or extend photoperiod by 1 hour at a time.</p>
+    `
+  },
+  // ── Individual Species & Topic Guides ────────────────────────────────────
   {
     id: 1,
     slug: 'bucephalandra-compendium',
@@ -7,7 +121,7 @@ export const blogs = [
     category: "Aquatic Plants",
     difficulty: "Medium",
     readTime: "15 min read",
-    image: "https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800",
     author: "Dr. James Chen",
     publishedDate: "2026-05-10",
     productTags: ["bucephalandra", "anubias", "cryptocoryne", "moss", "java fern"],

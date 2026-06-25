@@ -5,10 +5,11 @@ import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
-import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy, BookOpen, Clock } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 import api from '../services/api';
 import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
+import { blogs } from '../data/blogs';
 
 function useCompetitionCountdown(target) {
   const getLeft = () => {
@@ -267,6 +268,137 @@ function FeaturedSellers({ sellers }) {
   );
 }
 
+// ─── Plant Journal ────────────────────────────────────────────────────────────
+// Shows the 2 general guides + 1 top article — each links to a full article
+// that has shoppable products embedded.
+function PlantJournalSection() {
+  const generalGuides = blogs.filter(b => b.isGeneralGuide);
+  const topArticle = blogs.filter(b => !b.isGeneralGuide)[0];
+  const featured = [...generalGuides.slice(0, 2), ...(topArticle ? [topArticle] : [])].slice(0, 3);
+
+  const difficultyColor = {
+    Easy: '#16a34a',
+    Medium: '#d97706',
+    Advanced: '#dc2626',
+  };
+
+  return (
+    <section style={{ backgroundColor: '#f8fafc', padding: 'clamp(3rem,6vw,5.5rem) 0', borderTop: '1px solid var(--border-subtle)' }}>
+      <div className="container">
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'clamp(1.75rem,3.5vw,3rem)', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <BookOpen size={14} color="var(--brand-gold)" />
+              <span style={{ color: 'var(--brand-gold)', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.2em' }}>Read · Learn · Shop</span>
+            </div>
+            <h2 style={{ fontSize: 'clamp(1.5rem,3.5vw,2.75rem)', margin: 0 }}>Plant Journal</h2>
+            <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, maxWidth: '420px' }}>
+              Expert care guides for every species — with hand-picked products you can add to cart right from the article.
+            </p>
+          </div>
+          <Link
+            to="/guides"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--brand-gold)', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.1em', textDecoration: 'none', whiteSpace: 'nowrap' }}
+          >
+            All articles <ArrowRight size={13} />
+          </Link>
+        </div>
+
+        {/* Cards grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,300px),1fr))', gap: '1.5rem' }}>
+          {featured.map((post, i) => (
+            <motion.div
+              key={post.id}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.09 }}
+            >
+              <Link
+                to={`/blog/${post.slug}`}
+                style={{ textDecoration: 'none', display: 'block', height: '100%' }}
+              >
+                <div
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: '20px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-subtle)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'transform 0.22s, box-shadow 0.22s',
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 18px 40px rgba(0,0,0,0.1)'; }}
+                  onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}
+                >
+                  {/* Thumbnail */}
+                  <div style={{ position: 'relative', height: '200px', overflow: 'hidden', flexShrink: 0 }}>
+                    <img
+                      src={post.image}
+                      alt={post.title}
+                      onError={e => { e.target.src = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&q=80&w=600'; }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s' }}
+                      onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.06)'; }}
+                      onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    />
+                    {/* Category badge */}
+                    <div style={{ position: 'absolute', top: '0.85rem', left: '0.85rem', backgroundColor: 'rgba(10,31,28,0.75)', backdropFilter: 'blur(6px)', padding: '0.28rem 0.7rem', borderRadius: '100px' }}>
+                      <span style={{ fontSize: '0.6rem', color: 'var(--brand-gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{post.category}</span>
+                    </div>
+                    {/* Difficulty */}
+                    <div style={{ position: 'absolute', top: '0.85rem', right: '0.85rem', backgroundColor: 'white', padding: '0.28rem 0.7rem', borderRadius: '100px' }}>
+                      <span style={{ fontSize: '0.6rem', color: difficultyColor[post.difficulty] || '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{post.difficulty}</span>
+                    </div>
+                  </div>
+
+                  {/* Body */}
+                  <div style={{ padding: '1.25rem 1.25rem 1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.65rem' }}>
+                      <Clock size={11} color="var(--text-secondary)" />
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{post.readTime}</span>
+                    </div>
+
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem', lineHeight: 1.3, fontFamily: 'var(--font-serif)' }}>
+                      {post.title}
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 1.1rem', flex: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {post.description}
+                    </p>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--brand-gold)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      Read &amp; Shop <ArrowRight size={13} />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Bottom CTA */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'clamp(2rem,4vw,3rem)' }}>
+          <Link
+            to="/guides"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              border: '1.5px solid var(--brand-gold)', color: 'var(--brand-gold)',
+              padding: '0.8rem 2.25rem', borderRadius: '100px',
+              fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em',
+              textDecoration: 'none', transition: 'background 0.2s, color 0.2s',
+            }}
+            onMouseOver={e => { e.currentTarget.style.backgroundColor = 'var(--brand-gold)'; e.currentTarget.style.color = '#0a1f1c'; }}
+            onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--brand-gold)'; }}
+          >
+            Browse All Articles <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function NewsletterSection() {
   const [email, setEmail] = useState('');
   const [state, setState] = useState('idle'); // idle | loading | success | error
@@ -408,11 +540,14 @@ export default function Home() {
         )}
       </section>
 
-      {/* Trust badges */}
-      <TrustStrip />
-
       {/* Featured seller cards — promotes growers, drives store visits */}
       {!loading && <FeaturedSellers sellers={featuredSellers} />}
+
+      {/* Plant Journal — editorial section with shoppable care guides */}
+      <PlantJournalSection />
+
+      {/* Trust badges — reinforces credibility after content engagement */}
+      <TrustStrip />
 
       {/* Newsletter */}
       <NewsletterSection />
