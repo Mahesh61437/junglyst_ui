@@ -297,7 +297,7 @@ export default function SellerOnboarding() {
       navigate('/seller/dashboard');
     } catch (error) {
       console.error(error);
-      const errorMsg = error.response?.data?.error || "Failed to complete onboarding. Please check your details.";
+      const errorMsg = error.userMessage || "Failed to complete onboarding. Please check your details.";
       alert(errorMsg);
     } finally {
       setLoading(false);

@@ -423,7 +423,7 @@ export default function Checkout() {
       });
     } catch (err) {
       console.error('Checkout failed:', err);
-      setError(err.response?.data?.error || err.message || 'Something went wrong. Please try again.');
+      setError(err.userMessage || err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

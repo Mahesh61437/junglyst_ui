@@ -49,7 +49,7 @@ export default function SuperAdminSettings() {
       const list = Array.isArray(res.data) ? res.data : (res.data?.results || []);
       setItems(list);
     } catch (e) {
-      setError(e?.response?.data?.detail || 'Failed to load settings.');
+      setError(e.userMessage || 'Failed to load settings.');
     } finally {
       setLoading(false);
     }
@@ -128,7 +128,7 @@ export default function SuperAdminSettings() {
       await api.delete(`/core/config/${encodeURIComponent(item.name)}/`);
       await fetchConfigs();
     } catch (e) {
-      setError(e?.response?.data?.detail || 'Delete failed.');
+      setError(e.userMessage || 'Delete failed.');
     } finally {
       setDeletingName(null);
     }

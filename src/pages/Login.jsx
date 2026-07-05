@@ -54,7 +54,7 @@ export default function Login() {
       navigate(redirectTo);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.detail || "Invalid email or password. Please try again.");
+      setError(err.userMessage || "Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -75,9 +75,9 @@ export default function Login() {
         setView('resetPassword');
       }, 2000);
     } catch (err) {
-      const retryAfter = err.response?.data?.retry_after;
+      const retryAfter = err.userMessage;
       if (retryAfter) startCooldown(retryAfter);
-      setError(err.response?.data?.error || "Failed to send OTP.");
+      setError(err.userMessage || "Failed to send OTP.");
     } finally {
       setLoading(false);
     }
@@ -97,7 +97,7 @@ export default function Login() {
       }, 2000);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.error || "Failed to reset password.");
+      setError(err.userMessage || "Failed to reset password.");
     } finally {
       setLoading(false);
     }
@@ -394,9 +394,9 @@ export default function Login() {
                     setSuccessMsg(res.data.message || 'OTP resent.');
                     startCooldown(60);
                   } catch (err) {
-                    const retryAfter = err.response?.data?.retry_after;
+                    const retryAfter = err.userMessage;
                     if (retryAfter) startCooldown(retryAfter);
-                    setError(err.response?.data?.error || 'Failed to resend OTP.');
+                    setError(err.userMessage || 'Failed to resend OTP.');
                   }
                 }}
                 style={{ background: 'none', border: 'none', padding: 0, fontWeight: 700, cursor: otpCooldown > 0 ? 'not-allowed' : 'pointer', color: otpCooldown > 0 ? '#94a3b8' : 'var(--brand-gold)', fontSize: '0.85rem' }}

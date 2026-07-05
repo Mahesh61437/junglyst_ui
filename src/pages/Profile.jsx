@@ -105,7 +105,7 @@ export default function Profile() {
       invalidateAddresses();
       cancelAddrForm();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save address.');
+      alert(err.userMessage || 'Failed to save address.');
     }
   };
 

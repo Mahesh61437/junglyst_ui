@@ -286,7 +286,7 @@ function NewsletterSection() {
       setState('success');
       setEmail('');
     } catch (err) {
-      const errMsg = err?.response?.data?.error || 'Something went wrong. Please try again.';
+      const errMsg = err.userMessage || 'Something went wrong. Please try again.';
       setMsg(errMsg);
       setState('error');
     }

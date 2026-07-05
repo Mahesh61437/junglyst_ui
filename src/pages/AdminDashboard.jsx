@@ -61,7 +61,7 @@ export default function AdminDashboard() {
       setNewAllowed({ email: '', phone: '' });
       fetchDashboardData();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to add curator");
+      setError(err.userMessage || "Failed to add curator");
     } finally {
       setAddingAllowed(false);
     }

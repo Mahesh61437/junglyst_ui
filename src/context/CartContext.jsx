@@ -486,7 +486,7 @@ export const CartProvider = ({ children }) => {
       } catch (error) {
         // Roll back the optimistic update by re-syncing with server.
         // Surface the server's error message (e.g. SHIP-003 3-seller cap, stock) as a toast.
-        const serverMsg = error?.response?.data?.error;
+        const serverMsg = error.userMessage;
         try {
           const revertedCart = await CartService.getCart();
           recalc(normalizeItems(revertedCart.items || []), deliveryZoneRef.current);

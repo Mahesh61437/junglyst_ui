@@ -661,7 +661,7 @@ export default function SuperAdminDashboard() {
       setPromoSellers(prev => prev.map(s => s.id === editingSeller.id ? { ...s, ...res.data } : s));
       setEditingSeller(null);
     } catch (e) {
-      setEditSellerError(e.response?.data?.store_name?.[0] || e.response?.data?.error || 'Save failed.');
+      setEditSellerError(e.userMessage || 'Save failed.');
     } finally {
       setEditSellerSaving(false);
     }
@@ -743,7 +743,7 @@ export default function SuperAdminDashboard() {
       }
       setEditingProduct(null);
     } catch (e) {
-      setEditProductError(e.response?.data?.name?.[0] || e.response?.data?.detail || e.response?.data?.error || 'Save failed.');
+      setEditProductError(e.userMessage || 'Save failed.');
     } finally {
       setEditProductSaving(false);
     }
@@ -814,13 +814,7 @@ export default function SuperAdminDashboard() {
       }
       setCreatingProduct(false);
     } catch (e) {
-      setCreateProductError(
-        e.response?.data?.name?.[0] ||
-        e.response?.data?.error ||
-        e.response?.data?.detail ||
-        JSON.stringify(e.response?.data) ||
-        'Create failed.'
-      );
+      setCreateProductError(e.userMessage || 'Create failed.');
     } finally {
       setCreateProductSaving(false);
     }
@@ -1179,7 +1173,7 @@ export default function SuperAdminDashboard() {
         u.id === userId ? { ...u, role: res.data.role, is_allowed: action === 'grant' } : u
       ));
     } catch (e) {
-      setGrowerActionMsg(e.response?.data?.error || 'Action failed');
+      setGrowerActionMsg(e.userMessage || 'Action failed');
     } finally {
       setGrowerActionLoading(prev => ({ ...prev, [userId]: false }));
     }
