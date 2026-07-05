@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useNavigationType } from 'react-router-dom';
 import api from '../services/api';
-import { Package, Truck, CheckCircle, Clock, XCircle, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, XCircle, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye, Boxes } from 'lucide-react';
 import { useScrollRestoration } from '../utils/useScrollRestoration';
 import Pagination from '../components/Pagination';
 import SocialLinks from '../components/SocialLinks';
@@ -42,6 +42,64 @@ function StatusIcon({ status }) {
   return <Package size={15} color="#94a3b8" />;
 }
 
+// Group items so combo components render under a labelled combo header,
+// visually distinct from standalone items. Order is preserved.
+function groupOrderItems(items = []) {
+  const blocks = [];
+  const comboIndex = {};
+  for (const it of items) {
+    if (it.combo_id) {
+      if (comboIndex[it.combo_id] == null) {
+        comboIndex[it.combo_id] = blocks.length;
+        blocks.push({ type: 'combo', comboId: it.combo_id, comboName: it.combo_name || 'Combo', items: [it] });
+      } else {
+        blocks[comboIndex[it.combo_id]].items.push(it);
+      }
+    } else {
+      blocks.push({ type: 'single', item: it });
+    }
+  }
+  return blocks;
+}
+
+function ItemRow({ item }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      {item.product_image && (
+        <img src={item.product_image} alt={item.product_name} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #edf2ed', flexShrink: 0 }} />
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</p>
+        <p style={{ margin: '0.1rem 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>{item.variant_name} × {item.quantity}</p>
+      </div>
+      <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>₹{(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}</p>
+    </div>
+  );
+}
+
+// Combo-aware item list — combo components sit inside a labelled well; a combo
+// that spans sellers shows its per-seller portion inside each sub-order.
+function OrderItemsList({ items }) {
+  const blocks = groupOrderItems(items);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {blocks.map((b) => b.type === 'single' ? (
+        <ItemRow key={b.item.id} item={b.item} />
+      ) : (
+        <div key={b.comboId} style={{ border: '1px solid #e6ded0', borderRadius: '10px', padding: '0.65rem 0.75rem', background: '#faf7f0' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: '0.55rem' }}>
+            <Boxes size={12} color="#0A3029" />
+            <span style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0A3029' }}>Part of combo · {b.comboName}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {b.items.map((it) => <ItemRow key={it.id} item={it} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SubOrderCard({ so }) {
   const shipment = so.shipment;
   const sellerName = so.seller_name || so.seller?.store_name || so.seller?.username || null;
@@ -65,20 +123,9 @@ function SubOrderCard({ so }) {
         <StatusBadge status={so.status} />
       </div>
 
-      {/* Items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: (shipment || so.awb_number) ? '1rem' : 0 }}>
-        {(so.items || []).map(item => (
-          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {item.product_image && (
-              <img src={item.product_image} alt={item.product_name} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #edf2ed', flexShrink: 0 }} />
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</p>
-              <p style={{ margin: '0.1rem 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>{item.variant_name} × {item.quantity}</p>
-            </div>
-            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>₹{(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}</p>
-          </div>
-        ))}
+      {/* Items (combo components grouped under a combo header) */}
+      <div style={{ marginBottom: (shipment || so.awb_number) ? '1rem' : 0 }}>
+        <OrderItemsList items={so.items || []} />
       </div>
 
       {/* Shipment tracking link */}
@@ -163,6 +210,7 @@ export default function MyOrders() {
             const addr = order.shipping_address || {};
             const city = addr.city || addr.state || '';
             const totalItems = (order.items || []).length;
+            const comboNames = [...new Set((order.items || []).filter(i => i.combo_id).map(i => i.combo_name).filter(Boolean))];
 
             return (
               <div key={order.id} style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
@@ -192,6 +240,11 @@ export default function MyOrders() {
                     <div>
                       <p style={{ margin: '0 0 0.4rem', fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Items</p>
                       <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>{totalItems} Specimen{totalItems !== 1 ? 's' : ''}</p>
+                      {comboNames.length > 0 && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: '0.3rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: '#0A3029', color: '#D4AF37', fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                          <Boxes size={10} /> {comboNames.length === 1 ? 'Includes combo' : `${comboNames.length} combos`}
+                        </span>
+                      )}
                       {city && <p style={{ margin: '0.15rem 0 0', fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} />{city}</p>}
                     </div>
 
@@ -240,17 +293,8 @@ export default function MyOrders() {
                       </div>
                     ) : (
                       /* Fallback: show flat items if no sub_orders */
-                      <div style={{ paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {(order.items || []).map(item => (
-                          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: '#f8faf8', borderRadius: '10px' }}>
-                            {item.product_image && <img src={item.product_image} alt={item.product_name} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '6px' }} />}
-                            <div style={{ flex: 1 }}>
-                              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>{item.product_name}</p>
-                              <p style={{ margin: 0, fontSize: '0.7rem', color: '#94a3b8' }}>{item.variant_name} × {item.quantity}</p>
-                            </div>
-                            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem' }}>₹{(parseFloat(item.unit_price) * item.quantity).toLocaleString('en-IN')}</p>
-                          </div>
-                        ))}
+                      <div style={{ paddingTop: '1.5rem' }}>
+                        <OrderItemsList items={order.items || []} />
                       </div>
                     )}
                   </div>

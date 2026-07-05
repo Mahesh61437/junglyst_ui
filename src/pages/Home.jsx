@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import CategoryStrip from '../components/CategoryStrip';
 import CombosSection from '../components/CombosSection';
+import FeaturedCombosRail from '../components/combos/FeaturedCombosRail';
 import { getImageUrl } from '../utils/imageUtils';
 import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
@@ -454,6 +455,9 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* Featured curated combos (renders only when featured combos exist) */}
+      <FeaturedCombosRail />
 
       {/* Trust badges */}
       <TrustStrip />

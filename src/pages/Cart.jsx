@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { trackCheckoutInitiated } from '../utils/analytics';
 import { ArrowLeft, ShoppingBag, ShieldCheck, ChevronRight, Star, Package, MapPin, AlertTriangle, CheckCircle, Loader2, Calendar, Truck, Leaf } from 'lucide-react';
 import SellerNudgeProducts from '../components/SellerNudgeProducts';
+import CartComboLine from '../components/combos/CartComboLine';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { getImageUrl } from '../utils/imageUtils';
@@ -12,6 +13,7 @@ export default function Cart() {
     cart, loading,
     updateItemQuantity, removeItem,
     checkPincode, pincodeChecking, pincodeResult,
+    comboLines, comboSubtotal, comboShipping, updateComboQty, removeCombo,
   } = useCart();
   const { addToWishlist } = useWishlist();
   const navigate = useNavigate();
@@ -26,7 +28,10 @@ export default function Cart() {
     );
   }
 
-  if (!cart || !cart.items || cart.items.length === 0) {
+  const hasItems = cart && cart.items && cart.items.length > 0;
+  const hasCombos = (comboLines || []).length > 0;
+
+  if (!hasItems && !hasCombos) {
     return (
       <div className="container" style={{ padding: '8rem 1.5rem', textAlign: 'center' }}>
         <div className="slide-up">
@@ -50,8 +55,12 @@ export default function Cart() {
 
   const outOfStockItems = cart.items.filter(item => item.quantity > (item.variant?.stock ?? Infinity));
 
+  // Combos add their own subtotal + one flat shipping fee each, on top of the
+  // per-seller item totals computed by the cart engine.
+  const grandTotal = (cart.grand_total || 0) + (comboSubtotal || 0) + (comboShipping || 0);
+
   const handleCheckout = () => {
-    trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.total_items });
+    trackCheckoutInitiated({ value: grandTotal, numItems: cart.total_items + comboLines.length });
     navigate('/checkout');
   };
 
@@ -97,6 +106,17 @@ export default function Cart() {
             )}
           </div>
 
+          {/* Combo lines — each is one flat-shipping bundle */}
+          {hasCombos && comboLines.map((line) => (
+            <CartComboLine
+              key={line.lineId}
+              line={line}
+              onQty={(change) => updateComboQty(line.lineId, change)}
+              onRemove={() => removeCombo(line.lineId)}
+            />
+          ))}
+
+          {hasItems && (
           <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '24px', border: '1px solid #f1f5f9', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1.5rem' }}>
               <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)', margin: 0 }}>Shopping Cart</h1>
@@ -241,6 +261,7 @@ export default function Cart() {
               <ArrowLeft size={16} /> Discovery Gallery
             </Link>
           </div>
+          )}
         </div>
 
         {/* ── Order Summary Sidebar ── */}
@@ -271,10 +292,26 @@ export default function Cart() {
                 );
               })}
 
+              {/* Combo lines — one flat shipping fee each */}
+              {comboLines.map((line) => (
+                <div key={line.lineId} style={{ borderBottom: '1px dashed #f1f5f9', paddingBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b' }}>
+                    <span style={{ fontWeight: 700, color: '#1b2d2a', fontSize: '0.8rem' }}>
+                      Combo · {line.name}{line.qty > 1 ? ` × ${line.qty}` : ''}
+                    </span>
+                    <span style={{ fontWeight: 700, color: '#1b2d2a' }}>₹{(line.unit_price * line.qty).toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#64748b', marginTop: '0.3rem' }}>
+                    <span>Combo shipping · flat</span>
+                    <span style={{ fontWeight: 700, color: '#1b2d2a' }}>₹{Number(line.shipping_fee).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: '#64748b', marginTop: '0.25rem' }}>
                 <span>Total Shipping</span>
-                <span style={{ fontWeight: 700, color: cart.shipping_total === 0 ? '#10b981' : 'var(--bg-deep)' }}>
-                  {cart.shipping_total === 0 ? 'COMPLIMENTARY' : `₹${cart.shipping_total}`}
+                <span style={{ fontWeight: 700, color: (cart.shipping_total + comboShipping) === 0 ? '#10b981' : 'var(--bg-deep)' }}>
+                  {(cart.shipping_total + comboShipping) === 0 ? 'COMPLIMENTARY' : `₹${cart.shipping_total + comboShipping}`}
                 </span>
               </div>
             </div>
@@ -283,7 +320,7 @@ export default function Cart() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>Total Investment</span>
                 <span style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--bg-deep)' }}>
-                  ₹{cart.grand_total.toLocaleString()}
+                  ₹{grandTotal.toLocaleString()}
                 </span>
               </div>
             </div>

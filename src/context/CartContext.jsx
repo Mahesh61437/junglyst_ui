@@ -279,6 +279,54 @@ function _empty() {
   };
 }
 
+// ── Combo cart lines ──────────────────────────────────────────────────────────
+// Combos are kept in a SEPARATE list from per-variant `cart.items` so the existing
+// per-seller shipping engine and 3-seller cap stay untouched. A combo is one line
+// with ONE flat shipping fee, regardless of how many growers ship its components.
+const COMBO_STORAGE_KEY = 'junglyst_combo_cart';
+const MAX_COMBO_QTY = 10;
+
+function loadComboLines() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COMBO_STORAGE_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+// Build a persistable combo line from a detail-combo payload + chosen qty.
+// Only in-stock components are included (partial-availability rule).
+function buildComboLine(combo, qty) {
+  const available = (combo.items || []).filter((it) => it.in_stock);
+  const unitPrice = available.reduce((s, it) => s + Number(it.line_total || 0), 0);
+  const growerIds = [...new Set(available.map((it) => it.seller_id))];
+  return {
+    lineId: `combo-${combo.id}-${Date.now()}`,
+    comboId: combo.id,
+    slug: combo.slug,
+    name: combo.name,
+    type: combo.type,
+    image_url: combo.image_url || null,
+    qty: Math.min(MAX_COMBO_QTY, Math.max(1, qty)),
+    shipping_fee: Number(combo.shipping_fee || 0),
+    unit_price: unitPrice,
+    grower_count: growerIds.length,
+    sellers: combo.sellers || [],
+    items: available.map((it) => ({
+      variant_id: it.variant_id,
+      product_name: it.product_name,
+      variant_name: it.variant_name,
+      product_slug: it.product_slug,
+      image_url: it.image_url || null,
+      unit_price: Number(it.unit_price || 0),
+      line_total: Number(it.line_total || 0),
+      quantity: it.quantity,
+      seller_id: it.seller_id,
+    })),
+  };
+}
+
 // Normalize backend cart items: map product_details/variant_details → product/variant
 function normalizeItems(items = []) {
   return items.map(item => ({
@@ -301,6 +349,8 @@ export const CartProvider = ({ children }) => {
   const deliveryZoneRef = useRef(null);
   // Shipping configs keyed by seller_id → { light: TierConfig, heavy: TierConfig }
   const shippingConfigsRef = useRef({});
+  // Combo cart lines (separate from per-variant items; client-side persisted).
+  const [comboLines, setComboLines] = useState(loadComboLines);
 
   const recalc = useCallback((items, zone) => {
     setCart(calculateFinancials(items, zone, shippingConfigsRef.current));
@@ -496,11 +546,52 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     localStorage.removeItem('junglyst_cart');
+    localStorage.removeItem(COMBO_STORAGE_KEY);
     setCart(_empty());
+    setComboLines([]);
     deliveryZoneRef.current = null;
     setDeliveryZoneState(null);
     setPincodeResult(null);
   };
+
+  // ── Combo line actions ──────────────────────────────────────────────────────
+  useEffect(() => {
+    localStorage.setItem(COMBO_STORAGE_KEY, JSON.stringify(comboLines));
+  }, [comboLines]);
+
+  const addComboToCart = useCallback(async (combo, qty = 1) => {
+    if (!combo?.id) return false;
+    const line = buildComboLine(combo, qty);
+    if (line.items.length === 0) {
+      showToast('This combo is currently sold out.', 'warning');
+      return false;
+    }
+    setComboLines((prev) => {
+      const idx = prev.findIndex((l) => l.comboId === combo.id);
+      if (idx > -1) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], qty: Math.min(MAX_COMBO_QTY, next[idx].qty + line.qty) };
+        return next;
+      }
+      return [...prev, line];
+    });
+    return true;
+  }, [showToast]);
+
+  const updateComboQty = useCallback((lineId, change) => {
+    setComboLines((prev) => prev.map((l) => {
+      if (l.lineId !== lineId) return l;
+      const next = Math.min(MAX_COMBO_QTY, Math.max(1, l.qty + change));
+      return { ...l, qty: next };
+    }));
+  }, []);
+
+  const removeCombo = useCallback((lineId) => {
+    setComboLines((prev) => prev.filter((l) => l.lineId !== lineId));
+  }, []);
+
+  const comboSubtotal = comboLines.reduce((s, l) => s + l.unit_price * l.qty, 0);
+  const comboShipping = comboLines.reduce((s, l) => s + Number(l.shipping_fee || 0), 0);
 
   return (
     <CartContext.Provider value={{
@@ -518,6 +609,13 @@ export const CartProvider = ({ children }) => {
       fetchCart: syncCartWithBackend,
       MAX_SELLERS,
       MAX_ITEM_QUANTITY,
+      // Combos
+      comboLines,
+      comboSubtotal,
+      comboShipping,
+      addComboToCart,
+      updateComboQty,
+      removeCombo,
     }}>
       {children}
     </CartContext.Provider>

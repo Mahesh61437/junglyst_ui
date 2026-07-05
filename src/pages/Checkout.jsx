@@ -29,7 +29,7 @@ function loadRazorpayScript() {
 }
 
 export default function Checkout() {
-  const { cart, cartId, clearCart, removeItem } = useCart();
+  const { cart, cartId, clearCart, removeItem, comboLines } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -157,7 +157,7 @@ export default function Checkout() {
     }, 3000);
   };
 
-  if (!orderPlaced.current && (!cart || !cart.items || cart.items.length === 0)) {
+  if (!orderPlaced.current && (!cart || !cart.items || cart.items.length === 0) && (comboLines || []).length === 0) {
     navigate('/cart');
     return null;
   }
@@ -243,7 +243,9 @@ export default function Checkout() {
         .filter(item => item.variant?.id && item.quantity >= 1)
         .map(item => ({ variant_id: item.variant.id, quantity: item.quantity }));
 
-      if (itemList.length === 0) {
+      const comboPayload = (comboLines || []).map(l => ({ combo_id: l.comboId, quantity: l.qty }));
+
+      if (itemList.length === 0 && comboPayload.length === 0) {
         setError('Your cart items are missing product details. Please re-add items from the shop and try again.');
         setLoading(false);
         return;
@@ -251,11 +253,19 @@ export default function Checkout() {
 
       const checkoutData = {};
 
-      // Cart: prefer backend cart_id, fall back to inline items
-      if (currentCartId) {
-        checkoutData.cart_id = currentCartId;
-      } else {
-        checkoutData.items = itemList;
+      // Cart: prefer backend cart_id, fall back to inline items.
+      // Only send cart/items when there are standalone (non-combo) items.
+      if (itemList.length > 0) {
+        if (currentCartId) {
+          checkoutData.cart_id = currentCartId;
+        } else {
+          checkoutData.items = itemList;
+        }
+      }
+
+      // Combos: one entry per combo line (backend expands into components).
+      if (comboPayload.length > 0) {
+        checkoutData.combos = comboPayload;
       }
 
       // Address

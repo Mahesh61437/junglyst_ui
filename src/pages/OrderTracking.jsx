@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { OrderService } from '../services/OrderService';
-import { Package, Truck, CheckCircle, Clock, ArrowLeft, MapPin, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, ArrowLeft, MapPin, ExternalLink, ShieldCheck, Boxes } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
 import SocialLinks from '../components/SocialLinks';
 
@@ -113,6 +113,11 @@ function SubOrderCard({ so }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ margin: 0, fontWeight: 600, color: '#1b2d2a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</p>
                 <p style={{ margin: '0.1rem 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>{item.variant_name}</p>
+                {item.combo_id && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: '0.25rem', padding: '0.1rem 0.4rem', borderRadius: '5px', background: '#0A3029', color: '#D4AF37', fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    <Boxes size={9} /> {item.combo_name || 'Combo'}
+                  </span>
+                )}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <p style={{ margin: 0, fontWeight: 700, color: '#1b2d2a' }}>×{item.quantity}</p>
