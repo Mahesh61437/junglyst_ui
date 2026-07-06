@@ -58,11 +58,19 @@ export function identifyUser(user) {
   // PostHog identity
   if (PH_KEY) {
     posthog.identify(String(user.id), {
+      // $set: latest values on the person (for cohorts / retention / growth).
       email: user.email,
       name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
       role: user.role,
       username: user.username,
+      is_seller: user.role === 'grower',
+    }, {
+      // $set_once: first-touch attributes — never overwritten (acquisition date).
+      first_identified_at: new Date().toISOString(),
     });
+    // Super property → attached to EVERY event, so funnels/metrics can be
+    // filtered/segmented by role without a person join.
+    posthog.register({ user_role: user.role || 'collector' });
     if (INTERNAL_ROLES.has(user.role)) {
       posthog.stopSessionRecording();
     }
@@ -80,12 +88,32 @@ export function resetUser() {
 
 // ─── Page views ───────────────────────────────────────────────────────────────
 
+// Collapse high-cardinality ids so page funnels/paths group cleanly, e.g.
+// /product/monstera-abc123 → /product/:slug, /orders/42 → /orders/:id
+function normalizePath(pathname = '') {
+  return pathname
+    // Named slug routes first, so their values don't get mangled by id rules.
+    .replace(/\/product\/[^/]+/g, '/product/:slug')
+    .replace(/\/combos\/[^/]+/g, '/combos/:slug')
+    .replace(/\/store\/[^/]+/g, '/store/:slug')
+    // Then generic ids: dashed UUID, long hex (uuid-no-dash / mongo), numeric.
+    .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:id')
+    .replace(/\/[0-9a-f]{24,}/gi, '/:id')
+    .replace(/\/\d+/g, '/:id') || '/';
+}
+
 export function trackPageView(url) {
-  // PostHog handles pageview automatically (capture_pageview: true).
-  // Meta Pixel needs a manual call on SPA navigation.
+  // SPA pageview — auto-capture is off (see initPostHog), so this is the single
+  // source. Meta Pixel needs a manual call on navigation too.
   mpTrack('PageView');
-  // Optional: also send to PostHog for the URL in case capture_pageview misses hash routes
-  if (url) phTrack('$pageview', { $current_url: url });
+  const pathname = (typeof window !== 'undefined' && window.location.pathname) || '';
+  // PostHog enriches with $referrer/UTMs/device automatically; we add a
+  // normalized route for grouped path funnels.
+  phTrack('$pageview', {
+    ...(url ? { $current_url: url } : {}),
+    $pathname: pathname,
+    route: normalizePath(pathname),
+  });
 }
 
 // ─── Marketplace events ───────────────────────────────────────────────────────

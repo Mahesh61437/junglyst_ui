@@ -11,8 +11,10 @@ export function initPostHog() {
   posthog.init(KEY, {
     api_host: HOST,
 
-    // Pageviews only — no pageleave (halves pageview event count)
-    capture_pageview: true,
+    // SPA pageviews are fired manually per route change by NavigationTracker
+    // (App.jsx) via trackPageView(). Auto-capture is OFF so the initial load
+    // isn't double-counted (auto pageview + manual mount pageview).
+    capture_pageview: false,
     capture_pageleave: false,
 
     // Autocapture off — we track manually; autocapture fires 20-50 events/session
