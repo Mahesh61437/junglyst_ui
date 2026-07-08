@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
   Package, Users, IndianRupee, Truck, CheckCircle, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
-  Tag, Layers, Percent, Weight, Trash2, RefreshCw, Sliders,
+  Tag, Layers, Percent, Weight, Trash2, RefreshCw, Sliders, ExternalLink,
 } from 'lucide-react';
 import { loadCombosConfig, saveCombosConfig, resetCombosConfig, DEFAULT_COMBOS } from '../config/combosConfig';
 
@@ -1778,7 +1778,17 @@ export default function SuperAdminDashboard() {
                           style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: expandedOrder === order.id ? '#f8fafc' : 'white' }}
                         >
                           <div>
-                            <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>#{order.order_number}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>#{order.order_number}</div>
+                              <Link
+                                to={`/orders/${order.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open in new tab"
+                                onClick={e => e.stopPropagation()}
+                                style={{ display: 'inline-flex', color: 'var(--text-secondary)', opacity: 0.6 }}
+                              ><ExternalLink size={14} /></Link>
+                            </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                               <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>₹{parseFloat(order.total_amount).toLocaleString()}</span>
                             </div>
@@ -1813,9 +1823,19 @@ export default function SuperAdminDashboard() {
                               </select>
                               {smUpdating[order.sub_order_id] && <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Saving…</span>}
                             </div>
-                            <button onClick={() => navigate(`/orders/${order.id}`)} style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
-                              View Details
-                            </button>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <button onClick={() => navigate(`/orders/${order.id}`)} style={{ flex: 1, padding: '0.5rem', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                                View Details
+                              </button>
+                              <Link
+                                to={`/orders/${order.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open in new tab"
+                                onClick={e => e.stopPropagation()}
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0.75rem', border: '1.5px solid var(--border-subtle)', borderRadius: '8px', color: 'var(--text-secondary)', textDecoration: 'none' }}
+                              ><ExternalLink size={16} /></Link>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1848,7 +1868,25 @@ export default function SuperAdminDashboard() {
                         </tr>
                         {dayOrders.map(order => (
                           <tr key={order.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem' }}>
-                            <td style={{ padding: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }} onClick={() => navigate(`/orders/${order.id}`)}>#{order.order_number}</td>
+                            <td style={{ padding: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <Link
+                                  to={`/orders/${order.id}`}
+                                  title="Open order (right-click or ⌘/Ctrl-click to open in a new tab)"
+                                  style={{ color: 'var(--text-primary)', textDecoration: 'none' }}
+                                >#{order.order_number}</Link>
+                                <Link
+                                  to={`/orders/${order.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Open in new tab"
+                                  onClick={e => e.stopPropagation()}
+                                  style={{ display: 'inline-flex', color: 'var(--text-secondary)', opacity: 0.55 }}
+                                  onMouseEnter={e => { e.currentTarget.style.opacity = 1; }}
+                                  onMouseLeave={e => { e.currentTarget.style.opacity = 0.55; }}
+                                ><ExternalLink size={14} /></Link>
+                              </div>
+                            </td>
                             <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                             <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</td>
                             <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_name}</td>
