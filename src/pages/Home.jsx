@@ -394,7 +394,7 @@ export default function Home() {
       <CompetitionPromo />
 
       {/* Shop by Setup — combo bundles with animated tank illustrations */}
-      <CombosSection allProducts={allProducts} />
+      <CombosSection />
 
       {/* Products — direct path to purchase */}
       <section className="container" style={{ padding: 'clamp(3.5rem,7vw,6.5rem) 1.5rem' }}>

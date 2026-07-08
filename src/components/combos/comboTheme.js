@@ -41,10 +41,10 @@ export const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 // Filter chips for the listing. value maps to Combo.combo_type on the backend.
 export const COMBO_TYPES = [
   { label: 'All', value: 'All' },
-  { label: 'Complete build', value: 'Complete build' },
-  { label: 'Plants only', value: 'Plants only' },
-  { label: 'Hardscape', value: 'Hardscape' },
-  { label: 'Fertilizers', value: 'Fertilizers' },
+  { label: 'Complete build', value: 'complete_build' },
+  { label: 'Plants only', value: 'plants_only' },
+  { label: 'Hardscape', value: 'hardscape' },
+  { label: 'Fertilizers', value: 'fertilizers' },
 ];
 
 // Derive availability from a detail combo's components.

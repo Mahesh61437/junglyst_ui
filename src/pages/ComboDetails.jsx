@@ -98,7 +98,7 @@ export default function ComboDetails() {
             {/* Gallery */}
             <div>
               <div style={{ position: 'relative' }}>
-                <ComboPlate src={combo.image_url} alt={combo.name} h={560} />
+                <ComboPlate src={combo.image_url} alt={combo.name} h={560} images={items.map((it) => it.image_url)} />
                 <div style={{ position: 'absolute', top: 16, left: 16, display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(6,32,27,0.82)', backdropFilter: 'blur(6px)', padding: '8px 14px' }}>
                   <Boxes size={13} color={J.gold} />
                   <span style={{ color: J.gold, fontFamily: T.sans, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import SEO from '../components/SEO';
 import { ComboService } from '../services/ComboService';
@@ -71,7 +71,9 @@ function LoadingGrid() {
 }
 
 export default function Combos() {
-  const [type, setType] = useState('All');
+  const [searchParams] = useSearchParams();
+  const initialType = COMBO_TYPES.find((t) => t.value === searchParams.get('type'))?.value || 'All';
+  const [type, setType] = useState(initialType);
 
   const { data: combos = [], isLoading, isError } = useQuery({
     queryKey: ['combos'],
@@ -79,7 +81,7 @@ export default function Combos() {
     staleTime: 60_000,
   });
 
-  const list = type === 'All' ? combos : combos.filter((c) => c.type === type);
+  const list = type === 'All' ? combos : combos.filter((c) => c.type_value === type);
 
   return (
     <main style={{ background: J.page, minHeight: '70vh' }}>

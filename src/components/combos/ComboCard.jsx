@@ -23,7 +23,7 @@ export default function ComboCard({ combo, onRail }) {
           <div style={{ position: 'absolute', inset: 0, transform: 'translate(10px, 10px)', background: J.bone, zIndex: 0 }} />
           <div style={{ position: 'absolute', inset: 0, transform: 'translate(5px, 5px)', background: J.border, zIndex: 0 }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <ComboPlate src={combo.image_url} alt={combo.name} h={heroH} />
+            <ComboPlate src={combo.image_url} alt={combo.name} h={heroH} images={combo.item_images} />
             <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6, alignItems: 'center', background: 'rgba(6,32,27,0.82)', backdropFilter: 'blur(6px)', padding: '6px 11px' }}>
               <Boxes size={12} color={J.gold} />
               <span style={{ color: J.gold, fontFamily: T.sans, fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
