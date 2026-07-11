@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import {
   ChevronLeft, Calendar, Clock, User, ShoppingBag, X,
   ArrowRight, BookOpen, Tag, Share2, Bookmark, ChevronRight,
 } from 'lucide-react';
 import { blogs } from '../data/blogs';
+import { ProductService } from '../services/ProductService';
 import SEO from '../components/SEO';
 import BlogFeaturedProducts from '../components/BlogFeaturedProducts';
 import SocialLinks from '../components/SocialLinks';
@@ -30,6 +32,155 @@ function ReadingProgressBar() {
         background: 'linear-gradient(90deg, #0A3029, #c9972b)',
         transition: 'width 0.1s linear',
       }} />
+    </div>
+  );
+}
+
+// ── Inline Shop Callout ───────────────────────────────────────────────────────
+// Appears mid-article, right after the section that mentions the relevant plants.
+const CALLOUT_STALE = 1000 * 60 * 60 * 4;
+const CALLOUT_GC    = 1000 * 60 * 60 * 24;
+
+function InlineShopCallout({ tags = [], headline, note }) {
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['callout', tags.slice().sort().join(',')],
+    queryFn: async () => {
+      const results = await Promise.allSettled(
+        tags.slice(0, 2).map(tag => ProductService.getProducts({ search: tag, page_size: 3 }))
+      );
+      const seen = new Set();
+      return results
+        .filter(r => r.status === 'fulfilled')
+        .flatMap(r => r.value?.results ?? r.value ?? [])
+        .filter(p => {
+          if (!p?.id || seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        })
+        .slice(0, 3);
+    },
+    enabled: tags.length > 0,
+    staleTime: CALLOUT_STALE,
+    gcTime: CALLOUT_GC,
+    retry: 1,
+  });
+
+  if (!isLoading && !products.length) return null;
+
+  return (
+    <div style={{
+      margin: '2.25rem 0',
+      padding: '1.1rem 1.35rem 1.25rem',
+      background: '#fdfbf3',
+      borderTop: '1px solid #f0e5c5',
+      borderRight: '1px solid #f0e5c5',
+      borderBottom: '1px solid #f0e5c5',
+      borderLeft: '3px solid #c9972b',
+      borderRadius: '0 14px 14px 0',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+        <ShoppingBag size={11} color="#c9972b" />
+        <span style={{ fontSize: '0.58rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', color: '#c9972b' }}>
+          Shop This Section
+        </span>
+      </div>
+      <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0A3029', marginBottom: note ? '0.2rem' : '0.85rem', lineHeight: 1.3 }}>
+        {headline}
+      </div>
+      {note && (
+        <p style={{ fontSize: '0.72rem', color: '#6b7c73', margin: '0 0 0.85rem', lineHeight: 1.55 }}>
+          {note}
+        </p>
+      )}
+
+      {/* Product strip */}
+      <div style={{ display: 'flex', gap: '0.7rem', overflowX: 'auto', paddingBottom: '0.2rem', scrollbarWidth: 'none' }}>
+        {isLoading
+          ? [0, 1, 2].map(i => (
+              <div key={i} style={{ width: '148px', flexShrink: 0, borderRadius: '10px', border: '1px solid #e8ede9', overflow: 'hidden', background: 'white' }}>
+                <div style={{ height: '88px', background: '#f1f5f2' }} />
+                <div style={{ padding: '0.55rem 0.65rem' }}>
+                  <div style={{ height: '9px', background: '#e8ede9', borderRadius: '4px', marginBottom: '0.35rem' }} />
+                  <div style={{ height: '9px', background: '#e8ede9', borderRadius: '4px', width: '55%', marginBottom: '0.35rem' }} />
+                  <div style={{ height: '8px', background: '#f0e5c5', borderRadius: '4px', width: '40%' }} />
+                </div>
+              </div>
+            ))
+          : products.map(p => {
+              const img  = p.imageUrl || p.image_url || p.image;
+              const name = p.name || p.title || 'Plant';
+              const price = p.price
+                ? `₹${parseFloat(p.price).toLocaleString('en-IN')}`
+                : null;
+              const to = p.slug ? `/product/${p.slug}` : `/shop?search=${encodeURIComponent(name.split(' ')[0])}`;
+              return (
+                <Link key={p.id} to={to} style={{ textDecoration: 'none', width: '148px', flexShrink: 0 }}>
+                  <motion.div
+                    whileHover={{ y: -3, boxShadow: '0 6px 20px rgba(0,0,0,0.1)' }}
+                    transition={{ type: 'spring', damping: 22, stiffness: 320 }}
+                    style={{ borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', background: 'white', height: '100%' }}
+                  >
+                    <div style={{ height: '88px', overflow: 'hidden', background: '#f1f5f2' }}>
+                      <img
+                        src={img}
+                        alt={name}
+                        onError={e => { e.target.src = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&q=80&w=300'; }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s' }}
+                      />
+                    </div>
+                    <div style={{ padding: '0.5rem 0.6rem 0.6rem' }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#0a1f1c', lineHeight: 1.35, marginBottom: '0.25rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {name}
+                      </div>
+                      {price && (
+                        <div style={{ fontSize: '0.73rem', fontWeight: 800, color: '#0A3029' }}>{price}</div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.3rem', color: '#c9972b', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Shop <ArrowRight size={9} />
+                      </div>
+                    </div>
+                  </motion.div>
+                </Link>
+              );
+            })
+        }
+      </div>
+
+      {/* View all link */}
+      <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px solid #f0e5c5' }}>
+        <Link
+          to={`/shop?search=${encodeURIComponent(tags[0] || '')}`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.67rem', fontWeight: 700, color: '#0A3029', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+        >
+          View all related products <ArrowRight size={11} />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Article Body — splits content by <h3> and injects shop callouts inline ────
+function ArticleBody({ content, shopCallouts = [] }) {
+  const parts = content.split('<h3>');
+  return (
+    <div className="article-body" style={{ fontSize: '1.05rem', lineHeight: 1.85, color: '#374151' }}>
+      {parts.map((part, idx) => {
+        const html = idx === 0 ? part : '<h3>' + part;
+        const callout = shopCallouts.find(c => c.afterSectionIndex === idx - 1);
+        return (
+          <Fragment key={idx}>
+            <div dangerouslySetInnerHTML={{ __html: html }} />
+            {callout && (
+              <InlineShopCallout
+                tags={callout.tags}
+                headline={callout.headline}
+                note={callout.note}
+              />
+            )}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -303,11 +454,7 @@ export default function BlogDetail() {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}
           style={{ backgroundColor: 'white', borderRadius: '24px', padding: 'clamp(1.75rem,4vw,3.5rem)', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', border: '1px solid #e2e8f0' }}
         >
-          <div
-            className="article-body"
-            dangerouslySetInnerHTML={{ __html: blog.content }}
-            style={{ fontSize: '1.05rem', lineHeight: 1.85, color: '#374151' }}
-          />
+          <ArticleBody content={blog.content} shopCallouts={blog.shopCallouts} />
 
           {/* Recommended Products — shop links that make intent crystal clear */}
           {blog.productTags && blog.productTags.length > 0 && (

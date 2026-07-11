@@ -305,6 +305,131 @@ export default function SuperAdminDashboard() {
   const [cacheClearing, setCacheClearing] = useState(false);
   const [cacheClearMsg, setCacheClearMsg] = useState('');
 
+  // Stock & Price Sync
+  const [syncSource, setSyncSource] = useState(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [syncApproved, setSyncApproved] = useState({});
+  const [syncApplying, setSyncApplying] = useState(false);
+  const [syncApplyMsg, setSyncApplyMsg] = useState('');
+  const [syncNewApproved, setSyncNewApproved] = useState({});
+  const [syncImporting, setSyncImporting] = useState(false);
+  const [syncImportMsg, setSyncImportMsg] = useState('');
+  const [syncLastSynced, setSyncLastSynced] = useState({ petkadai: null, himadri: null });
+  const [syncCommission, setSyncCommission] = useState({
+    petkadai: { seller: '10', buyer: '0', markup: '0' },
+    himadri:  { seller: '10', buyer: '0', markup: '14' },
+  });
+  const [syncSellerEmail, setSyncSellerEmail] = useState({
+    petkadai: 'Supporttest@petkadai.com',
+    himadri:  'himadriaquaticstest@gmail.com',
+  });
+
+  const fetchSyncStatus = async () => {
+    try {
+      const res = await api.get('/analytics/super-admin/stock-sync/status/');
+      setSyncLastSynced(res.data);
+    } catch { /* non-critical */ }
+  };
+
+  const handleStockSync = async (source) => {
+    setSyncSource(source);
+    setSyncLoading(true);
+    setSyncResult(null);
+    setSyncApproved({});
+    setSyncApplyMsg('');
+    setSyncNewApproved({});
+    setSyncImportMsg('');
+    try {
+      // Kick off background scrape job
+      const { seller, buyer, markup } = syncCommission[source];
+      const kickoff = await api.post('/analytics/super-admin/stock-sync/preview/', {
+        source,
+        seller_email: syncSellerEmail[source],
+        source_markup:     parseFloat(markup) || 0,
+        seller_commission: parseFloat(seller) || 0,
+        buyer_commission:  parseFloat(buyer)  || 0,
+      });
+      const jobId = kickoff.data.job_id;
+
+      // Poll until done
+      const poll = async () => {
+        try {
+          const res = await api.get(`/analytics/super-admin/stock-sync/job/${jobId}/`);
+          const job = res.data;
+          setSyncResult(job);   // show live progress message while pending/scraping
+          if (job.status === 'done') {
+            setSyncLoading(false);
+            setSyncLastSynced(prev => ({ ...prev, [source]: job.last_synced }));
+            const approved = {};
+            (job.price_changes || []).forEach(c => { approved[c.id] = true; });
+            setSyncApproved(approved);
+            const newApproved = {};
+            (job.new_products || []).forEach(p => { newApproved[p.sku] = true; });
+            setSyncNewApproved(newApproved);
+          } else if (job.status === 'error') {
+            setSyncLoading(false);
+          } else {
+            setTimeout(poll, 3000);  // poll every 3s while scraping
+          }
+        } catch (e) {
+          setSyncResult({ error: 'Failed to poll job status.' });
+          setSyncLoading(false);
+        }
+      };
+      setTimeout(poll, 2000);  // first check after 2s
+    } catch (e) {
+      setSyncResult({ error: e?.response?.data?.error || 'Sync failed' });
+      setSyncLoading(false);
+    }
+  };
+
+  const handleSyncApply = async () => {
+    if (!syncResult?.session_key) return;
+    const approvedIds = Object.entries(syncApproved).filter(([, v]) => v).map(([k]) => k);
+    if (!approvedIds.length) { setSyncApplyMsg('No changes selected.'); return; }
+    setSyncApplying(true);
+    setSyncApplyMsg('');
+    try {
+      const res = await api.post('/analytics/super-admin/stock-sync/apply/', {
+        session_key: syncResult.session_key,
+        approved_ids: approvedIds,
+      });
+      setSyncApplyMsg(`Applied ${res.data.applied} price update(s).`);
+      setSyncResult(prev => ({ ...prev, price_changes: [] }));
+      setSyncApproved({});
+    } catch (e) {
+      setSyncApplyMsg(e?.response?.data?.error || 'Apply failed.');
+    } finally {
+      setSyncApplying(false);
+    }
+  };
+
+  const handleSyncImport = async () => {
+    if (!syncResult?.session_key) return;
+    const approvedSkus = Object.entries(syncNewApproved).filter(([, v]) => v).map(([k]) => k);
+    if (!approvedSkus.length) { setSyncImportMsg('No products selected.'); return; }
+    setSyncImporting(true);
+    setSyncImportMsg('');
+    const src = syncSource;
+    const { seller, markup } = syncCommission[src];
+    try {
+      const res = await api.post('/analytics/super-admin/stock-sync/import/', {
+        session_key: syncResult.session_key,
+        approved_skus: approvedSkus,
+        seller_email: syncSellerEmail[src],
+        seller_commission: parseFloat(seller) || 0,
+      });
+      setSyncImportMsg(`Imported ${res.data.imported} new product(s).${res.data.errors?.length ? ` Errors: ${res.data.errors.join(', ')}` : ''}`);
+      setSyncResult(prev => ({ ...prev, new_products: prev.new_products.filter(p => !approvedSkus.includes(p.sku)) }));
+      setSyncNewApproved({});
+    } catch (e) {
+      setSyncImportMsg(e?.response?.data?.error || 'Import failed.');
+    } finally {
+      setSyncImporting(false);
+    }
+  };
+
   const handleClearCache = async () => {
     if (!window.confirm('Clear all server cache? This will briefly slow down the next few requests while caches rebuild.')) return;
     setCacheClearing(true);
@@ -717,6 +842,7 @@ export default function SuperAdminDashboard() {
     fetchData();
     fetchPromoSellers();
     fetchBugReports();
+    fetchSyncStatus();
 
     api.get('/payments/gateway-settings/')
       .then(res => setPaymentGateway(res.data.active_gateway || 'cashfree'))
@@ -892,6 +1018,258 @@ export default function SuperAdminDashboard() {
       </header>
 
       <main style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+
+        {/* Stock & Price Sync */}
+        <section>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Stock &amp; Price Sync
+          </h2>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* Per-source commission config + sync button */}
+            {['petkadai', 'himadri'].map(src => {
+              const label = src === 'petkadai' ? 'Pet Kadai' : 'Himadri';
+              const isActive = syncSource === src && syncLoading;
+              return (
+                <div key={src} style={{ padding: '1rem 1.25rem', borderRadius: '12px', border: '1.5px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--bg-deep)' }}>{label}</span>
+                      {syncLastSynced[src] && (
+                        <span style={{ marginLeft: '0.75rem', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 500 }}>
+                          Last synced: {syncLastSynced[src]}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleStockSync(src)}
+                      disabled={syncLoading}
+                      style={{ padding: '0.5rem 1.25rem', borderRadius: '9px', border: 'none', backgroundColor: isActive ? '#e2e8f0' : 'var(--bg-deep)', color: isActive ? '#64748b' : 'white', fontWeight: 700, fontSize: '0.82rem', cursor: syncLoading ? 'not-allowed' : 'pointer', opacity: syncLoading && !isActive ? 0.5 : 1 }}
+                    >
+                      {isActive ? 'Syncing…' : `Sync ${label}`}
+                    </button>
+                  </div>
+
+                  {/* Seller email */}
+                  <div>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.3rem' }}>
+                      Seller email
+                    </label>
+                    <input
+                      type="email"
+                      value={syncSellerEmail[src]}
+                      onChange={e => setSyncSellerEmail(prev => ({ ...prev, [src]: e.target.value }))}
+                      style={{ width: '100%', padding: '0.45rem 0.65rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.85rem', backgroundColor: '#f8fafc', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                    <p style={{ fontSize: '0.68rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>Used to scope delisting — use test email locally, real email in prod</p>
+                  </div>
+
+                  {/* Commission inputs */}
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    {[
+                      { key: 'markup', label: 'Sourcing markup %',   hint: 'Applied to scraped price → base price' },
+                      { key: 'seller', label: 'Seller commission %', hint: 'Applied on base price → buyer price' },
+                      { key: 'buyer',  label: 'Buyer commission %',  hint: 'Platform cut (informational)' },
+                    ].map(({ key, label: fieldLabel, hint }) => (
+                      <div key={key} style={{ flex: '1 1 180px' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.3rem' }}>
+                          {fieldLabel}
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #d1d5db', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            value={syncCommission[src][key]}
+                            onChange={e => setSyncCommission(prev => ({ ...prev, [src]: { ...prev[src], [key]: e.target.value } }))}
+                            style={{ flex: 1, padding: '0.45rem 0.65rem', border: 'none', outline: 'none', fontSize: '0.88rem', fontWeight: 700, backgroundColor: 'transparent' }}
+                          />
+                          <span style={{ padding: '0 0.65rem', fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8' }}>%</span>
+                        </div>
+                        <p style={{ fontSize: '0.68rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>{hint}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Error */}
+            {syncResult?.status === 'error' && (
+              <div style={{ padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: '#fee2e2', color: '#b91c1c', fontSize: '0.82rem', fontWeight: 600 }}>
+                {syncResult.error}
+              </div>
+            )}
+
+            {/* Live progress */}
+            {syncLoading && syncResult?.progress && (
+              <div style={{ padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: '#f0f9ff', color: '#0369a1', fontSize: '0.82rem', fontWeight: 600 }}>
+                {syncResult.progress}
+              </div>
+            )}
+
+            {/* Stock summary — only when done */}
+            {syncResult?.status === 'done' && (
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Stock updated', value: syncResult.stock_updated, color: '#166534', bg: '#f0fdf4' },
+                  { label: 'Stock unchanged', value: syncResult.stock_unchanged, color: '#64748b', bg: '#f8fafc' },
+                  { label: 'Delisted (→0)', value: syncResult.delisted ?? 0, color: '#991b1b', bg: '#fef2f2' },
+                  { label: 'Not in DB', value: syncResult.not_found, color: '#92400e', bg: '#fffbeb' },
+                  { label: 'Price changes', value: syncResult.price_changes?.length ?? 0, color: '#1d4ed8', bg: '#eff6ff' },
+                ].map(({ label, value, color, bg }) => (
+                  <div key={label} style={{ flex: '1 1 120px', padding: '0.75rem 1rem', borderRadius: '10px', backgroundColor: bg, textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color }}>{value}</div>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginTop: '0.15rem' }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Price changes approval table */}
+            {syncResult?.price_changes?.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <p style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--bg-deep)', margin: 0 }}>
+                    Price Changes — review &amp; approve
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => setSyncApproved(Object.fromEntries(syncResult.price_changes.map(c => [c.id, true])))} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.3rem 0.75rem', borderRadius: '7px', border: '1px solid #d1d5db', backgroundColor: 'white', cursor: 'pointer' }}>
+                      Select all
+                    </button>
+                    <button onClick={() => setSyncApproved({})} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.3rem 0.75rem', borderRadius: '7px', border: '1px solid #d1d5db', backgroundColor: 'white', cursor: 'pointer' }}>
+                      Clear all
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 700, color: '#64748b' }}>Approve</th>
+                        <th style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 700, color: '#64748b' }}>Product</th>
+                        <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 700, color: '#64748b' }}>Old base</th>
+                        <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 700, color: '#64748b' }}>New base</th>
+                        <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 700, color: '#64748b' }}>Old price</th>
+                        <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 700, color: '#64748b' }}>New price</th>
+                        <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 700, color: '#64748b' }}>Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {syncResult.price_changes.map((c, i) => {
+                        const isApproved = !!syncApproved[c.id];
+                        const up = c.change_pct > 0;
+                        return (
+                          <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: isApproved ? 'white' : '#f8fafc', opacity: isApproved ? 1 : 0.5 }}>
+                            <td style={{ padding: '0.55rem 0.75rem' }}>
+                              <input type="checkbox" checked={isApproved} onChange={e => setSyncApproved(prev => ({ ...prev, [c.id]: e.target.checked }))} style={{ width: '15px', height: '15px', cursor: 'pointer' }} />
+                            </td>
+                            <td style={{ padding: '0.55rem 0.75rem', fontWeight: 600, color: 'var(--bg-deep)', maxWidth: '260px' }}>
+                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{c.sku}</div>
+                            </td>
+                            <td style={{ padding: '0.55rem 0.75rem', textAlign: 'right', color: '#64748b' }}>₹{c.old_base.toFixed(2)}</td>
+                            <td style={{ padding: '0.55rem 0.75rem', textAlign: 'right', fontWeight: 700 }}>₹{c.new_base.toFixed(2)}</td>
+                            <td style={{ padding: '0.55rem 0.75rem', textAlign: 'right', color: '#64748b' }}>₹{c.old_price.toFixed(2)}</td>
+                            <td style={{ padding: '0.55rem 0.75rem', textAlign: 'right', fontWeight: 700 }}>₹{c.new_price.toFixed(2)}</td>
+                            <td style={{ padding: '0.55rem 0.75rem', textAlign: 'right' }}>
+                              <span style={{ padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.72rem', fontWeight: 700, backgroundColor: up ? '#fef9c3' : '#fee2e2', color: up ? '#854d0e' : '#b91c1c' }}>
+                                {up ? '▲' : '▼'} {Math.abs(c.change_pct).toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Apply button */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleSyncApply}
+                    disabled={syncApplying || Object.values(syncApproved).every(v => !v)}
+                    style={{ padding: '0.6rem 1.5rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: syncApplying ? 'not-allowed' : 'pointer', opacity: syncApplying ? 0.7 : 1 }}
+                  >
+                    {syncApplying ? 'Applying…' : `Apply ${Object.values(syncApproved).filter(Boolean).length} Selected`}
+                  </button>
+                  {syncApplyMsg && (
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: syncApplyMsg.includes('fail') || syncApplyMsg.includes('error') ? '#b91c1c' : '#166534' }}>
+                      {syncApplyMsg}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Success state — no pending changes */}
+            {syncResult?.status === 'done' && syncResult.price_changes?.length === 0 && !syncResult.new_products?.length && (
+              <div style={{ padding: '0.6rem 1rem', borderRadius: '8px', backgroundColor: '#f0fdf4', color: '#166534', fontSize: '0.82rem', fontWeight: 600 }}>
+                {syncApplyMsg || 'Stock updated. No price changes pending.'}
+              </div>
+            )}
+
+            {/* New Products — not in DB */}
+            {syncResult?.status === 'done' && syncResult.new_products?.length > 0 && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '0.95rem', margin: 0 }}>
+                    New Products — not in DB ({syncResult.new_products.length})
+                  </h3>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => setSyncNewApproved(Object.fromEntries(syncResult.new_products.map(p => [p.sku, true])))} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.3rem 0.75rem', borderRadius: '7px', border: '1px solid #d1d5db', backgroundColor: 'white', cursor: 'pointer' }}>Select all</button>
+                    <button onClick={() => setSyncNewApproved({})} style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.3rem 0.75rem', borderRadius: '7px', border: '1px solid #d1d5db', backgroundColor: 'white', cursor: 'pointer' }}>Clear all</button>
+                  </div>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                        {['Import', 'Product', 'SKU', 'Base price', 'Final price', 'Stock'].map(h => (
+                          <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: h === 'Import' ? 'center' : 'left', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {syncResult.new_products.map(p => (
+                        <tr key={p.sku} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                            <input type="checkbox" checked={!!syncNewApproved[p.sku]} onChange={e => setSyncNewApproved(prev => ({ ...prev, [p.sku]: e.target.checked }))} />
+                          </td>
+                          <td style={{ padding: '0.6rem 0.75rem', fontWeight: 600, maxWidth: '280px' }}>
+                            <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                          </td>
+                          <td style={{ padding: '0.6rem 0.75rem', color: '#64748b', fontFamily: 'monospace', fontSize: '0.78rem' }}>{p.sku}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', fontWeight: 600 }}>₹{p.new_base}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', fontWeight: 700, color: 'var(--bg-deep)' }}>
+                            ₹{Math.round(p.new_base * (1 + (parseFloat(syncCommission[syncSource]?.seller) || 0) / 100))}
+                          </td>
+                          <td style={{ padding: '0.6rem 0.75rem' }}>{p.new_stock > 0 ? p.new_stock : <span style={{ color: '#ef4444', fontWeight: 600 }}>Out of stock</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleSyncImport}
+                    disabled={syncImporting || Object.values(syncNewApproved).every(v => !v)}
+                    style={{ padding: '0.6rem 1.5rem', borderRadius: '10px', border: 'none', backgroundColor: '#166534', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: syncImporting ? 'not-allowed' : 'pointer', opacity: syncImporting ? 0.7 : 1 }}
+                  >
+                    {syncImporting ? 'Importing…' : `Import ${Object.values(syncNewApproved).filter(Boolean).length} Selected`}
+                  </button>
+                  {syncImportMsg && (
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: syncImportMsg.includes('fail') || syncImportMsg.includes('Error') ? '#b91c1c' : '#166534' }}>
+                      {syncImportMsg}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Grower Access Management */}
         <section>
