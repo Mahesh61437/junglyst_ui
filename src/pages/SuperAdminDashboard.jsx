@@ -6,7 +6,7 @@ import {
   Package, Users, IndianRupee, Truck, CheckCircle, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
-  Tag, Layers, Percent, Weight, Trash2, RefreshCw, Sliders, ExternalLink,
+  Tag, Layers, Percent, Weight, Trash2, RefreshCw, Sliders, ExternalLink, 
 } from 'lucide-react';
 import { loadCombosConfig, saveCombosConfig, resetCombosConfig, DEFAULT_COMBOS } from '../config/combosConfig';
 import { COMBO_TYPES } from '../components/combos/comboTheme';
