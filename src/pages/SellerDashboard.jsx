@@ -354,6 +354,7 @@ export default function SellerDashboard() {
   const [productTotal, setProductTotal] = useState(0);
 
   // Product status tabs & bulk selection
+  const [productSearch, setProductSearch] = useState('');
   const [productStatusTab, setProductStatusTab] = useState('published'); // 'published' | 'drafts' | 'archived'
   const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [bulkActing, setBulkActing] = useState(false);
@@ -2136,7 +2137,10 @@ export default function SellerDashboard() {
                   { key: 'drafts', label: 'Drafts', count: drafts.length, color: '#f59e0b' },
                   { key: 'archived', label: 'Archived', count: archived.length, color: '#9ca3af' },
                 ];
-                const tabProducts = productStatusTab === 'published' ? published : productStatusTab === 'drafts' ? drafts : archived;
+                const baseTabProducts = productStatusTab === 'published' ? published : productStatusTab === 'drafts' ? drafts : archived;
+                const tabProducts = productSearch.trim()
+                  ? baseTabProducts.filter(p => p.name?.toLowerCase().includes(productSearch.toLowerCase()) || p.sku?.toLowerCase().includes(productSearch.toLowerCase()))
+                  : baseTabProducts;
                 const tabTotal = tabProducts.length;
                 const totalPages = Math.max(1, Math.ceil(tabTotal / productPageSize));
                 const safePage = Math.min(productPage, totalPages);
@@ -2146,6 +2150,24 @@ export default function SellerDashboard() {
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Product search */}
+                    <div style={{ position: 'relative', maxWidth: '360px' }}>
+                      <input
+                        type="text"
+                        value={productSearch}
+                        onChange={e => { setProductSearch(e.target.value); setProductPage(1); }}
+                        placeholder="Search products by name or SKU…"
+                        style={{ width: '100%', padding: '0.55rem 2.5rem 0.55rem 1rem', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '0.82rem', fontWeight: 600, color: '#1b2d2a', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                      {productSearch && (
+                        <button
+                          onClick={() => { setProductSearch(''); setProductPage(1); }}
+                          style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, lineHeight: 1 }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
                     {/* Status tabs */}
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       {tabList.map(tab => (

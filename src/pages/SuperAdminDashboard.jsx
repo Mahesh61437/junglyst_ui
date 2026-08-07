@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
   Package, Users, IndianRupee, Truck, CheckCircle, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
-  Tag, Layers, Percent, Weight, Trash2,
+  Tag, Layers, Percent, Weight, Trash2, RefreshCw, ExternalLink,
 } from 'lucide-react';
 
 // ─── shared label style ──────────────────────────────────────────────────────
@@ -246,6 +246,7 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('pending');
+  const [activePage, setActivePage] = useState('overview');
   const [expandedSeller, setExpandedSeller] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -286,6 +287,22 @@ export default function SuperAdminDashboard() {
   const [bugReports, setBugReports] = useState([]);
   const [bugReportsLoading, setBugReportsLoading] = useState(false);
 
+  // Settlements
+  const [settlements, setSettlements] = useState([]);
+  const [settlementsLoading, setSettlementsLoading] = useState(false);
+  const [settlingIds, setSettlingIds] = useState(new Set()); // ids being marked
+  const [settleConfirm, setSettleConfirm] = useState(null); // { type: 'single'|'week', args, label, amount }
+  const [settlementsLoaded, setSettlementsLoaded] = useState(false);
+
+  // Status Manager
+  const [smOrders, setSmOrders] = useState([]);
+  const [smLoading, setSmLoading] = useState(false);
+  const [smLoaded, setSmLoaded] = useState(false);
+  const [smSearch, setSmSearch] = useState('');
+  const [smStatusFilter, setSmStatusFilter] = useState('');
+  const [smUpdating, setSmUpdating] = useState({}); // sub_order_id → bool
+  const [statusConfirm, setStatusConfirm] = useState(null); // { subOrderId, newStatus, orderNumber, currentStatus }
+
   // ── Category management state ─────────────────────────────────────────────
   const [catExpanded, setCatExpanded] = useState({});
   const [catModal, setCatModal] = useState(null);      // null | 'create-cat' | 'edit-cat' | 'create-sub' | 'edit-sub' | 'create-rate' | 'edit-rate'
@@ -293,6 +310,7 @@ export default function SuperAdminDashboard() {
   const [catModalParent, setCatModalParent] = useState(null); // parent category id when creating sub/rate
   const [catSaving, setCatSaving] = useState(false);
   const [catError, setCatError] = useState('');
+  const [catImageUploading, setCatImageUploading] = useState({}); // catId → bool
 
   // Grower access management state
   const [growerSearchQuery, setGrowerSearchQuery] = useState('');
@@ -660,7 +678,151 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  useEffect(() => { refreshCategories(); }, []);
+  // categories fetched on demand (user clicks "Load" in the Categories tab)
+
+  const fetchSettlements = async () => {
+    setSettlementsLoading(true);
+    try {
+      const res = await api.get('/orders/settlements/');
+      setSettlements(res.data);
+      setSettlementsLoaded(true);
+    } catch (e) {
+      console.error('Failed to load settlements', e);
+    } finally {
+      setSettlementsLoading(false);
+    }
+  };
+
+  const _doMarkSettled = async (settlementId, sellerId, weekKey) => {
+    setSettlingIds(prev => new Set([...prev, settlementId]));
+    try {
+      await api.post(`/orders/settlements/${settlementId}/settle/`);
+      setSettlements(prev => prev.map(seller => {
+        if (seller.seller_id !== sellerId) return seller;
+        const weeks = seller.weeks.map(w => {
+          if (w.week_key !== weekKey) return w;
+          const orders = w.orders.filter(o => o.settlement_id !== settlementId);
+          return { ...w, orders, week_total: orders.reduce((s, o) => s + parseFloat(o.amount), 0) };
+        }).filter(w => w.orders.length > 0);
+        const total_pending = weeks.reduce((s, w) => s + w.week_total, 0);
+        return { ...seller, weeks, total_pending };
+      }).filter(s => s.weeks.length > 0));
+    } catch (e) {
+      alert('Failed to mark as settled');
+    } finally {
+      setSettlingIds(prev => { const n = new Set(prev); n.delete(settlementId); return n; });
+    }
+  };
+
+  const _doMarkWeekSettled = async (sellerId, weekKey, orderIds) => {
+    setSettlingIds(prev => new Set([...prev, ...orderIds]));
+    try {
+      await api.post('/orders/settlements/bulk-settle/', { ids: orderIds });
+      setSettlements(prev => prev.map(seller => {
+        if (seller.seller_id !== sellerId) return seller;
+        const weeks = seller.weeks.filter(w => w.week_key !== weekKey);
+        const total_pending = weeks.reduce((s, w) => s + w.week_total, 0);
+        return { ...seller, weeks, total_pending };
+      }).filter(s => s.weeks.length > 0));
+    } catch (e) {
+      alert('Failed to mark week as settled');
+    } finally {
+      setSettlingIds(prev => { const n = new Set(prev); orderIds.forEach(id => n.delete(id)); return n; });
+    }
+  };
+
+  const SUB_ORDER_STATUSES = [
+    { value: 'pending',           label: 'Pending' },
+    { value: 'placed',            label: 'Placed' },
+    { value: 'confirmed',         label: 'Confirmed' },
+    { value: 'packing',           label: 'Packing' },
+    { value: 'booked',            label: 'Courier Booked' },
+    { value: 'booking_failed',    label: 'Booking Failed' },
+    { value: 'shipped',           label: 'Shipped' },
+    { value: 'in_transit',        label: 'In Transit' },
+    { value: 'out_for_delivery',  label: 'Out for Delivery' },
+    { value: 'delivered',         label: 'Delivered' },
+    { value: 'delivery_failed',   label: 'Delivery Failed' },
+    { value: 'doa_raised',        label: 'DOA Raised' },
+    { value: 'cancelled',         label: 'Cancelled' },
+  ];
+
+  const fetchSmOrders = async () => {
+    setSmLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (smSearch) params.set('search', smSearch);
+      if (smStatusFilter) params.set('status', smStatusFilter);
+      const res = await api.get(`/orders/admin/sub-orders/?${params}`);
+      setSmOrders(res.data);
+      setSmLoaded(true);
+    } catch (e) {
+      console.error('Failed to load orders', e);
+    } finally {
+      setSmLoading(false);
+    }
+  };
+
+  const _doUpdateSubOrderStatus = async (subOrderId, newStatus) => {
+    if (!subOrderId) { alert('Sub-order ID not available for this order.'); return; }
+    setSmUpdating(prev => ({ ...prev, [subOrderId]: true }));
+    try {
+      await api.patch(`/orders/admin/sub-orders/${subOrderId}/status/`, { status: newStatus });
+      setData(prev => {
+        if (!prev) return prev;
+        const updateList = list => list.map(o =>
+          String(o.sub_order_id) === String(subOrderId) ? { ...o, status: newStatus } : o
+        );
+        return {
+          ...prev,
+          orders: {
+            pending: updateList(prev.orders?.pending || []),
+            transit: updateList(prev.orders?.transit || []),
+            delivered: updateList(prev.orders?.delivered || []),
+          },
+        };
+      });
+    } catch (e) {
+      alert('Failed to update status');
+    } finally {
+      setSmUpdating(prev => ({ ...prev, [subOrderId]: false }));
+    }
+  };
+
+  const updateSubOrderStatus = (subOrderId, newStatus, orderNumber, currentStatus) => {
+    setStatusConfirm({ subOrderId, newStatus, orderNumber, currentStatus });
+  };
+
+  const confirmStatusChange = () => {
+    if (!statusConfirm) return;
+    _doUpdateSubOrderStatus(statusConfirm.subOrderId, statusConfirm.newStatus);
+    setStatusConfirm(null);
+  };
+
+  const markSettled = (settlementId, sellerId, weekKey, orderNumber, amount) => {
+    setSettleConfirm({
+      type: 'single',
+      args: [settlementId, sellerId, weekKey],
+      label: `Mark order #${orderNumber} as settled?`,
+      amount: `₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+    });
+  };
+
+  const markWeekSettled = (sellerId, weekKey, orderIds, weekLabel, weekTotal) => {
+    setSettleConfirm({
+      type: 'week',
+      args: [sellerId, weekKey, orderIds],
+      label: `Settle all ${orderIds.length} orders for week ${weekLabel}?`,
+      amount: `₹${weekTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+    });
+  };
+
+  const confirmSettle = () => {
+    if (!settleConfirm) return;
+    if (settleConfirm.type === 'single') _doMarkSettled(...settleConfirm.args);
+    else _doMarkWeekSettled(...settleConfirm.args);
+    setSettleConfirm(null);
+  };
 
   // Category modal save handler
   const saveCatModal = async () => {
@@ -698,6 +860,34 @@ export default function SuperAdminDashboard() {
     } catch { alert('Delete failed'); }
   };
 
+  const uploadCatImage = async (catId, file) => {
+    if (!file) return;
+    setCatImageUploading(prev => ({ ...prev, [catId]: true }));
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('type', 'categories');
+      const { data: uploadData } = await api.post('/core/upload/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      await api.patch(`/core/categories/${catId}/`, { image_url: uploadData.url });
+      refreshCategories();
+    } catch {
+      alert('Image upload failed.');
+    } finally {
+      setCatImageUploading(prev => ({ ...prev, [catId]: false }));
+    }
+  };
+
+  const removeCatImage = async (catId) => {
+    try {
+      await api.patch(`/core/categories/${catId}/`, { image_url: '' });
+      refreshCategories();
+    } catch {
+      alert('Failed to remove image.');
+    }
+  };
+
   useEffect(() => {
     if (authLoading) return;
     if (!user || (!user.is_staff && !user.is_superuser && user.role !== 'admin')) {
@@ -715,8 +905,6 @@ export default function SuperAdminDashboard() {
       }
     };
     fetchData();
-    fetchPromoSellers();
-    fetchBugReports();
 
     api.get('/payments/gateway-settings/')
       .then(res => setPaymentGateway(res.data.active_gateway || 'cashfree'))
@@ -891,7 +1079,39 @@ export default function SuperAdminDashboard() {
         </div>
       </header>
 
+      {/* ── Tab Nav ── */}
+      <nav style={{ backgroundColor: 'white', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: '73px', zIndex: 9 }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 2rem', display: 'flex', gap: '0', overflowX: 'auto' }}>
+          {[
+            { id: 'overview',     label: 'Overview',     icon: <LayoutDashboard size={15} /> },
+            { id: 'sellers',      label: 'Sellers',      icon: <Store size={15} /> },
+            { id: 'orders',       label: 'Orders',       icon: <Package size={15} /> },
+            { id: 'settlements',  label: 'Settlements',  icon: <IndianRupee size={15} /> },
+            { id: 'categories',   label: 'Categories',   icon: <Layers size={15} /> },
+            { id: 'bugs',         label: 'Bug Reports',  icon: <Tag size={15} /> },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActivePage(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.45rem',
+                padding: '1rem 1.25rem',
+                border: 'none', borderBottom: activePage === tab.id ? '2.5px solid var(--brand-gold)' : '2.5px solid transparent',
+                background: 'none', cursor: 'pointer',
+                fontSize: '0.8rem', fontWeight: activePage === tab.id ? 800 : 600,
+                color: activePage === tab.id ? 'var(--bg-deep)' : 'var(--text-secondary)',
+                whiteSpace: 'nowrap', transition: 'color 0.15s, border-color 0.15s',
+              }}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       <main style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+
+        {activePage === 'overview' && <>
 
         {/* Grower Access Management */}
         <section>
@@ -1068,6 +1288,9 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
+        </>}
+        {activePage === 'sellers' && <>
+
         {/* Pending Seller Authorizations */}
         <section>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -1204,7 +1427,10 @@ export default function SuperAdminDashboard() {
             {promoLoading ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading seller profiles…</div>
             ) : promoSellers.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No seller profiles found.</div>
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <span>Sellers not loaded yet.</span>
+                <button onClick={fetchPromoSellers} style={{ padding: '0.55rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Load Sellers</button>
+              </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -1308,6 +1534,9 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
+        </>}
+        {activePage === 'orders' && <>
+
         {/* Orders Management */}
         <section>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -1329,52 +1558,99 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
 
+          {(() => {
+            const fmt = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+            const grouped = orders[activeTab].reduce((acc, o) => {
+              const key = fmt(o.created_at);
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(o);
+              return acc;
+            }, {});
+            const dateGroups = Object.entries(grouped);
+            const statusBg = { pending: '#fef3c7', transit: '#e0f2fe', delivered: '#dcfce7' };
+            const statusColor = { pending: '#92400e', transit: '#0369a1', delivered: '#166534' };
+            return (
           <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-            {isMobile ? (
+            {orders[activeTab].length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</div>
+            ) : isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {orders[activeTab].map(order => (
-                  <div key={order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <div
-                      onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                      style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: expandedOrder === order.id ? '#f8fafc' : 'white' }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>#{order.order_number}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                          <span style={{ backgroundColor: activeTab === 'pending' ? '#fef3c7' : activeTab === 'transit' ? '#e0f2fe' : '#dcfce7', color: activeTab === 'pending' ? '#92400e' : activeTab === 'transit' ? '#0369a1' : '#166534', padding: '0.2rem 0.5rem', borderRadius: '50px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>
-                            {order.status}
-                          </span>
-                          <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>₹{parseFloat(order.total_amount).toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <div style={{ color: 'var(--text-secondary)' }}>
-                        {expandedOrder === order.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                      </div>
+                {dateGroups.map(([date, dayOrders]) => (
+                  <div key={date}>
+                    <div style={{ padding: '0.6rem 1.25rem', backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border-subtle)', borderTop: '1px solid var(--border-subtle)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                      {date}
                     </div>
-                    {expandedOrder === order.id && (
-                      <div style={{ padding: '0 1.25rem 1.25rem 1.25rem', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                          <Clock size={14} /> <span style={{ color: 'var(--text-primary)' }}>{new Date(order.created_at).toLocaleString()}</span>
+                    {dayOrders.map(order => (
+                      <div key={order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        <div
+                          onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                          style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: expandedOrder === order.id ? '#f8fafc' : 'white' }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>#{order.order_number}</div>
+                              <Link
+                                to={`/orders/${order.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open in new tab"
+                                onClick={e => e.stopPropagation()}
+                                style={{ display: 'inline-flex', color: 'var(--text-secondary)', opacity: 0.6 }}
+                              ><ExternalLink size={14} /></Link>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>₹{parseFloat(order.total_amount).toLocaleString()}</span>
+                            </div>
+                          </div>
+                          <div style={{ color: 'var(--text-secondary)' }}>
+                            {expandedOrder === order.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                          <IndianRupee size={14} /> <span style={{ color: 'var(--text-primary)', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.75rem' }}>Paid via: {order.payment_gateway || '—'}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                          <User size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                          <Store size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>Seller: {order.seller_name} ({order.seller_contact})</span>
-                        </div>
-                        <button onClick={() => navigate(`/orders/${order.id}`)} style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
-                          View Details
-                        </button>
+                        {expandedOrder === order.id && (
+                          <div style={{ padding: '0 1.25rem 1.25rem 1.25rem', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                              <Clock size={14} /> <span style={{ color: 'var(--text-primary)' }}>{new Date(order.created_at).toLocaleString()}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                              <IndianRupee size={14} /> <span style={{ color: 'var(--text-primary)', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.75rem' }}>Paid via: {order.payment_gateway || '—'}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                              <User size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                              <Store size={14} /> <span style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>Seller: {order.seller_name} ({order.seller_contact})</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <select
+                                value={order.status}
+                                disabled={!!smUpdating[order.sub_order_id]}
+                                onClick={e => e.stopPropagation()}
+                                onChange={e => { e.stopPropagation(); updateSubOrderStatus(order.sub_order_id, e.target.value, order.order_number, order.status); }}
+                                style={{ flex: 1, padding: '0.4rem 0.6rem', borderRadius: '7px', border: '1.5px solid var(--border-subtle)', fontSize: '0.8rem', backgroundColor: 'white', cursor: 'pointer', fontWeight: 700, color: 'var(--bg-deep)' }}
+                              >
+                                {SUB_ORDER_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                              </select>
+                              {smUpdating[order.sub_order_id] && <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Saving…</span>}
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <button onClick={() => navigate(`/orders/${order.id}`)} style={{ flex: 1, padding: '0.5rem', backgroundColor: 'var(--brand-gold)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                                View Details
+                              </button>
+                              <Link
+                                to={`/orders/${order.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open in new tab"
+                                onClick={e => e.stopPropagation()}
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0.75rem', border: '1.5px solid var(--border-subtle)', borderRadius: '8px', color: 'var(--text-secondary)', textDecoration: 'none' }}
+                              ><ExternalLink size={16} /></Link>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    ))}
                   </div>
                 ))}
-                {orders[activeTab].length === 0 && (
-                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</div>
-                )}
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
@@ -1382,7 +1658,7 @@ export default function SuperAdminDashboard() {
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Order ID</th>
-                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Date</th>
+                      <th style={{ padding: '1.25rem', fontWeight: 700 }}>Time</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Customer</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller</th>
                       <th style={{ padding: '1.25rem', fontWeight: 700 }}>Seller Contact</th>
@@ -1392,33 +1668,188 @@ export default function SuperAdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders[activeTab].map(order => (
-                      <tr key={order.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem', transition: 'background 0.2s', cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'} onClick={() => navigate(`/orders/${order.id}`)}>
-                        <td style={{ padding: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>#{order.order_number}</td>
-                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{new Date(order.created_at).toLocaleDateString()}</td>
-                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</td>
-                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_name}</td>
-                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_contact}</td>
-                        <td style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                          {order.payment_gateway || '—'}
-                        </td>
-                        <td style={{ padding: '1.25rem' }}>
-                          <span style={{ backgroundColor: activeTab === 'pending' ? '#fef3c7' : activeTab === 'transit' ? '#e0f2fe' : '#dcfce7', color: activeTab === 'pending' ? '#92400e' : activeTab === 'transit' ? '#0369a1' : '#166534', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 700 }}>₹{parseFloat(order.total_amount).toLocaleString()}</td>
-                      </tr>
+                    {dateGroups.map(([date, dayOrders]) => (
+                      <>
+                        <tr key={`hdr-${date}`}>
+                          <td colSpan="8" style={{ padding: '0.6rem 1.25rem', backgroundColor: '#f8fafc', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                            {date} <span style={{ fontWeight: 500, opacity: 0.7 }}>— {dayOrders.length} order{dayOrders.length !== 1 ? 's' : ''}</span>
+                          </td>
+                        </tr>
+                        {dayOrders.map(order => (
+                          <tr key={order.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem' }}>
+                            <td style={{ padding: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <Link
+                                  to={`/orders/${order.id}`}
+                                  title="Open order (right-click or ⌘/Ctrl-click to open in a new tab)"
+                                  style={{ color: 'var(--text-primary)', textDecoration: 'none' }}
+                                >#{order.order_number}</Link>
+                                <Link
+                                  to={`/orders/${order.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Open in new tab"
+                                  onClick={e => e.stopPropagation()}
+                                  style={{ display: 'inline-flex', color: 'var(--text-secondary)', opacity: 0.55 }}
+                                  onMouseEnter={e => { e.currentTarget.style.opacity = 1; }}
+                                  onMouseLeave={e => { e.currentTarget.style.opacity = 0.55; }}
+                                ><ExternalLink size={14} /></Link>
+                              </div>
+                            </td>
+                            <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                            <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</td>
+                            <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_name}</td>
+                            <td style={{ padding: '1.25rem', color: 'var(--text-secondary)' }}>{order.seller_contact}</td>
+                            <td style={{ padding: '1.25rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                              {order.payment_gateway || '—'}
+                            </td>
+                            <td style={{ padding: '0.75rem 1.25rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <select
+                                  value={order.status}
+                                  disabled={!!smUpdating[order.sub_order_id]}
+                                  onChange={e => updateSubOrderStatus(order.sub_order_id, e.target.value, order.order_number, order.status)}
+                                  style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1.5px solid var(--border-subtle)', fontSize: '0.78rem', backgroundColor: 'white', cursor: smUpdating[order.sub_order_id] ? 'not-allowed' : 'pointer', fontWeight: 700, color: 'var(--bg-deep)', opacity: smUpdating[order.sub_order_id] ? 0.6 : 1 }}
+                                >
+                                  {SUB_ORDER_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                                {smUpdating[order.sub_order_id] && <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>…</span>}
+                              </div>
+                            </td>
+                            <td style={{ padding: '1.25rem', textAlign: 'right', fontWeight: 700 }}>₹{parseFloat(order.total_amount).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </>
                     ))}
-                    {orders[activeTab].length === 0 && (
-                      <tr><td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</td></tr>
-                    )}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
+            );
+          })()}
         </section>
+
+        </>}
+        {activePage === 'settlements' && <>
+
+        {/* ── Seller Settlements ──────────────────────────────────────────────── */}
+        <section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Pending Settlements</h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                Unsettled seller payouts grouped by seller and delivery week.
+              </p>
+            </div>
+            <button onClick={fetchSettlements} disabled={settlementsLoading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', color: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', cursor: settlementsLoading ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+              <RefreshCw size={14} /> {settlementsLoading ? 'Loading…' : 'Refresh'}
+            </button>
+          </div>
+
+          {settlementsLoading ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading settlements…</div>
+          ) : !settlementsLoaded ? (
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}>
+              <IndianRupee size={32} color="#e2e8f0" />
+              <span>Click below to load pending settlements.</span>
+              <button onClick={fetchSettlements} style={{ padding: '0.55rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Load Settlements</button>
+            </div>
+          ) : settlements.length === 0 ? (
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}>
+              <IndianRupee size={32} color="#e2e8f0" />
+              <span>All payments are settled — no pending settlements.</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {settlements.map(seller => (
+                <div key={seller.seller_id} style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                  {/* Seller header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <p style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--bg-deep)', margin: 0 }}>{seller.seller_name}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+                        {seller.payout_type?.toUpperCase() || 'N/A'}
+                        {seller.payout_account ? ` · ${seller.payout_account}` : ''}
+                        {seller.ifsc_code ? ` · ${seller.ifsc_code}` : ''}
+                        {seller.account_holder_name ? ` · ${seller.account_holder_name}` : ''}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--bg-deep)' }}>
+                        ₹{seller.total_pending.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', marginLeft: '0.3rem' }}>total pending</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Week groups */}
+                  {seller.weeks.map(week => (
+                    <div key={week.week_key} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      {/* Week header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1.25rem', backgroundColor: '#fafafa', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          {week.week_label} &nbsp;·&nbsp; {week.orders.length} order{week.orders.length !== 1 ? 's' : ''}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f172a' }}>
+                            ₹{week.week_total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <button
+                            onClick={() => markWeekSettled(seller.seller_id, week.week_key, week.orders.map(o => o.settlement_id), week.week_label, week.week_total)}
+                            disabled={week.orders.some(o => settlingIds.has(o.settlement_id))}
+                            style={{ padding: '0.3rem 0.85rem', borderRadius: '6px', backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            Settle All
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Order rows */}
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <tbody>
+                          {week.orders.map(order => (
+                            <tr key={order.settlement_id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '0.75rem 1.25rem', color: 'var(--text-secondary)', width: '1%', whiteSpace: 'nowrap' }}>
+                                {new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: 'var(--bg-deep)', whiteSpace: 'nowrap' }}>
+                                #{order.order_number}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.5rem', color: '#64748b', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                                {order.sub_order_number}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>
+                                <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>
+                                  {order.sub_order_status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: 'var(--bg-deep)', textAlign: 'right' }}>
+                                ₹{parseFloat(order.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '0.75rem 1.25rem', textAlign: 'right' }}>
+                                <button
+                                  onClick={() => markSettled(order.settlement_id, seller.seller_id, week.week_key, order.order_number, order.amount)}
+                                  disabled={settlingIds.has(order.settlement_id)}
+                                  style={{ padding: '0.3rem 0.85rem', borderRadius: '6px', backgroundColor: settlingIds.has(order.settlement_id) ? '#f1f5f9' : 'var(--bg-deep)', color: settlingIds.has(order.settlement_id) ? '#94a3b8' : 'white', border: 'none', fontSize: '0.72rem', fontWeight: 700, cursor: settlingIds.has(order.settlement_id) ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                                >
+                                  {settlingIds.has(order.settlement_id) ? 'Settling…' : 'Mark Settled'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        </>}
+        {activePage === 'bugs' && <>
 
         {/* ── Bug Reports Management ──────────────────────────────────────────────── */}
         <section>
@@ -1433,7 +1864,10 @@ export default function SuperAdminDashboard() {
             {bugReportsLoading ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading bug reports…</div>
             ) : bugReports.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No bug reports found.</div>
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <span>Bug reports not loaded yet.</span>
+                <button onClick={fetchBugReports} style={{ padding: '0.55rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Load Bug Reports</button>
+              </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -1494,6 +1928,9 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
+        </>}
+        {activePage === 'categories' && <>
+
         {/* ── Categories & Subcategories Management ──────────────────────── */}
         <section>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -1503,12 +1940,76 @@ export default function SuperAdminDashboard() {
             </button>
           </div>
 
+          {categories.length === 0 && (
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}>
+              <span>Categories not loaded yet.</span>
+              <button onClick={refreshCategories} style={{ padding: '0.55rem 1.25rem', borderRadius: '8px', backgroundColor: 'var(--bg-deep)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Load Categories</button>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {categories.map(cat => (
               <div key={cat.id} style={{ backgroundColor: 'white', borderRadius: '14px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                 {/* Category header row */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', cursor: 'pointer', flexWrap: 'wrap' }}
                   onClick={() => setCatExpanded(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))}>
+
+                  {/* Circle image preview */}
+                  <div style={{ position: 'relative', flexShrink: 0, width: '48px', height: '48px' }}>
+                    <div style={{
+                      width: '48px', height: '48px', borderRadius: '50%',
+                      overflow: 'hidden', border: '2px solid #e2e8f0',
+                      background: '#f1f5f9',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '1.1rem', fontWeight: 800, color: '#94a3b8',
+                    }}>
+                      {cat.image_url
+                        ? <img src={cat.image_url} alt={cat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : cat.name[0]}
+                    </div>
+                    {cat.image_url && (
+                      <button
+                        onClick={e => { e.stopPropagation(); removeCatImage(cat.id); }}
+                        title="Remove image"
+                        style={{
+                          position: 'absolute', top: '-4px', right: '-4px',
+                          width: '16px', height: '16px', borderRadius: '50%',
+                          background: '#ef4444', border: '1.5px solid white',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', padding: 0,
+                        }}
+                      >
+                        <X size={9} color="white" strokeWidth={3} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Upload image button — always visible */}
+                  <label
+                    onClick={e => e.stopPropagation()}
+                    title="Upload category image"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.3rem 0.7rem', borderRadius: '6px',
+                      border: '1.5px dashed #cbd5e1',
+                      background: catImageUploading[cat.id] ? '#f8fafc' : 'white',
+                      color: '#64748b', fontSize: '0.72rem', fontWeight: 600,
+                      cursor: catImageUploading[cat.id] ? 'wait' : 'pointer',
+                      flexShrink: 0, whiteSpace: 'nowrap',
+                      transition: 'border-color 0.15s, color 0.15s',
+                    }}
+                    onMouseOver={e => { e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.color = '#334155'; }}
+                    onMouseOut={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#64748b'; }}
+                  >
+                    <Image size={13} />
+                    {catImageUploading[cat.id] ? 'Uploading…' : (cat.image_url ? 'Change Image' : 'Upload Image')}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={e => uploadCatImage(cat.id, e.target.files[0])}
+                    />
+                  </label>
+
                   <div style={{ flex: 1, minWidth: '160px' }}>
                     <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--bg-deep)', margin: '0 0 0.2rem' }}>{cat.name}</p>
                     <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>
@@ -1607,7 +2108,89 @@ export default function SuperAdminDashboard() {
           </div>
         </section>
 
+        </>}
+
       </main>
+
+      {/* ── Order Status Confirmation Modal ────────────────────────────────────── */}
+      {statusConfirm && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Package size={20} color="#0369a1" />
+              </div>
+              <div>
+                <h3 style={{ margin: '0 0 0.35rem', fontSize: '1rem', fontWeight: 800, color: 'var(--bg-deep)' }}>Change Order Status</h3>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+                  Order <strong>#{statusConfirm.orderNumber}</strong>
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+                  <span style={{ padding: '0.2rem 0.6rem', borderRadius: '50px', backgroundColor: '#f1f5f9', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    {statusConfirm.currentStatus}
+                  </span>
+                  <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>→</span>
+                  <span style={{ padding: '0.2rem 0.6rem', borderRadius: '50px', backgroundColor: '#dbeafe', fontSize: '0.75rem', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase' }}>
+                    {statusConfirm.newStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0 0 1.5rem', lineHeight: 1.5 }}>
+              This will immediately update the sub-order status. Changing to <strong>delivered</strong> will also create a pending settlement for the seller.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setStatusConfirm(null)}
+                style={{ padding: '0.6rem 1.25rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'white', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmStatusChange}
+                style={{ padding: '0.6rem 1.5rem', borderRadius: '8px', border: 'none', backgroundColor: '#0369a1', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+              >
+                Yes, Update Status
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Settlement Confirmation Modal ──────────────────────────────────────── */}
+      {settleConfirm && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <IndianRupee size={20} color="#16a34a" />
+              </div>
+              <div>
+                <h3 style={{ margin: '0 0 0.35rem', fontSize: '1rem', fontWeight: 800, color: 'var(--bg-deep)' }}>Confirm Settlement</h3>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>{settleConfirm.label}</p>
+                <p style={{ margin: '0.5rem 0 0', fontSize: '1.1rem', fontWeight: 800, color: '#16a34a' }}>{settleConfirm.amount}</p>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0 0 1.5rem', lineHeight: 1.5 }}>
+              This marks the payment as transferred to the seller. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setSettleConfirm(null)}
+                style={{ padding: '0.6rem 1.25rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'white', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSettle}
+                style={{ padding: '0.6rem 1.5rem', borderRadius: '8px', border: 'none', backgroundColor: '#16a34a', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+              >
+                Yes, Mark Settled
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Category / Subcategory / Shipping Rate Modal ──────────────────────── */}
       {catModal && (
