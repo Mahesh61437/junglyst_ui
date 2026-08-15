@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
-  Package, Users, IndianRupee, Truck, CheckCircle, Clock,
+  Package, Users, IndianRupee, Truck, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
   Tag, Layers, Percent, Weight, Trash2, RefreshCw, Sliders, ExternalLink, 
@@ -12,6 +12,42 @@ import { loadCombosConfig, saveCombosConfig, resetCombosConfig, DEFAULT_COMBOS }
 import { COMBO_TYPES } from '../components/combos/comboTheme';
 import { ComboService } from '../services/ComboService';
 import { ProductService } from '../services/ProductService';
+
+// ─── payment status presentation ─────────────────────────────────────────────
+const PAYMENT_STYLES = {
+  completed: { bg: '#dcfce7', fg: '#166534' },
+  pending:   { bg: '#fef3c7', fg: '#92400e' },
+  failed:    { bg: '#fee2e2', fg: '#991b1b' },
+  refunded:  { bg: '#ede9fe', fg: '#5b21b6' },
+};
+const paymentStyle = (s) => PAYMENT_STYLES[s] || { bg: '#f1f5f9', fg: '#475569' };
+
+// ─── order tabs ──────────────────────────────────────────────────────────────
+// Sub-order statuses grouped into the stages an admin actually thinks in, in
+// lifecycle order. Exception states stay on their own tabs at the end. Every
+// value in orders.models.SubOrderStatus belongs to exactly one group.
+const ORDER_TABS = [
+  { id: 'all',              label: 'All',              statuses: null },
+  { id: 'pending',          label: 'Pending',          statuses: ['pending', 'placed', 'confirmed', 'packing'] },
+  { id: 'transit',          label: 'In Transit',       statuses: ['booked', 'shipped', 'in_transit'] },
+  { id: 'out_for_delivery', label: 'Out for Delivery', statuses: ['out_for_delivery'] },
+  { id: 'delivered',        label: 'Delivered',        statuses: ['delivered'] },
+  { id: 'booking_failed',   label: 'Booking Failed',   statuses: ['booking_failed'] },
+  { id: 'delivery_failed',  label: 'Delivery Failed',  statuses: ['delivery_failed'] },
+  { id: 'doa_raised',       label: 'DOA Raised',       statuses: ['doa_raised'] },
+  { id: 'cancelled',        label: 'Cancelled',        statuses: ['cancelled'] },
+];
+
+const DATE_PERIODS = [
+  { id: '7d', label: 'Last 7 days' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: '90d', label: 'Last 90 days' },
+  { id: 'this_month', label: 'This month' },
+  { id: 'last_month', label: 'Last month' },
+  { id: 'ytd', label: 'Year to date' },
+  { id: 'all', label: 'All time' },
+  { id: 'custom', label: 'Custom range' },
+];
 
 // ─── shared label style ──────────────────────────────────────────────────────
 const labelStyle = {
@@ -757,8 +793,15 @@ export default function SuperAdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState('all');
   const [activePage, setActivePage] = useState('overview');
+  // Reporting window for the analytics cards + order lists (server-side filter)
+  const [period, setPeriod] = useState('this_month');
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
+  // Client-side order filters, applied on top of the status tabs
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('');
+  const [orderSellerFilter, setOrderSellerFilter] = useState('');
   const [expandedSeller, setExpandedSeller] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -1279,12 +1322,13 @@ export default function SuperAdminDashboard() {
         const updateList = list => list.map(o =>
           String(o.sub_order_id) === String(subOrderId) ? { ...o, status: newStatus } : o
         );
+        // Tab counts are derived from these rows at render time, so updating
+        // the lists is enough to keep them in step.
         return {
           ...prev,
           orders: {
-            pending: updateList(prev.orders?.pending || []),
-            transit: updateList(prev.orders?.transit || []),
-            delivered: updateList(prev.orders?.delivered || []),
+            all: updateList(prev.orders?.all || []),
+            unpaid: updateList(prev.orders?.unpaid || []),
           },
         };
       });
@@ -1394,23 +1438,41 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  // Dashboard payload is scoped to the selected reporting window, so it is
+  // refetched whenever the date filter changes.
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (period === 'custom') {
+        if (!customRange.start || !customRange.end) { setLoading(false); return; }
+        params.start = customRange.start;
+        params.end = customRange.end;
+      } else {
+        params.period = period;
+      }
+      const response = await api.get('/analytics/super-admin/dashboard/', { params });
+      setData(response.data);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [period, customRange.start, customRange.end]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || (!user.is_staff && !user.is_superuser && user.role !== 'admin')) return;
+    fetchDashboard();
+  }, [user, authLoading, fetchDashboard]);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user || (!user.is_staff && !user.is_superuser && user.role !== 'admin')) {
       navigate('/');
       return;
     }
-    const fetchData = async () => {
-      try {
-        const response = await api.get('/analytics/super-admin/dashboard/');
-        setData(response.data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
 
     api.get('/payments/gateway-settings/')
       .then(res => setPaymentGateway(res.data.active_gateway || 'cashfree'))
@@ -1495,7 +1557,9 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  if (authLoading || loading) {
+  // Keep the dashboard on screen while a filter change refetches in the
+  // background — only block on the very first load.
+  if (authLoading || (loading && !data)) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc' }}>
         <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-subtle)', borderTopColor: 'var(--brand-gold)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -1528,13 +1592,72 @@ export default function SuperAdminDashboard() {
       total_sellers: 0,
       total_users: 0,
     },
-    sellers = [], 
-    orders = {
-      pending: [],
-      transit: [],
-      delivered: []
-    }
+    sellers = [],
+    orders = { all: [], unpaid: [] },
+    date_range = {},
   } = data;
+
+  const allPaidOrders = orders.all || [];
+  const allUnpaidOrders = orders.unpaid || [];
+
+  // Free-text search + exact status + seller, applied on top of the tab
+  // grouping. Runs client-side over the window the server already returned.
+  const orderQuery = orderSearch.trim().toLowerCase();
+  const applyOrderFilters = (list) => list.filter(o => {
+    if (orderStatusFilter && o.status !== orderStatusFilter) return false;
+    if (orderSellerFilter && o.seller_name !== orderSellerFilter) return false;
+    if (!orderQuery) return true;
+    return [
+      o.order_number, o.master_order_number, o.seller_name, o.seller_contact,
+      o.user__phone, o.guest_phone, o.user__email, o.guest_email,
+    ].some(v => (v || '').toLowerCase().includes(orderQuery));
+  });
+
+  const sellerNames = [...new Set(
+    [...allPaidOrders, ...allUnpaidOrders].map(o => o.seller_name).filter(Boolean)
+  )].sort();
+
+  const paidOrders = applyOrderFilters(allPaidOrders);
+  const unpaidOrders = applyOrderFilters(allUnpaidOrders);
+  const ordersFiltered = !!(orderQuery || orderStatusFilter || orderSellerFilter);
+
+  const activeStatuses = ORDER_TABS.find(t => t.id === activeTab)?.statuses;
+  const visibleOrders = activeStatuses
+    ? paidOrders.filter(o => activeStatuses.includes(o.status))
+    : paidOrders;
+
+  // Date filter — drives every figure and both order tables. Rendered on the
+  // overview and orders pages, which read from the same dashboard payload.
+  const dateFilterControls = (
+    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+      <select
+        value={period}
+        onChange={e => setPeriod(e.target.value)}
+        style={{ padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'white', fontSize: '0.8rem', fontWeight: 700, color: 'var(--bg-deep)', cursor: 'pointer' }}
+      >
+        {DATE_PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+      </select>
+      {period === 'custom' && (
+        <>
+          <input
+            type="date"
+            value={customRange.start}
+            max={customRange.end || undefined}
+            onChange={e => setCustomRange(r => ({ ...r, start: e.target.value }))}
+            style={{ padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', fontSize: '0.8rem' }}
+          />
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>to</span>
+          <input
+            type="date"
+            value={customRange.end}
+            min={customRange.start || undefined}
+            onChange={e => setCustomRange(r => ({ ...r, end: e.target.value }))}
+            style={{ padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', fontSize: '0.8rem' }}
+          />
+        </>
+      )}
+    </div>
+  );
 
   // Only show sellers awaiting authorization in the verification section
   const pendingSellers = sellers.filter(s => !s.is_verified);
@@ -1774,11 +1897,18 @@ export default function SuperAdminDashboard() {
 
         {/* Analytics Summary */}
         <section>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Monthly Overview</h2>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Overview</h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0' }}>{date_range.label || ''}{loading ? ' • refreshing…' : ''}</p>
+            </div>
+            {dateFilterControls}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
             {[
-              { title: 'Revenue (Month)', value: `₹${(overall_analytics.revenue_this_month || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--brand-gold)' },
-              { title: 'Orders (Month)', value: overall_analytics.orders_this_month || 0, icon: <Package size={24} />, color: 'var(--brand-green)' },
+              { title: 'Revenue (Paid)', value: `₹${Number(overall_analytics.revenue_this_month || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--brand-gold)' },
+              { title: 'Paid Orders', value: overall_analytics.orders_this_month || 0, icon: <Package size={24} />, color: 'var(--brand-green)' },
+              { title: 'Incomplete Payments', value: `${overall_analytics.unpaid_orders || 0} · ₹${Number(overall_analytics.unpaid_value || 0).toLocaleString()}`, icon: <Clock size={24} />, color: '#f59e0b' },
               { title: 'Active Sellers', value: overall_analytics.total_sellers || 0, icon: <Store size={24} />, color: '#3b82f6' },
               { title: 'Total Collectors', value: overall_analytics.total_users || 0, icon: <Users size={24} />, color: '#8b5cf6' },
             ].map((stat, idx) => (
@@ -2047,38 +2177,87 @@ export default function SuperAdminDashboard() {
         {/* Orders Management */}
         <section>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: '1rem', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Orders Management</h2>
-            <div style={{ display: 'flex', backgroundColor: 'var(--bg-secondary)', padding: '0.25rem', borderRadius: '10px', overflowX: 'auto', width: isMobile ? '100%' : 'auto' }}>
-              {[
-                { id: 'pending', label: 'Pending', icon: <Clock size={14} />, count: orders.pending.length },
-                { id: 'transit', label: 'In Transit', icon: <Truck size={14} />, count: orders.transit.length },
-                { id: 'delivered', label: 'Delivered', icon: <CheckCircle size={14} />, count: orders.delivered.length },
-              ].map(tab => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>Orders Management</h2>
+              {dateFilterControls}
+            </div>
+            <div style={{ display: 'flex', backgroundColor: 'var(--bg-secondary)', padding: '0.25rem', borderRadius: '10px', overflowX: 'auto', width: isMobile ? '100%' : 'auto', maxWidth: '100%' }}>
+              {ORDER_TABS.map(t => ({
+                ...t,
+                // Counts follow the active filters so the tabs never promise
+                // rows the table won't show.
+                count: t.statuses
+                  ? paidOrders.filter(o => t.statuses.includes(o.status)).length
+                  : paidOrders.length,
+              })).map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', backgroundColor: activeTab === tab.id ? 'white' : 'transparent', color: activeTab === tab.id ? 'var(--bg-deep)' : 'var(--text-secondary)', boxShadow: activeTab === tab.id ? '0 2px 5px rgba(0,0,0,0.05)' : 'none', transition: 'all 0.2s' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', backgroundColor: activeTab === tab.id ? 'white' : 'transparent', color: activeTab === tab.id ? 'var(--bg-deep)' : 'var(--text-secondary)', boxShadow: activeTab === tab.id ? '0 2px 5px rgba(0,0,0,0.05)' : 'none', transition: 'all 0.2s' }}
                 >
-                  {tab.icon} {tab.label} <span style={{ backgroundColor: activeTab === tab.id ? 'var(--bg-secondary)' : '#e2e8f0', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem' }}>{tab.count}</span>
+                  {tab.label} <span style={{ backgroundColor: activeTab === tab.id ? 'var(--bg-secondary)' : '#e2e8f0', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem' }}>{tab.count}</span>
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Order filters — search / exact status / seller, on top of the tabs */}
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', margin: '-0.75rem 0 0.75rem' }}>
+            <div style={{ position: 'relative', flex: isMobile ? '1 1 100%' : '0 1 300px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              <input
+                value={orderSearch}
+                onChange={e => setOrderSearch(e.target.value)}
+                placeholder="Search order #, customer or seller…"
+                style={{ width: '100%', padding: '0.5rem 0.6rem 0.5rem 2rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            <select
+              value={orderStatusFilter}
+              // Jump back to All so a status outside the current group is not
+              // silently filtered away to an empty table.
+              onChange={e => { setOrderStatusFilter(e.target.value); if (e.target.value) setActiveTab('all'); }}
+              style={{ padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'white', fontSize: '0.8rem', fontWeight: 600, color: 'var(--bg-deep)', cursor: 'pointer' }}
+            >
+              <option value="">Any status</option>
+              {SUB_ORDER_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <select
+              value={orderSellerFilter}
+              onChange={e => setOrderSellerFilter(e.target.value)}
+              style={{ padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'white', fontSize: '0.8rem', fontWeight: 600, color: 'var(--bg-deep)', cursor: 'pointer', maxWidth: '220px' }}
+            >
+              <option value="">All sellers</option>
+              {sellerNames.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            {ordersFiltered && (
+              <button
+                onClick={() => { setOrderSearch(''); setOrderStatusFilter(''); setOrderSellerFilter(''); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-secondary)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={13} /> Clear
+              </button>
+            )}
+          </div>
+
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
+            Showing orders with completed payments for {date_range.label || 'the selected period'}.
+            {ordersFiltered && ` ${visibleOrders.length} of ${allPaidOrders.length} match the current filters.`}
+            {' '}Incomplete payments are listed separately below.
+          </p>
+
           {(() => {
             const fmt = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-            const grouped = orders[activeTab].reduce((acc, o) => {
+            const grouped = visibleOrders.reduce((acc, o) => {
               const key = fmt(o.created_at);
               if (!acc[key]) acc[key] = [];
               acc[key].push(o);
               return acc;
             }, {});
             const dateGroups = Object.entries(grouped);
-            const statusBg = { pending: '#fef3c7', transit: '#e0f2fe', delivered: '#dcfce7' };
-            const statusColor = { pending: '#92400e', transit: '#0369a1', delivered: '#166534' };
             return (
           <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-            {orders[activeTab].length === 0 ? (
+            {visibleOrders.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No orders in this category.</div>
             ) : isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -2088,10 +2267,10 @@ export default function SuperAdminDashboard() {
                       {date}
                     </div>
                     {dayOrders.map(order => (
-                      <div key={order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <div key={order.sub_order_id || order.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                         <div
-                          onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                          style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: expandedOrder === order.id ? '#f8fafc' : 'white' }}
+                          onClick={() => setExpandedOrder(expandedOrder === order.sub_order_id ? null : order.sub_order_id)}
+                          style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', backgroundColor: expandedOrder === order.sub_order_id ? '#f8fafc' : 'white' }}
                         >
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2110,10 +2289,10 @@ export default function SuperAdminDashboard() {
                             </div>
                           </div>
                           <div style={{ color: 'var(--text-secondary)' }}>
-                            {expandedOrder === order.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            {expandedOrder === order.sub_order_id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                           </div>
                         </div>
-                        {expandedOrder === order.id && (
+                        {expandedOrder === order.sub_order_id && (
                           <div style={{ padding: '0 1.25rem 1.25rem 1.25rem', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                               <Clock size={14} /> <span style={{ color: 'var(--text-primary)' }}>{new Date(order.created_at).toLocaleString()}</span>
@@ -2183,7 +2362,7 @@ export default function SuperAdminDashboard() {
                           </td>
                         </tr>
                         {dayOrders.map(order => (
-                          <tr key={order.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem' }}>
+                          <tr key={order.sub_order_id || order.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem' }}>
                             <td style={{ padding: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                 <Link
@@ -2235,6 +2414,73 @@ export default function SuperAdminDashboard() {
           </div>
             );
           })()}
+        </section>
+
+        {/* ── Incomplete Payments ─────────────────────────────────────────────── */}
+        <section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', margin: 0 }}>
+              Incomplete Payments <span style={{ color: '#b45309' }}>({unpaidOrders.length})</span>
+            </h2>
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
+            Orders whose payment is pending, failed or refunded. These are excluded from revenue and from the main order stream above.
+          </p>
+
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid var(--border-subtle)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+            {unpaidOrders.length === 0 ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No incomplete payments in this period.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Order ID</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Date</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Customer</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Seller</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Payment</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700 }}>Order Status</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 700, textAlign: 'right' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unpaidOrders.map(order => (
+                      <tr key={order.sub_order_id || order.id} style={{ borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem' }}>
+                        <td style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Link to={`/orders/${order.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>#{order.order_number}</Link>
+                            <Link
+                              to={`/orders/${order.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open in new tab"
+                              style={{ display: 'inline-flex', color: 'var(--text-secondary)', opacity: 0.55 }}
+                            ><ExternalLink size={14} /></Link>
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>{new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>{order.user__phone || order.guest_phone || order.user__email || order.guest_email || 'Unknown'}</td>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>{order.seller_name}</td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <span style={{ backgroundColor: paymentStyle(order.payment_status).bg, color: paymentStyle(order.payment_status).fg, padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                            {order.payment_status_label || order.payment_status}
+                          </span>
+                          {order.payment_gateway && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{order.payment_gateway}</span>}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <span style={{ backgroundColor: '#f1f5f9', color: '#475569', padding: '0.25rem 0.75rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                            {order.status_label || order.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 700 }}>₹{parseFloat(order.total_amount).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </section>
 
         </>}
