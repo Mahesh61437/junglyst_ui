@@ -27,7 +27,7 @@ function loadRazorpayScript() {
 }
 
 export default function Checkout() {
-  const { cart, cartId, clearCart, removeItem } = useCart();
+  const { cart, cartId, clearCart, removeItem, updateItemQuantity, fetchCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -43,6 +43,10 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showGuestConfirm, setShowGuestConfirm] = useState(false);
+  const [showStockConfirm, setShowStockConfirm] = useState(false);
+  // Set once the buyer accepts proceeding without the unfulfillable items.
+  // A ref, not state, so the re-submit fired from the modal sees it immediately.
+  const stockConfirmed = useRef(false);
   const [verifying, setVerifying] = useState(false); // polling overlay state
   // Ref to prevent empty-cart guard from redirecting to /cart after order is placed
   const orderPlaced = useRef(false);
@@ -51,7 +55,15 @@ export default function Checkout() {
 
   const sellerGroups = cart?.seller_groups || {};
   const deliveryBlocked = cart?.delivery_blocked;
-  const outOfStockItems = (cart?.items || []).filter(item => item.quantity > (item.variant?.stock ?? Infinity));
+  // Rows the server cart still holds but stock can't fulfil. They never appear in
+  // seller_groups, so they must be listed separately here — checkout posts
+  // cart_id and the backend rejects the whole cart over them with a 400.
+  const outOfStockItems = cart?.unavailable_items || [];
+  // Re-confirm whenever the excluded set changes — a consent given against a
+  // different set of items (and a different total) is not consent for this one.
+  const stockSignature = outOfStockItems
+    .map(i => `${i.id}:${i.quantity}:${i.available_stock}`)
+    .join('|');
 
   // Fire checkout_initiated once when user lands on checkout with a valid cart
   useEffect(() => {
@@ -59,6 +71,18 @@ export default function Checkout() {
       trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.items.length });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-pull the server cart on mount. Checkout posts cart_id, so the backend
+  // charges whatever the DB holds — the locally cached snapshot (localStorage,
+  // or state left over from an earlier page) must not be what we price and
+  // display. Stock also moves between add-to-cart and checkout.
+  useEffect(() => {
+    if (user) fetchCart();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    stockConfirmed.current = false;
+  }, [stockSignature]);
 
   // Fetch saved addresses; pre-fill form from default or profile
   useEffect(() => {
@@ -198,6 +222,15 @@ export default function Checkout() {
     e.preventDefault();
     setError(null);
 
+    // Items stock can't fulfil are excluded from this order. Never do that
+    // silently — show exactly what drops out and what the order costs without
+    // them (removing items can push a seller back over a shipping slab), and
+    // let the buyer decide before anything is charged.
+    if (outOfStockItems.length > 0 && !stockConfirmed.current) {
+      setShowStockConfirm(true);
+      return;
+    }
+
     if (!user && !showGuestConfirm) {
       setShowGuestConfirm(true);
       return;
@@ -234,15 +267,18 @@ export default function Checkout() {
         } catch { }
       }
 
-      // Build item list (used when no backend cart is available).
-      // Exclude phantom rows: items with no variant id, and items clamped to
-      // quantity 0 (e.g. flagged out of stock) which must never be ordered.
-      const itemList = cart.items
-        .filter(item => item.variant?.id && item.quantity >= 1)
-        .map(item => ({ variant_id: item.variant.id, quantity: item.quantity }));
+      // The rows this order actually covers — exactly what the summary above
+      // priced. Anything the UI excluded (no variant details, or a quantity
+      // stock can't fulfil) is left out of both paths.
+      const orderableItems = cart.items.filter(
+        item => item.variant?.id && item.quantity >= 1 && !item.unavailable
+      );
+      const itemList = orderableItems.map(
+        item => ({ variant_id: item.variant.id, quantity: item.quantity })
+      );
 
       if (itemList.length === 0) {
-        setError('Your cart items are missing product details. Please re-add items from the shop and try again.');
+        setError('None of your cart items are available to order right now. Please update your cart and try again.');
         setLoading(false);
         return;
       }
@@ -252,6 +288,13 @@ export default function Checkout() {
       // Cart: prefer backend cart_id, fall back to inline items
       if (currentCartId) {
         checkoutData.cart_id = currentCartId;
+        // Name the rows explicitly so the server orders and prices the same set
+        // the buyer just confirmed, instead of everything the cart happens to
+        // hold. Temp IDs are guest-local rows with no server counterpart.
+        const rowIds = orderableItems
+          .map(item => item.id)
+          .filter(id => id && !String(id).startsWith('temp-'));
+        if (rowIds.length > 0) checkoutData.item_ids = rowIds;
       } else {
         checkoutData.items = itemList;
       }
@@ -412,6 +455,10 @@ export default function Checkout() {
     } catch (err) {
       console.error('Checkout failed:', err);
       setError(err.response?.data?.error || err.message || 'Something went wrong. Please try again.');
+      // A 400 means the server cart disagrees with what we're showing (stock
+      // moved, a row we pruned locally is still there). Re-pull so the offending
+      // item becomes visible and removable instead of rejecting on every retry.
+      if (err.response?.status === 400 && user) fetchCart();
     } finally {
       setLoading(false);
     }
@@ -758,12 +805,33 @@ export default function Checkout() {
             </div>
 
             {outOfStockItems.length > 0 && (
-              <div style={{ padding: '1rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.5 }}>
-                {outOfStockItems.map(item => (
-                  <div key={item.id}>
-                    {item.product?.name} ({item.variant?.name}) is out of stock. Please remove it from your cart to continue.
-                  </div>
-                ))}
+              <div style={{ padding: '1rem', borderRadius: '10px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ fontWeight: 800, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Not included in this order
+                </div>
+                {outOfStockItems.map(item => {
+                  const stock = item.available_stock ?? 0;
+                  const itemIndex = cart.items.findIndex(i => i.id === item.id);
+                  return (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ flexGrow: 1, minWidth: 0 }}>
+                        <strong>{item.product?.name}</strong> ({item.variant?.name || 'Standard'}) — {stock < 1
+                          ? 'out of stock.'
+                          : `only ${stock} left, but ${item.quantity} are in your cart.`}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flexShrink: 0 }}>
+                        {stock > 0 && (
+                          <button type="button" onClick={() => updateItemQuantity(itemIndex, -1)} style={{ background: 'white', border: '1px solid #fde68a', borderRadius: '8px', padding: '0.3rem 0.7rem', fontSize: '0.72rem', fontWeight: 700, color: '#1b2d2a', cursor: 'pointer' }}>
+                            Order {stock}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => removeItem(itemIndex)} style={{ background: 'none', border: 'none', color: '#92400e', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline' }}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -782,12 +850,12 @@ export default function Checkout() {
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading || deliveryBlocked || outOfStockItems.length > 0}
+              disabled={loading || deliveryBlocked || cart.total_items === 0}
               style={{
                 width: '100%', padding: '1.25rem',
-                backgroundColor: loading || deliveryBlocked || outOfStockItems.length > 0 ? '#94a3b8' : '#1b2d2a',
+                backgroundColor: loading || deliveryBlocked || cart.total_items === 0 ? '#94a3b8' : '#1b2d2a',
                 color: 'white', border: 'none', borderRadius: '14px',
-                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked || outOfStockItems.length > 0 ? 'not-allowed' : 'pointer',
+                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked || cart.total_items === 0 ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
                 transition: 'opacity 0.2s'
               }}
@@ -814,6 +882,88 @@ export default function Checkout() {
 
       </div>
     </div>
+
+      {/* Unfulfillable-items confirmation — states what drops out of the order
+          and what the order costs without it, since removing items re-runs each
+          seller's shipping slab and can raise the fee. */}
+      {showStockConfirm && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '2rem', maxWidth: '460px', width: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
+              <Info size={22} color="#d97706" />
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.25rem', color: '#1b2d2a', marginBottom: '0.5rem' }}>
+              Some items can't be included
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: '#64748b', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+              Stock changed since you added these. We can place the rest of your order now — these won't be charged, and they stay in your cart.
+            </p>
+
+            <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '1rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {outOfStockItems.map(item => {
+                const stock = item.available_stock ?? 0;
+                return (
+                  <div key={item.id} style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.5 }}>
+                    <strong>{item.product?.name}</strong> ({item.variant?.name || 'Standard'})
+                    <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>
+                      {stock < 1
+                        ? `Out of stock — all ${item.quantity} removed from this order`
+                        : `Only ${stock} left, ${item.quantity} in cart — removed from this order`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ border: '1px solid #f1f5f9', borderRadius: '12px', padding: '1rem', marginBottom: '1.75rem' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '0.75rem' }}>
+                Updated order
+              </div>
+              {Object.entries(sellerGroups).map(([sid, group]) => {
+                const storeName = group.seller?.store_name || group.seller?.seller_profile?.store_name || group.seller?.full_name || 'Curator';
+                return (
+                  <div key={sid} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', marginBottom: '0.4rem' }}>
+                    <span>{storeName} shipping</span>
+                    <span style={{ fontWeight: 700, color: group.shipping_fee === 0 ? '#10b981' : '#1b2d2a' }}>
+                      {group.shipping_fee === 0 ? 'FREE' : `₹${group.shipping_fee}`}
+                    </span>
+                  </div>
+                );
+              })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: '1px dashed #e2e8f0' }}>
+                <span>Subtotal</span>
+                <span style={{ fontWeight: 700, color: '#1b2d2a' }}>₹{cart.subtotal.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: '2px solid #000' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1b2d2a' }}>You'll be charged</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#1b2d2a' }}>₹{cart.grand_total.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowStockConfirm(false)}
+                style={{ flex: 1, padding: '0.85rem', borderRadius: '12px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#1b2d2a', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  stockConfirmed.current = true;
+                  setShowStockConfirm(false);
+                  const form = document.getElementById('checkout-form');
+                  if (form) form.requestSubmit();
+                }}
+                style={{ flex: 1, padding: '0.85rem', borderRadius: '12px', border: 'none', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Order the rest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Guest checkout confirmation modal */}
 

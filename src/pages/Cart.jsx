@@ -48,7 +48,11 @@ export default function Cart() {
     await checkPincode(pincodeInput);
   };
 
-  const outOfStockItems = cart.items.filter(item => item.quantity > (item.variant?.stock ?? Infinity));
+  // Rows the backend cart still holds but stock can't fulfil. They are excluded
+  // from seller_groups (and therefore from the item list above), so they must be
+  // rendered separately — otherwise they are invisible here while checkout keeps
+  // rejecting them with a 400.
+  const outOfStockItems = cart.unavailable_items || [];
 
   const handleCheckout = () => {
     trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.total_items });
@@ -237,6 +241,54 @@ export default function Cart() {
               );
             })}
 
+            {/* ── Items stock can no longer fulfil ── */}
+            {outOfStockItems.length > 0 && (
+              <div style={{ marginTop: '1.5rem', backgroundColor: '#fff', padding: 'clamp(1rem,2vw,1.5rem)', borderRadius: '20px', border: '1px solid #fecaca' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <AlertTriangle size={16} color="#dc2626" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#dc2626' }}>
+                    Needs your attention before checkout
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {outOfStockItems.map(item => {
+                    const product = item.product || {};
+                    const variant = item.variant || {};
+                    const stock = item.available_stock ?? 0;
+                    const itemIndex = cart.items.findIndex(i => i.id === item.id);
+                    return (
+                      <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '0.85rem', borderRadius: '12px', backgroundColor: '#fef2f2' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#f8fafc' }}>
+                          <img src={getImageUrl(variant.image_url || product.image || product.image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.55 }} onError={e => { e.target.onerror = null; e.target.src = '/assets/default-product.jpg'; }} alt={product.name} />
+                        </div>
+                        <div style={{ flexGrow: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--bg-deep)' }}>{product.name || 'Botanical Specimen'}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
+                            {variant.name || 'Standard'} · In cart: {item.quantity}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#dc2626', marginTop: '0.3rem' }}>
+                            {stock < 1
+                              ? 'Out of stock — remove it to continue'
+                              : `Only ${stock} left — reduce the quantity to continue`}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flexShrink: 0 }}>
+                          {stock > 0 && (
+                            <button onClick={() => updateItemQuantity(itemIndex, -1)} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.72rem', fontWeight: 700, color: '#1b2d2a', cursor: 'pointer' }}>
+                              Set to {stock}
+                            </button>
+                          )}
+                          <button onClick={() => removeItem(itemIndex)} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <Link to="/shop" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textDecoration: 'none' }}>
               <ArrowLeft size={16} /> Discovery Gallery
             </Link>
@@ -289,21 +341,29 @@ export default function Cart() {
             </div>
 
             {outOfStockItems.length > 0 && (
-              <div style={{ padding: '0.85rem 1rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.8rem', marginBottom: '1rem', lineHeight: 1.5 }}>
+              <div style={{ padding: '0.85rem 1rem', borderRadius: '10px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.8rem', marginBottom: '1rem', lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 800, marginBottom: '0.35rem' }}>Not included in the total above</div>
                 {outOfStockItems.map(item => (
-                  <div key={item.id}>{item.product?.name} ({item.variant?.name}) is out of stock. Remove it to proceed.</div>
+                  <div key={item.id}>
+                    {item.product?.name} ({item.variant?.name}) — {(item.available_stock ?? 0) < 1
+                      ? 'out of stock.'
+                      : `only ${item.available_stock} left, ${item.quantity} in cart.`}
+                  </div>
                 ))}
               </div>
             )}
 
+            {/* Unfulfillable rows don't block checkout — they're excluded from the
+                order there, with an explicit confirmation and re-run shipping
+                slabs. Only a cart with nothing orderable left is a dead end. */}
             <button
               onClick={handleCheckout}
-              disabled={outOfStockItems.length > 0}
+              disabled={cart.total_items === 0}
               style={{
                 width: '100%', padding: '1.25rem',
-                backgroundColor: outOfStockItems.length > 0 ? '#94a3b8' : 'var(--bg-deep)',
+                backgroundColor: cart.total_items === 0 ? '#94a3b8' : 'var(--bg-deep)',
                 color: 'white', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1rem',
-                cursor: outOfStockItems.length > 0 ? 'not-allowed' : 'pointer',
+                cursor: cart.total_items === 0 ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center',
                 justifyContent: 'center', gap: '0.75rem', boxShadow: '0 10px 30px rgba(10, 48, 41, 0.15)',
               }}
