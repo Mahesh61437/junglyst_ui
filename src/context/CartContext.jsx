@@ -177,20 +177,38 @@ function nudgeForSeller(subtotal, config, sellerName) {
 function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
   if (!Array.isArray(items)) return _empty();
 
-  // 1. Clamp quantities to stock / policy max
-  const adjustedItems = items.map(item => {
-    const stock = item.variant?.stock ?? 999;
-    const maxAllowed = Math.min(MAX_ITEM_QUANTITY, stock);
-    if (item.quantity > maxAllowed) {
-      return { ...item, quantity: maxAllowed, note: stock === 0 ? 'Out of stock' : 'Quantity adjusted' };
-    }
-    return item;
-  }).filter(item => item.quantity > 0 || item.note === 'Out of stock');
+  // 1. Flag items stock can't fulfil.
+  //
+  // These are NOT clamped locally. The backend cart row still holds the original
+  // quantity, so clamping here only hides the mismatch: the item vanishes from
+  // the UI while checkout keeps rejecting it with a 400 ("out of stock" /
+  // "only N units available") and the buyer has nothing to remove. Flag instead,
+  // keep the real quantity, and let the UI ask the buyer to fix it.
+  const adjustedItems = items
+    .filter(item => item.quantity > 0)
+    .map(item => {
+      const stock = item.variant?.stock ?? 999;
+      if (item.quantity > stock) {
+        return {
+          ...item,
+          unavailable: true,
+          available_stock: stock,
+          note: stock < 1 ? 'Out of stock' : 'Quantity adjusted',
+        };
+      }
+      if (item.quantity > MAX_ITEM_QUANTITY) {
+        return { ...item, quantity: MAX_ITEM_QUANTITY, note: 'Quantity adjusted' };
+      }
+      return item;
+    });
+
+  const availableItems = adjustedItems.filter(item => !item.unavailable);
+  const unavailable_items = adjustedItems.filter(item => item.unavailable);
 
   // 2. Group by seller
   const seller_groups = {};
   for (const item of adjustedItems) {
-    if (item.note === 'Out of stock') continue;
+    if (item.unavailable) continue;
     const product = item.product || {};
     const variant = item.variant || {};
     const sellerId = product.seller?.id || 'unknown';
@@ -250,15 +268,16 @@ function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
     }
   }
 
-  const subtotal = adjustedItems.reduce((acc, item) => {
+  const subtotal = availableItems.reduce((acc, item) => {
     return acc + parseFloat(item.variant?.price || item.product?.price || 0) * item.quantity;
   }, 0);
-  const total_items = adjustedItems.reduce((acc, item) => acc + item.quantity, 0);
+  const total_items = availableItems.reduce((acc, item) => acc + item.quantity, 0);
   // Sum each seller's individual shipping fee (calculated per-seller above)
   shipping_total = sellerIds.reduce((sum, id) => sum + (seller_groups[id].shipping_fee || 0), 0);
 
   return {
     items: adjustedItems,
+    unavailable_items,
     total_items,
     subtotal,
     shipping_total,
@@ -273,7 +292,7 @@ function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
 
 function _empty() {
   return {
-    items: [], total_items: 0, subtotal: 0, shipping_total: 0, grand_total: 0,
+    items: [], unavailable_items: [], total_items: 0, subtotal: 0, shipping_total: 0, grand_total: 0,
     seller_groups: {}, seller_count: 0, sellers_at_limit: false,
     delivery_zone: null, delivery_blocked: false,
   };
@@ -347,6 +366,8 @@ export const CartProvider = ({ children }) => {
   const [pincodeChecking, setPincodeChecking] = useState(false);
   const [pincodeResult, setPincodeResult] = useState(null);
   const deliveryZoneRef = useRef(null);
+  // Tracks the previous auth state so we can detect a logout transition
+  const wasAuthenticated = useRef(isAuthenticated);
   // Shipping configs keyed by seller_id → { light: TierConfig, heavy: TierConfig }
   const shippingConfigsRef = useRef({});
   // Combo cart lines (separate from per-variant items; client-side persisted).
@@ -418,6 +439,20 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     const init = async () => {
+      // On logout the previous user's server-backed rows are still sitting in
+      // localStorage. They belong to an account we can no longer act on, so
+      // carrying them into the guest session only produces a cart the buyer
+      // can't edit and a checkout that 400s.
+      if (!isAuthenticated && wasAuthenticated.current) {
+        localStorage.removeItem('junglyst_cart');
+        setCartId(null);
+        setCart(_empty());
+        setLoading(false);
+        wasAuthenticated.current = false;
+        return;
+      }
+      wasAuthenticated.current = isAuthenticated;
+
       const localItems = JSON.parse(localStorage.getItem('junglyst_cart') || '[]');
       if (localItems.length > 0) {
         await fetchShippingConfigs(localItems);
@@ -507,12 +542,19 @@ export const CartProvider = ({ children }) => {
   const updateItemQuantity = async (itemIndex, change) => {
     const item = cart.items[itemIndex];
     if (!item) return;
-    const newQuantity = item.quantity + change;
     const stock = item.variant?.stock ?? 999;
     const maxAllowed = Math.min(MAX_ITEM_QUANTITY, stock);
+    let newQuantity = item.quantity + change;
     if (newQuantity > maxAllowed) {
-      showToast(`Only ${maxAllowed} units available for this specimen.`, 'warning');
-      return;
+      // Increases past the cap are refused. A row that already sits above the cap
+      // (stock dropped after it was added) must still be reducible, and it has to
+      // land on a value the backend will accept — otherwise update_item 400s and
+      // the buyer stays stuck with an item checkout rejects.
+      if (change > 0) {
+        showToast(`Only ${maxAllowed} units available for this specimen.`, 'warning');
+        return;
+      }
+      newQuantity = maxAllowed;
     }
     if (newQuantity < 1) return;
     setCart(prev => {
