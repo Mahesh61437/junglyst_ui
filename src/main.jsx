@@ -2,11 +2,12 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.jsx'
-import { initPostHog } from './utils/posthog.js'
+import { initPostHog, initErrorCapture } from './utils/posthog.js'
 import { initAnalytics } from './utils/analytics.js'
 import PostHogErrorBoundary from './components/PostHogErrorBoundary.jsx'
 
 initPostHog();
+initErrorCapture();  // forward console.error / console.warn to PostHog
 initAnalytics();
 
 // Let our useScrollRestoration hook control scroll position on back/forward nav
