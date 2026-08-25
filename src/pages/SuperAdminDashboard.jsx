@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -32,6 +32,18 @@ const ORDER_TABS = [
   { id: 'delivery_failed',  label: 'Delivery Failed',  statuses: ['delivery_failed'] },
   { id: 'doa_raised',       label: 'DOA Raised',       statuses: ['doa_raised'] },
   { id: 'cancelled',        label: 'Cancelled',        statuses: ['cancelled'] },
+];
+
+// ─── dashboard pages ─────────────────────────────────────────────────────────
+// Top-level nav. The active one lives in the URL (?page=…) so a refresh — or a
+// trip to an order's detail page and back — lands where the admin left off.
+const ADMIN_PAGES = [
+  { id: 'overview',     label: 'Overview',     icon: <LayoutDashboard size={15} /> },
+  { id: 'sellers',      label: 'Sellers',      icon: <Store size={15} /> },
+  { id: 'orders',       label: 'Orders',       icon: <Package size={15} /> },
+  { id: 'settlements',  label: 'Settlements',  icon: <IndianRupee size={15} /> },
+  { id: 'categories',   label: 'Categories',   icon: <Layers size={15} /> },
+  { id: 'bugs',         label: 'Bug Reports',  icon: <Tag size={15} /> },
 ];
 
 const DATE_PERIODS = [
@@ -281,8 +293,25 @@ export default function SuperAdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('all');
-  const [activePage, setActivePage] = useState('overview');
+  // Nav selections live in the query string, not component state, so a refresh
+  // or a back-navigation from /orders/:id restores the exact view.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageParam = searchParams.get('page');
+  const tabParam = searchParams.get('tab');
+  const activePage = ADMIN_PAGES.some(p => p.id === pageParam) ? pageParam : 'overview';
+  const activeTab = ORDER_TABS.some(t => t.id === tabParam) ? tabParam : 'all';
+
+  // replace: true — switching tabs shouldn't stack history entries, so one Back
+  // press still leaves the dashboard instead of walking through past tabs.
+  const setParam = useCallback((key, value) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set(key, value);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const setActivePage = useCallback(id => setParam('page', id), [setParam]);
+  const setActiveTab = useCallback(id => setParam('tab', id), [setParam]);
   // Reporting window for the analytics cards + order lists (server-side filter)
   const [period, setPeriod] = useState('this_month');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
@@ -1205,14 +1234,7 @@ export default function SuperAdminDashboard() {
       {/* ── Tab Nav ── */}
       <nav style={{ backgroundColor: 'white', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: '73px', zIndex: 9 }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 2rem', display: 'flex', gap: '0', overflowX: 'auto' }}>
-          {[
-            { id: 'overview',     label: 'Overview',     icon: <LayoutDashboard size={15} /> },
-            { id: 'sellers',      label: 'Sellers',      icon: <Store size={15} /> },
-            { id: 'orders',       label: 'Orders',       icon: <Package size={15} /> },
-            { id: 'settlements',  label: 'Settlements',  icon: <IndianRupee size={15} /> },
-            { id: 'categories',   label: 'Categories',   icon: <Layers size={15} /> },
-            { id: 'bugs',         label: 'Bug Reports',  icon: <Tag size={15} /> },
-          ].map(tab => (
+          {ADMIN_PAGES.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActivePage(tab.id)}
