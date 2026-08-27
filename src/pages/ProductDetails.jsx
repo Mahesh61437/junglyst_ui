@@ -476,14 +476,29 @@ export default function ProductDetails() {
                 gap: '1.5rem',
                 overflow: 'hidden'
               }}>
-                <div style={{ position: 'relative', border: '1px solid var(--border-subtle)', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#fcfcfc', boxShadow: 'var(--shadow-sm)' }}>
+                {/* Fixed-ratio stage. The frame never resizes when the selected
+                    image changes, so swapping images can't shift the page. */}
+                <div style={{
+                  position: 'relative',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  backgroundColor: '#fcfcfc',
+                  boxShadow: 'var(--shadow-sm)',
+                  aspectRatio: '1 / 1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
                   <img
                     src={images[activeImageIdx]}
                     alt={name}
-                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                    // contain, not cover: the whole specimen fits the stage
+                    // whatever its aspect ratio, letterboxed against the frame.
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                     onError={(e) => {
                       e.target.style.display = 'none';
-                      e.target.parentElement.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;color:#cbd5e1;background:#f1f5f9;"><span style="font-size:5rem;margin-bottom:1rem">🌿</span><p style="font-size:0.8rem;font-weight:700;color:var(--text-secondary)">Specimen Image Unstable</p></div>';
+                      e.target.parentElement.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;color:#cbd5e1;background:#f1f5f9;"><span style="font-size:5rem;margin-bottom:1rem">🌿</span><p style="font-size:0.8rem;font-weight:700;color:var(--text-secondary)">Specimen Image Unstable</p></div>';
                     }}
                   />
                   <button style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#fff', border: 'none', width: '36px', height: '36px', borderRadius: '50%', boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -502,11 +517,15 @@ export default function ProductDetails() {
                     {images.map((img, idx) => (
                       <button
                         key={idx}
-                        onMouseEnter={() => setActiveImageIdx(idx)}
-                        onFocus={() => setActiveImageIdx(idx)}
+                        onClick={() => setActiveImageIdx(idx)}
+                        aria-label={`Show image ${idx + 1}`}
+                        aria-current={activeImageIdx === idx}
                         style={{
                           width: '80px', height: '80px', border: activeImageIdx === idx ? '2.5px solid var(--brand-gold)' : '1px solid var(--border-subtle)',
-                          borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', padding: 0, transition: 'all 0.3s', flexShrink: 0
+                          borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', padding: 0,
+                          // border-color only — animating `all` re-tweens the box
+                          // itself on every hover.
+                          transition: 'border-color 0.2s', flexShrink: 0, background: 'white'
                         }}
                       >
                         <img
