@@ -82,7 +82,7 @@ export default function CompetitionEntryDetail() {
       setEntry((e) => ({ ...e, has_voted: res.voted, vote_count: res.vote_count }));
     } catch (err) {
       setEntry(prev);
-      setVoteToast(err?.response?.data?.error || 'Could not record your vote. Try again.');
+      setVoteToast(err.userMessage || 'Could not record your vote. Try again.');
       setTimeout(() => setVoteToast(''), 2500);
     }
   };

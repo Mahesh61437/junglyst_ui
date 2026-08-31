@@ -41,6 +41,7 @@ export default function Footer() {
             <h4 style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem', color: 'var(--brand-gold)' }}>The Collection</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <FooterLink to="/shop">All Specimens</FooterLink>
+              <FooterLink to="/combos">Combos</FooterLink>
               <FooterLink to="/sellers">Verified Sellers</FooterLink>
               <FooterLink to="/guides">Care Guides</FooterLink>
               <FooterLink to="/about">About Junglyst</FooterLink>

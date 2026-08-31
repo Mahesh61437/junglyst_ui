@@ -53,9 +53,7 @@ export default function Signup() {
       navigate(loggedInUser?.role === 'grower' ? '/seller/onboarding' : '/');
     } catch (err) {
       console.error(err);
-      const msg = err.response?.data?.email?.[0] ||
-        err.response?.data?.username?.[0] ||
-        err.response?.data?.error ||
+      const msg = err.userMessage ||
         (formData.role === 'grower' ? "Your email is not yet in our Curator Registry. Please contact support for an invitation." : "Registration failed. Please check your details.");
       setError(msg);
     } finally {

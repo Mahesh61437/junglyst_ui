@@ -125,7 +125,7 @@ function VacationPanel({ brandColor, initial, onChange }) {
       setStart(''); setEnd(''); setReason('');
       await refresh();
     } catch (err) {
-      const detail = err?.response?.data?.end_date?.[0] || err?.response?.data?.detail || 'Failed to save blackout.';
+      const detail = err.userMessage || 'Failed to save blackout.';
       setError(detail);
     } finally {
       setSaving(false);
@@ -256,7 +256,7 @@ export default function SellerDashboard() {
       const response = await api.get(`/analytics/seller/gst-invoice/?month=${selectedGstMonth}`);
       setGstData(response.data.data);
     } catch (err) {
-      setGstError(err.response?.data?.error || err.message);
+      setGstError(err.userMessage || err.message);
     } finally {
       setGstLoading(false);
     }
@@ -347,6 +347,66 @@ export default function SellerDashboard() {
     delivered_orders: 0,
     low_stock_variants: 0
   });
+
+  // Revenue reporting window — drives the dashboard metrics, trends & chart.
+  const [period, setPeriod] = useState('30d');
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const didInitialMetrics = React.useRef(false);
+
+  // Re-fetch metrics when the period changes (skips the first run — the initial
+  // dashboard load already fetches the default 30-day window).
+  useEffect(() => {
+    if (!didInitialMetrics.current) {
+      didInitialMetrics.current = true;
+      return;
+    }
+    let cancelled = false;
+    setMetricsLoading(true);
+    api.get(`/sellers/dashboard/?period=${period}`)
+      .then(res => { if (!cancelled && res.data?.metrics) setMetrics(res.data.metrics); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setMetricsLoading(false); });
+    return () => { cancelled = true; };
+  }, [period]);
+
+  // Export the current window's sales/P&L as CSV. Goes through axios so the JWT
+  // auth header is sent (a plain link wouldn't be authenticated).
+  const [exporting, setExporting] = useState(false);
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const res = await api.get(`/sellers/dashboard/sales-report.csv?period=${period}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `junglyst_sales_${period}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('CSV export failed', e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Period-over-period trend chip data. Backend sends a signed % or null (no baseline).
+  const trendChip = (value) => {
+    if (value === null || value === undefined) return { text: '—', color: '#94a3b8', up: null };
+    const up = value >= 0;
+    return { text: `${up ? '+' : ''}${value}%`, color: up ? '#10b981' : '#ef4444', up };
+  };
+
+  const PERIOD_OPTIONS = [
+    { value: '7d', label: 'Last 7 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: '90d', label: 'Last 90 days' },
+    { value: 'this_month', label: 'This month' },
+    { value: 'last_month', label: 'Last month' },
+    { value: 'ytd', label: 'Year to date' },
+    { value: 'all', label: 'All time' },
+  ];
 
   const [uploading, setUploading] = useState(null);
   const [productPage, setProductPage] = useState(1);
@@ -590,7 +650,7 @@ export default function SellerDashboard() {
       setBankSuccess('Payout details saved securely.');
       setTimeout(() => setBankSuccess(null), 4000);
     } catch (err) {
-      setBankError(err.response?.data?.error || 'Failed to save payout details. Please try again.');
+      setBankError(err.userMessage || 'Failed to save payout details. Please try again.');
     } finally {
       setBankSaving(false);
     }
@@ -700,7 +760,7 @@ export default function SellerDashboard() {
         setOtpError(res.data.message || 'Could not send OTP. Please try again.');
       }
     } catch (err) {
-      setOtpError(err.response?.data?.message || err.response?.data?.error || 'Failed to send OTP. Please try again.');
+      setOtpError(err.userMessage || 'Failed to send OTP. Please try again.');
     } finally {
       setOtpSending(false);
     }
@@ -727,7 +787,7 @@ export default function SellerDashboard() {
         setOtpError(res.data.message || 'OTP verification failed. Please check and try again.');
       }
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Verification failed. Please try again.';
+      const msg = err.userMessage || 'Verification failed. Please try again.';
       setOtpError(msg);
     } finally {
       setOtpVerifying(false);
@@ -774,7 +834,7 @@ export default function SellerDashboard() {
       fetchData();
     } catch (error) {
       console.error("Failed to save profile:", error);
-      setFormError(error.response?.data?.error || "Failed to save studio details");
+      setFormError(error.userMessage || "Failed to save studio details");
     } finally {
       setSavingProfile(false);
     }
@@ -815,7 +875,7 @@ export default function SellerDashboard() {
       setInlineStocks({});
       fetchProducts();
     } catch (err) {
-      setFormError(err.response?.data?.error || "Failed to update stocks");
+      setFormError(err.userMessage || "Failed to update stocks");
     } finally {
       setLoading(false);
     }
@@ -930,7 +990,7 @@ export default function SellerDashboard() {
         await fetchData();   // refresh product list with updated data
       }
     } catch (error) {
-      setFormError(error.response?.data?.error || "Failed to save specimen. Please verify all fields.");
+      setFormError(error.userMessage || "Failed to save specimen. Please verify all fields.");
     } finally {
       setSaving(false);
     }
@@ -1010,7 +1070,7 @@ export default function SellerDashboard() {
       else if (action === 'archive') setProductStatusTab('archived');
       await fetchProducts();
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Bulk action failed');
+      setFormError(err.userMessage || 'Bulk action failed');
     } finally {
       setBulkActing(false);
     }
@@ -1208,7 +1268,7 @@ export default function SellerDashboard() {
         // Celery books courier async — poll until AWB + label appear (up to ~48 s)
         pollSubOrderForAWB(id);
       } catch (err) {
-        const msg = err.response?.data?.error || 'Shipment initiation failed.';
+        const msg = err.userMessage || 'Shipment initiation failed.';
         errorMessages.push(msg);
       }
     }
@@ -1225,7 +1285,7 @@ export default function SellerDashboard() {
       setOrders(prev => prev.map(o => o.id === subOrderId ? { ...o, ...res.data, status: 'booked' } : o));
       pollSubOrderForAWB(subOrderId);
     } catch (err) {
-      const msg = err.response?.data?.error || 'Rebook failed. Try entering AWB manually.';
+      const msg = err.userMessage || 'Rebook failed. Try entering AWB manually.';
       setFormError(msg);
     }
     setRebookSubmitting(prev => ({ ...prev, [subOrderId]: false }));
@@ -1244,7 +1304,7 @@ export default function SellerDashboard() {
       setOrders(prev => prev.map(o => o.id === subOrderId ? res.data : o));
       setManualAwbForm(prev => ({ ...prev, [subOrderId]: { show: false, awb: '', courier: '' } }));
     } catch (err) {
-      const msg = err.response?.data?.error || 'Could not save AWB. Please try again.';
+      const msg = err.userMessage || 'Could not save AWB. Please try again.';
       setFormError(msg);
     }
     setManualAwbSubmitting(prev => ({ ...prev, [subOrderId]: false }));
@@ -1259,7 +1319,7 @@ export default function SellerDashboard() {
       setSuccess('Shipping label fetched.');
     } catch (e) {
       const status = e.response?.status;
-      const msg = e.response?.data?.error || 'Could not fetch label.';
+      const msg = e.userMessage || 'Could not fetch label.';
       if (status === 202) {
         setSuccess(msg);
       } else {
@@ -1779,12 +1839,38 @@ export default function SellerDashboard() {
                     </div>
                   </div>
 
+                  {/* Reporting period toolbar */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.25rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem', fontFamily: 'serif', margin: 0 }}>Revenue Overview</h3>
+                      <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>
+                        {metrics?.date_range?.label || 'Last 30 days'}{metricsLoading ? ' · updating…' : ''}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select
+                        value={period}
+                        onChange={(e) => setPeriod(e.target.value)}
+                        style={{ padding: '0.55rem 1rem', borderRadius: '10px', border: '1px solid #edf2ed', fontSize: '0.8rem', fontWeight: 700, backgroundColor: 'white', cursor: 'pointer' }}
+                      >
+                        {PERIOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      <button
+                        onClick={handleExportCsv}
+                        disabled={exporting}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: '10px', border: '1px solid #edf2ed', fontSize: '0.8rem', fontWeight: 700, backgroundColor: '#fcfdfc', cursor: exporting ? 'not-allowed' : 'pointer', color: '#1b2d2a' }}
+                      >
+                        <Download size={15} /> {exporting ? 'Exporting…' : 'Export CSV'}
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Metric Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
                     {[
-                      { label: 'Total Revenue', value: `₹${metrics?.total_revenue?.toLocaleString() || '0'}`, icon: <TrendingUp size={20} />, trend: '+12.5%', trendColor: '#10b981' },
-                      { label: 'Total Sales', value: metrics?.total_items_sold || '0', icon: <ShoppingBag size={20} />, trend: '+8.2%', trendColor: '#10b981' },
-                      { label: 'Avg Order Value', value: `₹${metrics?.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString() : '0'}`, icon: <BarChart3 size={20} />, trend: '-2.1%', trendColor: '#ef4444' },
+                      { label: 'Total Revenue', value: `₹${Math.round(metrics?.total_revenue || 0).toLocaleString()}`, icon: <TrendingUp size={20} />, trend: trendChip(metrics?.trends?.revenue) },
+                      { label: 'Total Sales', value: metrics?.total_items_sold || '0', icon: <ShoppingBag size={20} />, trend: trendChip(metrics?.trends?.items_sold) },
+                      { label: 'Avg Order Value', value: `₹${Math.round(metrics?.avg_order_value || (metrics?.total_orders > 0 ? metrics.total_revenue / metrics.total_orders : 0)).toLocaleString()}`, icon: <BarChart3 size={20} />, trend: trendChip(metrics?.trends?.avg_order_value) },
                       { label: 'Pending Orders', value: metrics?.pending_orders || '0', icon: <Package size={20} />, subtext: 'Awaiting fulfillment' }
                     ].map((stat, idx) => (
                       <div key={idx} style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '24px', border: '1px solid #edf2ed', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', position: 'relative', overflow: 'hidden' }}>
@@ -1792,9 +1878,11 @@ export default function SellerDashboard() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
                           <div style={{ padding: '0.75rem', backgroundColor: `${spotlight.brand_color}10` || '#fcfdfc', borderRadius: '12px', border: `1px solid ${spotlight.brand_color}20` || '#edf2ed', color: spotlight.brand_color || '#1b2d2a' }}>{stat.icon}</div>
                           {stat.trend && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: stat.trendColor, fontSize: '0.75rem', fontWeight: 700 }}>
-                              {stat.trendColor === '#10b981' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                              {stat.trend}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: stat.trend.color, fontSize: '0.75rem', fontWeight: 700 }}
+                              title="vs previous period">
+                              {stat.trend.up === true && <ArrowUpRight size={14} />}
+                              {stat.trend.up === false && <ArrowDownRight size={14} />}
+                              {stat.trend.text}
                             </div>
                           )}
                         </div>
@@ -1805,15 +1893,44 @@ export default function SellerDashboard() {
                     ))}
                   </div>
 
+                  {/* Net Earnings (P&L) breakdown for the selected window */}
+                  {metrics?.net_earnings && (
+                    <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '24px', border: '1px solid #edf2ed' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontFamily: 'serif', margin: '0 0 1.25rem' }}>Net Earnings Breakdown</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
+                        {[
+                          { k: 'gross_sales', label: 'Gross Sales' },
+                          { k: 'platform_fee', label: 'Platform Fee', neg: true },
+                          { k: 'platform_fee_gst', label: 'Fee GST', neg: true },
+                          { k: 'tcs_deducted', label: 'TCS', neg: true },
+                          { k: 'tds_deducted', label: 'TDS', neg: true },
+                        ].map(row => (
+                          <div key={row.k} style={{ padding: '1rem', borderRadius: '14px', backgroundColor: '#fcfdfc', border: '1px solid #edf2ed' }}>
+                            <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>{row.label}</p>
+                            <p style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0.35rem 0 0', color: row.neg ? '#ef4444' : '#1b2d2a' }}>
+                              {row.neg ? '−' : ''}₹{Math.round(metrics.net_earnings[row.k] || 0).toLocaleString()}
+                            </p>
+                          </div>
+                        ))}
+                        <div style={{ padding: '1rem', borderRadius: '14px', backgroundColor: spotlight.brand_color || '#1b2d2a', color: 'white' }}>
+                          <p style={{ fontSize: '0.65rem', fontWeight: 800, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Net Settlement</p>
+                          <p style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0.35rem 0 0' }}>
+                            ₹{Math.round(metrics.net_earnings.net_settlement || 0).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Main Analytics Row */}
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: '2rem' }}>
                     {/* Sales Chart */}
                     <div style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '32px', border: '1px solid #edf2ed' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
                         <h3 style={{ fontSize: '1.25rem', fontFamily: 'serif' }}>Revenue Performance</h3>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #edf2ed', fontSize: '0.75rem', fontWeight: 700, backgroundColor: '#fcfdfc' }}>Last 14 Days</button>
-                        </div>
+                        <span style={{ padding: '0.4rem 0.9rem', borderRadius: '8px', border: '1px solid #edf2ed', fontSize: '0.7rem', fontWeight: 700, backgroundColor: '#fcfdfc', color: '#64748b' }}>
+                          {metrics?.date_range?.label || 'Last 30 days'}
+                        </span>
                       </div>
                       <div style={{ height: '350px', width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">

@@ -4,6 +4,8 @@ import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import ProductDetails from './pages/ProductDetails';
+import Combos from './pages/Combos';
+import ComboDetails from './pages/ComboDetails';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import SellerDashboard from './pages/SellerDashboard';
@@ -89,6 +91,8 @@ function App() {
                 <Route index element={<Home />} />
                 <Route path="shop/:category?" element={<Shop />} />
                 <Route path="product/:slug" element={<ProductDetails />} />
+                <Route path="combos" element={<Combos />} />
+                <Route path="combos/:slug" element={<ComboDetails />} />
                 <Route path="cart" element={<Cart />} />
                 <Route path="checkout" element={<Checkout />} />
                 <Route path="wishlist" element={<Wishlist />} />

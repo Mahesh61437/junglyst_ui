@@ -31,7 +31,7 @@ export default function GstManagement() {
       const response = await api.get(`/analytics/super-admin/gst-invoices/?month=${month}`);
       setData(response.data.data);
     } catch (err) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.userMessage || err.message);
     } finally {
       setLoading(false);
     }

@@ -155,7 +155,7 @@ export default function SuperAdminShippingFees() {
       }
       closeModal();
     } catch (e) {
-      setFormError(e.response?.data?.error || JSON.stringify(e.response?.data) || 'Save failed.');
+      setFormError(e.userMessage || JSON.stringify(e.response?.data) || 'Save failed.');
     } finally {
       setSaving(false);
     }

@@ -6,8 +6,12 @@ import {
   Package, Users, IndianRupee, Truck, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
-  Tag, Layers, Percent, Weight, Trash2, RefreshCw, ExternalLink,
+  Tag, Layers, Percent, Weight, Trash2, RefreshCw, Sliders, ExternalLink, 
 } from 'lucide-react';
+import { loadCombosConfig, saveCombosConfig, resetCombosConfig, DEFAULT_COMBOS } from '../config/combosConfig';
+import { COMBO_TYPES } from '../components/combos/comboTheme';
+import { ComboService } from '../services/ComboService';
+import { ProductService } from '../services/ProductService';
 
 // ─── payment status presentation ─────────────────────────────────────────────
 const PAYMENT_STYLES = {
@@ -43,6 +47,7 @@ const ADMIN_PAGES = [
   { id: 'orders',       label: 'Orders',       icon: <Package size={15} /> },
   { id: 'settlements',  label: 'Settlements',  icon: <IndianRupee size={15} /> },
   { id: 'categories',   label: 'Categories',   icon: <Layers size={15} /> },
+  { id: 'combos',       label: 'Combos',       icon: <Sliders size={15} /> },
   { id: 'bugs',         label: 'Bug Reports',  icon: <Tag size={15} /> },
 ];
 
@@ -286,7 +291,515 @@ function CatField({ label, value, onChange, type = 'text', placeholder = '' }) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── ComboBundlesManager ──────────────────────────────────────────────────────
+// Full CRUD for real backend Combo bundles (name, category, price, component
+// products) — distinct from CombosManager below, which only edits the label/
+// tagline/category of the 4 "Shop by Setup" home-page tiles.
+const EMPTY_COMBO_FORM = {
+  seller_id: '',
+  name: '', tagline: '', description: '',
+  combo_type: 'complete_build', image_url: '',
+  price: '', shipping_fee: '0',
+  is_featured: false, is_active: true, is_draft: false,
+  items: [], // [{variant_id, product_name, variant_name, price, quantity}]
+};
+
+function ComboItemPicker({ sellerId, items, onAdd, onRemove, onQtyChange }) {
+  const [query, setQuery] = React.useState('');
+  const [results, setResults] = React.useState([]);
+  const [searching, setSearching] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!sellerId) { setResults([]); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      ProductService.getProducts({ seller: sellerId, search: query.trim() || undefined })
+        .then(data => setResults((data.results || data.products || []).slice(0, 8)))
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [sellerId, query]);
+
+  const addedVariantIds = new Set(items.map(i => i.variant_id));
+  const total = items.reduce((sum, i) => sum + Number(i.price || 0) * (i.quantity || 1), 0);
+
+  if (!sellerId) {
+    return (
+      <div>
+        <label style={labelStyle}>Component Products</label>
+        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Select a seller above to browse their products.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <label style={labelStyle}>Component Products <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(this seller's catalog only)</span></label>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search this seller's products, or leave blank to browse…"
+          style={inputStyle}
+        />
+        {(query.trim() || results.length > 0 || searching) && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 20,
+            background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.12)', maxHeight: '260px', overflowY: 'auto',
+          }}>
+            {searching ? (
+              <div style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: '#94a3b8' }}>Searching…</div>
+            ) : results.length === 0 ? (
+              <div style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: '#94a3b8' }}>No matches.</div>
+            ) : results.map(p => (
+              <div key={p.id} style={{ padding: '0.5rem 0.9rem', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: '0.25rem' }}>{p.name}</div>
+                {(p.variants || []).map(v => {
+                  const added = addedVariantIds.has(v.id);
+                  return (
+                    <button
+                      key={v.id}
+                      disabled={added}
+                      onClick={() => { onAdd(p, v); setQuery(''); setResults([]); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                        padding: '0.4rem 0.6rem', marginBottom: '0.2rem', borderRadius: '6px', border: 'none',
+                        background: added ? '#f1f5f9' : '#f8fafc', cursor: added ? 'default' : 'pointer',
+                        fontSize: '0.75rem', color: added ? '#94a3b8' : '#1e293b', textAlign: 'left',
+                      }}
+                    >
+                      <span>{v.name || 'Default'} · ₹{Number(v.price).toLocaleString('en-IN')} · stock {v.stock}</span>
+                      {added ? <CheckCircle size={12} /> : <Plus size={12} />}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        {items.length === 0 ? (
+          <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>No products added yet — search above.</p>
+        ) : items.map((item, idx) => (
+          <div key={item.variant_id} style={{
+            display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.6rem', alignItems: 'center',
+            padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0',
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product_name}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{item.variant_name || 'Default'} · ₹{Number(item.price).toLocaleString('en-IN')}</div>
+            </div>
+            <input
+              type="number" min={1} value={item.quantity}
+              onChange={e => onQtyChange(idx, Math.max(1, parseInt(e.target.value, 10) || 1))}
+              style={{ ...inputStyle, width: '60px', padding: '0.35rem 0.5rem', textAlign: 'center' }}
+            />
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', minWidth: '70px', textAlign: 'right' }}>
+              ₹{(Number(item.price) * item.quantity).toLocaleString('en-IN')}
+            </span>
+            <button onClick={() => onRemove(idx)} style={{ padding: '0.35rem', borderRadius: '6px', border: 'none', background: '#fee2e2', color: '#ef4444', cursor: 'pointer' }}>
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {items.length > 0 && (
+        <div style={{ marginTop: '0.6rem', textAlign: 'right', fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>
+          Items total: ₹{total.toLocaleString('en-IN')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComboBundlesManager() {
+  const [combos, setCombos] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+  const [sellers, setSellers] = React.useState([]);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editingId, setEditingId] = React.useState(null);
+  const [form, setForm] = React.useState(EMPTY_COMBO_FORM);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
+  const [imageUploading, setImageUploading] = React.useState(false);
+
+  const fetchCombos = () => {
+    setLoading(true);
+    ComboService.adminGetCombos()
+      .then(setCombos)
+      .catch(() => setError('Failed to load combos.'))
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(() => {
+    fetchCombos();
+    api.get('/sellers/profiles/').then(res => setSellers(res.data || [])).catch(() => setSellers([]));
+  }, []);
+
+  const updateField = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const changeSeller = (sellerId) => setForm(prev => {
+    if (prev.items.length > 0 && !window.confirm("Changing the seller will clear this combo's product list. Continue?")) {
+      return prev;
+    }
+    return { ...prev, seller_id: sellerId, items: [] };
+  });
+
+  const openCreate = () => { setForm(EMPTY_COMBO_FORM); setEditingId(null); setSaveError(''); setFormOpen(true); };
+
+  const openEdit = (combo) => {
+    setForm({
+      seller_id: combo.items?.[0]?.seller_id || '',
+      name: combo.name || '', tagline: combo.tagline || '', description: combo.description || '',
+      combo_type: combo.combo_type || 'complete_build', image_url: combo.image_url || '',
+      price: combo.price != null ? String(combo.price) : '', shipping_fee: String(combo.shipping_fee ?? '0'),
+      is_featured: !!combo.is_featured, is_active: !!combo.is_active, is_draft: !!combo.is_draft,
+      items: (combo.items || []).map(i => ({
+        variant_id: i.variant_id, product_name: i.product_name, variant_name: i.variant_name,
+        price: i.unit_price, quantity: i.quantity,
+      })),
+    });
+    setEditingId(combo.id);
+    setSaveError('');
+    setFormOpen(true);
+  };
+
+  const closeForm = () => setFormOpen(false);
+
+  const addItem = (product, variant) => {
+    setForm(prev => {
+      if (prev.items.some(i => i.variant_id === variant.id)) return prev;
+      return {
+        ...prev,
+        items: [...prev.items, {
+          variant_id: variant.id, product_name: product.name, variant_name: variant.name,
+          price: variant.price, quantity: 1,
+        }],
+      };
+    });
+  };
+  const removeItem = (idx) => setForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
+  const updateItemQty = (idx, qty) => setForm(prev => ({
+    ...prev, items: prev.items.map((it, i) => i === idx ? { ...it, quantity: qty } : it),
+  }));
+
+  const uploadComboImage = async (file) => {
+    if (!file) return;
+    setImageUploading(true);
+    try {
+      const url = await ProductService.uploadImage(file, 'combo');
+      updateField('image_url', url);
+    } catch {
+      setSaveError('Image upload failed.');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { setSaveError('Name is required.'); return; }
+    if (!form.seller_id) { setSaveError('Select a seller.'); return; }
+    if (form.items.length === 0) { setSaveError('Add at least one product.'); return; }
+
+    setSaving(true);
+    setSaveError('');
+    const payload = {
+      name: form.name.trim(),
+      tagline: form.tagline.trim(),
+      description: form.description.trim(),
+      combo_type: form.combo_type,
+      image_url: form.image_url,
+      price: form.price === '' ? null : Number(form.price),
+      shipping_fee: Number(form.shipping_fee) || 0,
+      is_featured: form.is_featured,
+      is_active: form.is_active,
+      is_draft: form.is_draft,
+      items: form.items.map(i => ({ variant_id: i.variant_id, quantity: i.quantity })),
+    };
+    try {
+      if (editingId) {
+        await ComboService.adminUpdateCombo(editingId, payload);
+      } else {
+        await ComboService.adminCreateCombo(payload);
+      }
+      setFormOpen(false);
+      fetchCombos();
+    } catch (err) {
+      setSaveError(err?.response?.data?.detail || 'Failed to save combo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = (combo) => {
+    if (!window.confirm(`Delete "${combo.name}"? This can't be undone.`)) return;
+    ComboService.adminDeleteCombo(combo.id).then(fetchCombos).catch(() => alert('Failed to delete combo.'));
+  };
+
+  return (
+    <section style={{ marginBottom: '2.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Combo Bundles</h2>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+            Create and manage the actual combo bundles buyers see on the Combos page.
+          </p>
+        </div>
+        <button onClick={openCreate}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.1rem', borderRadius: '8px', border: 'none', background: 'var(--bg-deep)', color: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+          <Plus size={14} /> New Combo
+        </button>
+      </div>
+
+      {loading ? (
+        <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Loading combos…</p>
+      ) : error ? (
+        <p style={{ fontSize: '0.85rem', color: '#ef4444' }}>{error}</p>
+      ) : combos.length === 0 ? (
+        <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>No combos yet — create your first one above.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {combos.map(combo => (
+            <div key={combo.id} style={{
+              display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.9rem 1.1rem',
+              background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0',
+            }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: '#f1f5f9', flexShrink: 0, overflow: 'hidden' }}>
+                {(() => {
+                  const thumb = combo.image_url || combo.items?.find(i => i.image_url)?.image_url;
+                  return thumb && <img src={thumb} alt={combo.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+                })()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#1e293b' }}>{combo.name}</span>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#f1f5f9', color: '#64748b', textTransform: 'uppercase' }}>{combo.type}</span>
+                  {combo.is_featured && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#fef3c7', color: '#92400e' }}>Featured</span>}
+                  {combo.is_draft && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#fee2e2', color: '#b91c1c' }}>Draft</span>}
+                  {!combo.is_active && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#f1f5f9', color: '#94a3b8' }}>Inactive</span>}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                  {combo.item_count} item{combo.item_count !== 1 ? 's' : ''} · ₹{Number(combo.effective_price).toLocaleString('en-IN')}
+                  {combo.tagline ? ` · ${combo.tagline}` : ''}
+                </div>
+              </div>
+              <IconBtn icon={<Edit2 size={14} />} onClick={() => openEdit(combo)} title="Edit" />
+              <IconBtn icon={<Trash2 size={14} />} danger onClick={() => handleDelete(combo)} title="Delete" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {formOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 2100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '20px', width: '100%', maxWidth: '720px', padding: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>{editingId ? 'Edit Combo' : 'New Combo'}</h3>
+              <button onClick={closeForm} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+            </div>
+
+            {saveError && (
+              <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                {saveError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+              <div>
+                <label style={labelStyle}>Seller <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(this combo's products all come from one seller)</span></label>
+                <select value={form.seller_id} onChange={e => changeSeller(e.target.value)} style={selectStyle}>
+                  <option value="">— select seller —</option>
+                  {sellers.map(s => (
+                    <option key={s.user} value={s.user}>{s.store_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={labelStyle}>Name</label>
+                  <input value={form.name} onChange={e => updateField('name', e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Category</label>
+                  <select value={form.combo_type} onChange={e => updateField('combo_type', e.target.value)} style={selectStyle}>
+                    {COMBO_TYPES.filter(t => t.value !== 'All').map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Tagline</label>
+                <input value={form.tagline} onChange={e => updateField('tagline', e.target.value)} style={inputStyle} placeholder="Short one-liner shown on the combo card" />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Description</label>
+                <textarea value={form.description} onChange={e => updateField('description', e.target.value)} rows={3}
+                  style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Hero Image</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '8px', background: '#f1f5f9', overflow: 'hidden', flexShrink: 0 }}>
+                    {form.image_url && <img src={form.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.9rem', borderRadius: '7px', border: '1px dashed #94a3b8', cursor: imageUploading ? 'default' : 'pointer', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
+                    {imageUploading ? 'Uploading…' : <><Image size={13} /> {form.image_url ? 'Change image' : 'Upload image'}</>}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} disabled={imageUploading}
+                      onChange={e => { if (e.target.files[0]) uploadComboImage(e.target.files[0]); e.target.value = ''; }} />
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={labelStyle}>Price override <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(blank = sum of items)</span></label>
+                  <input type="number" min={0} value={form.price} onChange={e => updateField('price', e.target.value)} style={inputStyle} placeholder="Auto" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Shipping fee</label>
+                  <input type="number" min={0} value={form.shipping_fee} onChange={e => updateField('shipping_fee', e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'is_featured', label: 'Featured on home page' },
+                  { key: 'is_active', label: 'Active' },
+                  { key: 'is_draft', label: 'Draft (hidden from buyers)' },
+                ].map(({ key, label }) => (
+                  <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={form[key]} onChange={e => updateField(key, e.target.checked)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <ComboItemPicker sellerId={form.seller_id} items={form.items} onAdd={addItem} onRemove={removeItem} onQtyChange={updateItemQty} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button onClick={closeForm} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving} style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', border: 'none', backgroundColor: 'var(--bg-deep)', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'Saving…' : (editingId ? 'Save Combo' : 'Create Combo')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── CombosManager ────────────────────────────────────────────────────────────
+function CombosManager() {
+  const [combos, setCombos] = React.useState(() => loadCombosConfig());
+  const [saved, setSaved] = React.useState(false);
+
+  const updateCombo = (idx, field, value) =>
+    setCombos(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+
+  const handleSave = () => {
+    saveCombosConfig(combos);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleReset = () => {
+    if (!window.confirm('Reset all combos to factory defaults?')) return;
+    resetCombosConfig();
+    setCombos(DEFAULT_COMBOS);
+  };
+
+  const accentColor = '#00c2e0';
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Combos Configuration</h2>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+            Edit the label and tagline for each "Shop by Setup" tile on the home page. Each tile links to
+            the matching category on the Combos page — manage the actual combo bundles there.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={handleReset}
+            style={{ padding: '0.55rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', color: '#64748b' }}>
+            Reset to Defaults
+          </button>
+          <button onClick={handleSave}
+            style={{ padding: '0.55rem 1.25rem', borderRadius: '8px', border: 'none', background: saved ? '#22c55e' : 'var(--brand-gold, #d4a843)', color: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.3s' }}>
+            {saved ? 'Saved!' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {combos.map((combo, ci) => (
+          <div key={combo.id} style={{
+            background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0',
+            overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          }}>
+            {/* Header bar */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              padding: '0.9rem 1.25rem',
+              background: combo.bgGrad || '#f8fafc',
+              borderBottom: `3px solid ${combo.accent}`,
+            }}>
+              <span style={{
+                width: 12, height: 12, borderRadius: '50%',
+                background: combo.accent, flexShrink: 0,
+              }} />
+              <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'white' }}>{combo.label}</span>
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginLeft: '0.25rem' }}>{combo.tagline}</span>
+              <span style={{
+                marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
+                padding: '0.2rem 0.6rem', borderRadius: '999px',
+                background: 'rgba(255,255,255,0.15)', color: 'white',
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>{COMBO_TYPES.find(t => t.value === combo.type)?.label || combo.type}</span>
+            </div>
+
+            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Label, Tagline & Category */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={labelStyle}>Display Label</label>
+                  <input value={combo.label} onChange={e => updateCombo(ci, 'label', e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Tagline</label>
+                  <input value={combo.tagline} onChange={e => updateCombo(ci, 'tagline', e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Category <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(links to /combos)</span></label>
+                  <select value={combo.type} onChange={e => updateCombo(ci, 'type', e.target.value)} style={inputStyle}>
+                    {COMBO_TYPES.filter(t => t.value !== 'All').map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function SuperAdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -537,7 +1050,7 @@ export default function SuperAdminDashboard() {
       setPromoSellers(prev => prev.map(s => s.id === editingSeller.id ? { ...s, ...res.data } : s));
       setEditingSeller(null);
     } catch (e) {
-      setEditSellerError(e.response?.data?.store_name?.[0] || e.response?.data?.error || 'Save failed.');
+      setEditSellerError(e.userMessage || 'Save failed.');
     } finally {
       setEditSellerSaving(false);
     }
@@ -619,7 +1132,7 @@ export default function SuperAdminDashboard() {
       }
       setEditingProduct(null);
     } catch (e) {
-      setEditProductError(e.response?.data?.name?.[0] || e.response?.data?.detail || e.response?.data?.error || 'Save failed.');
+      setEditProductError(e.userMessage || 'Save failed.');
     } finally {
       setEditProductSaving(false);
     }
@@ -690,13 +1203,7 @@ export default function SuperAdminDashboard() {
       }
       setCreatingProduct(false);
     } catch (e) {
-      setCreateProductError(
-        e.response?.data?.name?.[0] ||
-        e.response?.data?.error ||
-        e.response?.data?.detail ||
-        JSON.stringify(e.response?.data) ||
-        'Create failed.'
-      );
+      setCreateProductError(e.userMessage || 'Create failed.');
     } finally {
       setCreateProductSaving(false);
     }
@@ -1074,7 +1581,7 @@ export default function SuperAdminDashboard() {
         u.id === userId ? { ...u, role: res.data.role, is_allowed: action === 'grant' } : u
       ));
     } catch (e) {
-      setGrowerActionMsg(e.response?.data?.error || 'Action failed');
+      setGrowerActionMsg(e.userMessage || 'Action failed');
     } finally {
       setGrowerActionLoading(prev => ({ ...prev, [userId]: false }));
     }
@@ -2377,6 +2884,8 @@ export default function SuperAdminDashboard() {
         </section>
 
         </>}
+
+        {activePage === 'combos' && <><ComboBundlesManager /><CombosManager /></>}
 
       </main>
 

@@ -270,7 +270,7 @@ export default function CompetitionEntries() {
     } catch (err) {
       // Rollback
       setEntries((prev) => prev.map((e) => e.id === entry.id ? entry : e));
-      const msg = err?.response?.data?.error || 'Could not record your vote. Try again.';
+      const msg = err.userMessage || 'Could not record your vote. Try again.';
       setVoteToast(msg);
       setTimeout(() => setVoteToast(''), 2500);
     }

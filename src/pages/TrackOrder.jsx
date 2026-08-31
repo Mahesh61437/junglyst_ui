@@ -142,7 +142,7 @@ export default function TrackOrder() {
       setOrderData(response.data);
       setSearched(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Order not found. Please check the order number and try again.');
+      setError(err.userMessage || 'Order not found. Please check the order number and try again.');
       setSearched(true);
     } finally {
       setLoading(false);

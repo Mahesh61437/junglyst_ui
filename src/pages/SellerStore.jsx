@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink, Sparkles, CheckCircle2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink, Sparkles, CheckCircle2, Search, X, Check, IndianRupee } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import api from '../services/api';
 import { getImageUrl } from '../utils/imageUtils';
 import TrustBadges from '../components/TrustBadges';
@@ -23,8 +24,23 @@ export default function SellerStore() {
   const { sellerName } = useParams(); // This is the slug
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Filters — all scoped to this seller's catalogue via seller_slug.
+  const [categoryData, setCategoryData] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [careLevel, setCareLevel] = useState('');
+  const [inStock, setInStock] = useState(false);
+  const [sortBy, setSortBy] = useState('Featured');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [debouncedMin, setDebouncedMin] = useState('');
+  const [debouncedMax, setDebouncedMax] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 12;
 
   const [sellerInfo, setSellerInfo] = useState({
@@ -43,11 +59,11 @@ export default function SellerStore() {
   });
   const [profileFound, setProfileFound] = useState(true);
 
+  // Fetch the public store profile (once per slug).
   useEffect(() => {
-    const fetchSellerData = async () => {
+    const fetchProfile = async () => {
       setLoading(true);
       try {
-        // Fetch public profile info
         const profileRes = await api.get(`/sellers/store/${sellerName}/`).catch(() => null);
         if (profileRes && profileRes.data) {
           const profile = profileRes.data;
@@ -70,58 +86,122 @@ export default function SellerStore() {
             isVerified: profile.identity_verified
           });
           setProfileFound(true);
-          
-          // Now fetch products using the seller's slug
-          const data = await ProductService.getProducts({ seller_slug: sellerName });
-          const results = data.results || data || [];
-          setProducts(results.filter((p) => p?.is_active !== false));
         } else {
           setProfileFound(false);
         }
       } catch (error) {
-        console.error("Failed to fetch seller data:", error);
+        console.error("Failed to fetch seller profile:", error);
         setProfileFound(false);
       } finally {
         setLoading(false);
       }
     };
-    fetchSellerData();
+    fetchProfile();
     window.scrollTo(0, 0);
   }, [sellerName]);
+
+  // Load the category list once for the filter control.
+  useEffect(() => {
+    ProductService.getCategories().then(setCategoryData).catch(() => setCategoryData([]));
+  }, []);
+
+  // Debounce the search box so we don't hit the API on every keystroke.
+  // Resetting to page 1 whenever the query changes keeps the result set valid.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
+
+  // Debounce price inputs the same way.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedMin(minPrice);
+      setDebouncedMax(maxPrice);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [minPrice, maxPrice]);
+
+  const sortParam = useMemo(() => {
+    if (sortBy === 'Price: Low to High') return 'price';
+    if (sortBy === 'Price: High to Low') return '-price';
+    return null; // Featured → backend default (in-stock first, newest)
+  }, [sortBy]);
+
+  // Fetch the current page of products server-side. The backend paginates
+  // (page_size=20 by default), so the store must request each page explicitly
+  // instead of fetching once and slicing client-side — otherwise only the first
+  // page of a seller's catalogue is ever visible. Every filter is sent alongside
+  // seller_slug so it only ever narrows THIS seller's products.
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setProductsLoading(true);
+      try {
+        const params = {
+          seller_slug: sellerName,
+          page: currentPage,
+          page_size: itemsPerPage,
+        };
+        if (debouncedSearch) params.search = debouncedSearch;
+        if (selectedCategory) params.category = selectedCategory;
+        if (careLevel) params.care_level = careLevel;
+        if (inStock) params.in_stock = 'true';
+        if (debouncedMin) params.min_price = debouncedMin;
+        if (debouncedMax) params.max_price = debouncedMax;
+        if (sortParam) params.ordering = sortParam;
+        const data = await ProductService.getProducts(params);
+        const results = data.results || data || [];
+        setProducts(results.filter((p) => p?.is_active !== false));
+        setTotalCount(typeof data.count === 'number' ? data.count : results.length);
+      } catch (error) {
+        console.error("Failed to fetch seller products:", error);
+        setProducts([]);
+        setTotalCount(0);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [sellerName, currentPage, debouncedSearch, selectedCategory, careLevel, inStock, debouncedMin, debouncedMax, sortParam]);
 
   const textColor = isLight(sellerInfo.brandColor) ? 'var(--text-primary)' : 'white';
   const accentColor = isLight(sellerInfo.brandColor) ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.7)';
 
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return products;
-    }
-    return products.filter(product => {
-      const name = (product.name || product.title || '').toLowerCase();
-      const query = searchQuery.toLowerCase();
-      return name.includes(query);
-    });
-  }, [products, searchQuery]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const activeFilterCount =
+    (selectedCategory ? 1 : 0) +
+    (careLevel ? 1 : 0) +
+    (inStock ? 1 : 0) +
+    (minPrice || maxPrice ? 1 : 0);
+  const hasActiveFilters = activeFilterCount > 0 || !!searchQuery;
 
-  const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredProducts.slice(start, start + itemsPerPage);
-  }, [filteredProducts, currentPage]);
+  const clearAllFilters = () => {
+    setSelectedCategory('');
+    setCareLevel('');
+    setInStock(false);
+    setMinPrice('');
+    setMaxPrice('');
+    setSortBy('Featured');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1);
   };
 
   const productsRef = React.useRef(null);
 
-  useEffect(() => {
+  const goToPage = (p) => {
+    setCurrentPage(p);
     if (productsRef.current) {
       productsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [currentPage]);
+  };
 
   if (loading) {
     return (
@@ -259,7 +339,7 @@ export default function SellerStore() {
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.1em' }}>Mastery Tenure</p>
               </div>
               <div>
-                <p style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>{products.length}</p>
+                <p style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>{totalCount}</p>
                 <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.1em' }}>Specimens</p>
               </div>
             </div>
@@ -304,65 +384,231 @@ export default function SellerStore() {
         <div style={{ textAlign: 'center', marginBottom: 'clamp(3rem, 6vw, 6rem)' }}>
           <h2 style={{ fontSize: 'clamp(2rem, 6vw, 4rem)', fontFamily: 'var(--font-serif)', marginBottom: '0.75rem' }}>Seasonal Selections</h2>
           <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af' }}>
-            {searchQuery ? `${filteredProducts.length} RESULTS` : `LATEST ${products.length} SPECIMENS FROM THE STORE`}
+            {debouncedSearch ? `${totalCount} RESULT${totalCount === 1 ? '' : 'S'}` : `${totalCount} SPECIMENS FROM THE STORE`}
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'center' }}>
-          <div style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: '500px',
-            backgroundColor: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '24px',
-            padding: '0.75rem 1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-          }}>
-            <Search size={20} color="#9ca3af" />
-            <input
-              type="text"
-              placeholder="Search products in this store..."
-              value={searchQuery}
-              onChange={handleSearch}
-              style={{
-                flex: 1,
-                border: 'none',
-                outline: 'none',
-                fontSize: '0.95rem',
-                fontFamily: 'inherit',
-                backgroundColor: 'transparent'
-              }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setCurrentPage(1);
-                }}
+        {/* Search + Filter Toolbar (all scoped to this seller) */}
+        <div ref={productsRef} style={{ marginBottom: '2.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{
+              position: 'relative',
+              flex: '1 1 320px',
+              maxWidth: '500px',
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '24px',
+              padding: '0.75rem 1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}>
+              <Search size={20} color="#9ca3af" />
+              <input
+                type="text"
+                placeholder="Search products in this store..."
+                value={searchQuery}
+                onChange={handleSearch}
                 style={{
-                  background: 'none',
+                  flex: 1,
                   border: 'none',
-                  cursor: 'pointer',
-                  padding: '0.5rem',
-                  color: '#9ca3af',
-                  fontSize: '1.2rem'
+                  outline: 'none',
+                  fontSize: '0.95rem',
+                  fontFamily: 'inherit',
+                  backgroundColor: 'transparent'
                 }}
-              >
-                ×
-              </button>
-            )}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#9ca3af', fontSize: '1.2rem' }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <select
+              value={sortBy}
+              onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+              style={{
+                padding: '0.8rem 1.1rem', border: '1px solid #e5e7eb', borderRadius: '14px',
+                fontSize: '0.85rem', backgroundColor: 'white', fontWeight: 600,
+                outline: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#1a1a1a'
+              }}
+            >
+              <option>Featured</option>
+              <option>Price: Low to High</option>
+              <option>Price: High to Low</option>
+            </select>
+
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.8rem 1.25rem', borderRadius: '14px', cursor: 'pointer',
+                border: `1.5px solid ${activeFilterCount > 0 ? '#1a1a1a' : '#e5e7eb'}`,
+                backgroundColor: activeFilterCount > 0 ? '#1a1a1a' : 'white',
+                color: activeFilterCount > 0 ? 'white' : '#1a1a1a',
+                fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit'
+              }}
+            >
+              <Sparkles size={16} /> Filters
+              {activeFilterCount > 0 && (
+                <span style={{
+                  backgroundColor: 'white', color: '#1a1a1a', borderRadius: '100px',
+                  fontSize: '0.7rem', fontWeight: 800, minWidth: '18px', height: '18px',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px'
+                }}>{activeFilterCount}</span>
+              )}
+            </button>
           </div>
+
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div style={{
+                  marginTop: '1.25rem', padding: '1.75rem',
+                  backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '20px',
+                  display: 'flex', flexDirection: 'column', gap: '1.75rem'
+                }}>
+                  {/* Categories */}
+                  {categoryData.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#9ca3af', marginBottom: '0.875rem' }}>Category</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {categoryData.map(cat => {
+                          const active = selectedCategory === cat.name;
+                          return (
+                            <button
+                              key={cat.id ?? cat.name}
+                              onClick={() => { setSelectedCategory(active ? '' : cat.name); setCurrentPage(1); }}
+                              style={{
+                                padding: '0.5rem 1rem', borderRadius: '50px', cursor: 'pointer',
+                                border: `1.5px solid ${active ? '#1a1a1a' : '#e5e7eb'}`,
+                                backgroundColor: active ? '#1a1a1a' : 'white',
+                                color: active ? 'white' : '#4b5563',
+                                fontWeight: active ? 700 : 500, fontSize: '0.8rem', fontFamily: 'inherit'
+                              }}
+                            >
+                              {cat.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Care Level */}
+                  <div>
+                    <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#9ca3af', marginBottom: '0.875rem' }}>Care Level</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {['Easy', 'Medium', 'Advanced'].map(level => {
+                        const active = careLevel === level;
+                        return (
+                          <button
+                            key={level}
+                            onClick={() => { setCareLevel(active ? '' : level); setCurrentPage(1); }}
+                            style={{
+                              padding: '0.5rem 1rem', borderRadius: '50px', cursor: 'pointer',
+                              border: `1.5px solid ${active ? '#1a1a1a' : '#e5e7eb'}`,
+                              backgroundColor: active ? '#1a1a1a' : 'white',
+                              color: active ? 'white' : '#4b5563',
+                              fontWeight: active ? 700 : 500, fontSize: '0.8rem', fontFamily: 'inherit'
+                            }}
+                          >
+                            {level}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Price + In Stock */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.75rem', alignItems: 'flex-end' }}>
+                    <div>
+                      <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#9ca3af', marginBottom: '0.875rem' }}>Price Range (₹)</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ position: 'relative' }}>
+                          <IndianRupee size={11} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                          <input
+                            type="number" placeholder="Min" value={minPrice} min="0"
+                            onChange={e => setMinPrice(e.target.value)}
+                            style={{ width: '110px', padding: '0.55rem 0.5rem 0.55rem 1.75rem', borderRadius: '10px', border: `1.5px solid ${minPrice ? '#1a1a1a' : '#e5e7eb'}`, fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                          />
+                        </div>
+                        <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>—</span>
+                        <div style={{ position: 'relative' }}>
+                          <IndianRupee size={11} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                          <input
+                            type="number" placeholder="Max" value={maxPrice} min="0"
+                            onChange={e => setMaxPrice(e.target.value)}
+                            style={{ width: '110px', padding: '0.55rem 0.5rem 0.55rem 1.75rem', borderRadius: '10px', border: `1.5px solid ${maxPrice ? '#1a1a1a' : '#e5e7eb'}`, fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => { setInStock(v => !v); setCurrentPage(1); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                        padding: '0.6rem 1rem', borderRadius: '12px', cursor: 'pointer',
+                        border: `1.5px solid ${inStock ? '#1a1a1a' : '#e5e7eb'}`,
+                        backgroundColor: inStock ? '#1a1a1a' : 'white',
+                        color: inStock ? 'white' : '#4b5563',
+                        fontWeight: inStock ? 700 : 500, fontSize: '0.82rem', fontFamily: 'inherit'
+                      }}
+                    >
+                      <span style={{
+                        width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0,
+                        border: `1.5px solid ${inStock ? 'white' : '#d1d5db'}`,
+                        backgroundColor: inStock ? 'white' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>
+                        {inStock && <Check size={11} color="#1a1a1a" strokeWidth={3} />}
+                      </span>
+                      In Stock Only
+                    </button>
+
+                    {hasActiveFilters && (
+                      <button
+                        onClick={clearAllFilters}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.4rem',
+                          padding: '0.6rem 1rem', borderRadius: '12px', cursor: 'pointer',
+                          border: '1px solid #fecaca', backgroundColor: '#fef2f2', color: '#b91c1c',
+                          fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit'
+                        }}
+                      >
+                        <X size={13} /> Reset all
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {filteredProducts.length > 0 ? (
+        {productsLoading ? (
+          <div style={{ padding: 'clamp(4rem, 8vw, 8rem) 2rem', display: 'flex', justifyContent: 'center' }}>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              style={{ width: '36px', height: '36px', border: '3px solid #e5e7eb', borderTopColor: sellerInfo.brandColor, borderRadius: '50%' }}
+            />
+          </div>
+        ) : products.length > 0 ? (
           <>
-            <div ref={productsRef} className="grid-responsive" style={{ display: 'grid', marginBottom: '3rem' }}>
-              {paginatedProducts.map(product => (
+            <div className="grid-responsive" style={{ display: 'grid', marginBottom: '3rem' }}>
+              {products.map(product => (
                 <ProductCard
                   key={product.id}
                   id={product.id}
@@ -379,117 +625,37 @@ export default function SellerStore() {
               ))}
             </div>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="pagination-container" style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '1.5rem',
-                marginTop: '4rem',
-                marginBottom: '2rem'
-              }}>
-                {/* Page Numbers */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
-                  justifyContent: 'center'
-                }}>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        border: currentPage === page ? '2px solid #1a1a1a' : '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        backgroundColor: currentPage === page ? '#f3f4f6' : 'white',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                        fontWeight: currentPage === page ? 700 : 600,
-                        color: '#1a1a1a',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Previous and Next Buttons */}
-                <div style={{
-                  display: 'flex',
-                  gap: '1rem',
-                  justifyContent: 'center',
-                  width: '100%',
-                  flexWrap: 'wrap'
-                }}>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '12px',
-                      backgroundColor: currentPage === 1 ? '#f3f4f6' : 'white',
-                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                      color: currentPage === 1 ? '#d1d5db' : '#1a1a1a',
-                      transition: 'all 0.2s ease',
-                      flex: '1 1 auto',
-                      minWidth: '120px',
-                      maxWidth: '180px',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <ChevronLeft size={18} /> Previous
-                  </button>
-
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '12px',
-                      backgroundColor: currentPage === totalPages ? '#f3f4f6' : 'white',
-                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                      color: currentPage === totalPages ? '#d1d5db' : '#1a1a1a',
-                      transition: 'all 0.2s ease',
-                      flex: '1 1 auto',
-                      minWidth: '120px',
-                      maxWidth: '180px',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    Next <ChevronRight size={18} />
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Pagination — server-driven, so every page of the seller's catalogue is reachable */}
+            <Pagination
+              page={currentPage}
+              totalPages={totalPages}
+              totalItems={totalCount}
+              pageSize={itemsPerPage}
+              onPageChange={goToPage}
+              onScrollTop={() => productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            />
           </>
         ) : (
           <div style={{ padding: 'clamp(4rem, 8vw, 8rem) 2rem', textAlign: 'center', backgroundColor: 'white', border: '1px solid #f3f4f6', borderRadius: '24px' }}>
             <Leaf size={44} color="#e5e7eb" style={{ marginBottom: '1.5rem' }} />
             <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(1.5rem, 4vw, 2rem)', marginBottom: '0.75rem' }}>
-              {searchQuery ? 'No Products Found' : 'Collection Dormant'}
+              {hasActiveFilters ? 'No Products Found' : 'Collection Dormant'}
             </h4>
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-              {searchQuery ? `No products match "${searchQuery}". Try a different search.` : 'This grower is currently nurturing their next batch of rare specimens.'}
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: hasActiveFilters ? '1.5rem' : 0 }}>
+              {searchQuery
+                ? `No products match "${searchQuery}". Try a different search or adjust filters.`
+                : hasActiveFilters
+                  ? 'No products match the selected filters.'
+                  : 'This grower is currently nurturing their next batch of rare specimens.'}
             </p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: 800, textDecoration: 'underline', cursor: 'pointer', fontSize: '0.9rem' }}
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         )}
       </div>
