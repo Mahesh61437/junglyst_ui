@@ -86,6 +86,16 @@ export default function SellerStore() {
             isVerified: profile.identity_verified
           });
           setProfileFound(true);
+          
+          // Now fetch products using the seller's slug. no_pagination returns the
+          // seller's whole catalogue in one request — without it the API caps at
+          // 20 and the storefront only ever shows the first page of stock.
+          const data = await ProductService.getProducts({
+            seller_slug: sellerName,
+            no_pagination: 'true',
+          });
+          const results = Array.isArray(data) ? data : (data?.results || []);
+          setProducts(results.filter((p) => p?.is_active !== false));
         } else {
           setProfileFound(false);
         }
@@ -178,6 +188,22 @@ export default function SellerStore() {
     (inStock ? 1 : 0) +
     (minPrice || maxPrice ? 1 : 0);
   const hasActiveFilters = activeFilterCount > 0 || !!searchQuery;
+
+  // Show at most a small window of page numbers: first, last, and the pages
+  // around the current one. A seller with 1500 specimens is 127 pages — every
+  // number on screen is unusable.
+  const pageNumbers = useMemo(() => {
+    const window = 1; // pages shown either side of the current page
+    const pages = [];
+    for (let p = 1; p <= totalPages; p += 1) {
+      if (p === 1 || p === totalPages || Math.abs(p - currentPage) <= window) {
+        pages.push(p);
+      } else if (pages[pages.length - 1] !== '...') {
+        pages.push('...');
+      }
+    }
+    return pages;
+  }, [totalPages, currentPage]);
 
   const clearAllFilters = () => {
     setSelectedCategory('');
@@ -625,15 +651,120 @@ export default function SellerStore() {
               ))}
             </div>
 
-            {/* Pagination — server-driven, so every page of the seller's catalogue is reachable */}
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              totalItems={totalCount}
-              pageSize={itemsPerPage}
-              onPageChange={goToPage}
-              onScrollTop={() => productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            />
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pagination-container" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '1.5rem',
+                marginTop: '4rem',
+                marginBottom: '2rem'
+              }}>
+                {/* Page Numbers */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center'
+                }}>
+                  {pageNumbers.map((page, idx) => (
+                    page === '...' ? (
+                      <span
+                        key={`gap-${idx}`}
+                        style={{
+                          width: '40px', height: '40px', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center',
+                          color: '#9ca3af', fontWeight: 600, userSelect: 'none'
+                        }}
+                      >
+                        &hellip;
+                      </span>
+                    ) : (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        border: currentPage === page ? '2px solid #1a1a1a' : '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        backgroundColor: currentPage === page ? '#f3f4f6' : 'white',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: currentPage === page ? 700 : 600,
+                        color: '#1a1a1a',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {page}
+                    </button>
+                    )
+                  ))}
+                </div>
+
+                {/* Previous and Next Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '1rem',
+                  justifyContent: 'center',
+                  width: '100%',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '12px',
+                      backgroundColor: currentPage === 1 ? '#f3f4f6' : 'white',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      color: currentPage === 1 ? '#d1d5db' : '#1a1a1a',
+                      transition: 'all 0.2s ease',
+                      flex: '1 1 auto',
+                      minWidth: '120px',
+                      maxWidth: '180px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <ChevronLeft size={18} /> Previous
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '12px',
+                      backgroundColor: currentPage === totalPages ? '#f3f4f6' : 'white',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      color: currentPage === totalPages ? '#d1d5db' : '#1a1a1a',
+                      transition: 'all 0.2s ease',
+                      flex: '1 1 auto',
+                      minWidth: '120px',
+                      maxWidth: '180px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    Next <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div style={{ padding: 'clamp(4rem, 8vw, 8rem) 2rem', textAlign: 'center', backgroundColor: 'white', border: '1px solid #f3f4f6', borderRadius: '24px' }}>
