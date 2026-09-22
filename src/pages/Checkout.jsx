@@ -350,7 +350,7 @@ export default function Checkout() {
 
       const comboPayload = (comboLines || []).map(l => ({ combo_id: l.comboId, quantity: l.qty }));
 
-      if (itemList.length === 0 && comboPayload.length === 0) {
+      if (orderableItems.length === 0 && comboPayload.length === 0) {
         setError('None of your cart items are available to order right now. Please update your cart and try again.');
         setLoading(false);
         return;
@@ -358,26 +358,12 @@ export default function Checkout() {
 
       // Cart: prefer backend cart_id (+ explicit row ids, so the server orders
       // and prices the same set the buyer just confirmed), else inline items.
-      const checkoutData = buildCartPayload(orderableItems, currentCartId);
+      // Only sent when there are standalone (non-combo) items.
+      const checkoutData = orderableItems.length > 0
+        ? buildCartPayload(orderableItems, currentCartId)
+        : {};
       // Only the code travels — the server re-prices the discount itself.
       if (coupon) checkoutData.coupon_code = coupon.code;
-
-      // Cart: prefer backend cart_id, fall back to inline items.
-      // Only send cart/items when there are standalone (non-combo) items.
-      if (itemList.length > 0) {
-        if (currentCartId) {
-          checkoutData.cart_id = currentCartId;
-          // Name the rows explicitly so the server orders and prices the same set
-        // the buyer just confirmed, instead of everything the cart happens to
-        // hold. Temp IDs are guest-local rows with no server counterpart.
-        const rowIds = orderableItems
-          .map(item => item.id)
-          .filter(id => id && !String(id).startsWith('temp-'));
-        if (rowIds.length > 0) checkoutData.item_ids = rowIds;
-      } else {
-          checkoutData.items = itemList;
-        }
-      }
 
       // Combos: one entry per combo line (backend expands into components).
       if (comboPayload.length > 0) {
