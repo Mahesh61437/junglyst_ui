@@ -3,9 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { OrderService } from '../services/OrderService';
+import { CartService } from '../services/CartService';
 import api from '../services/api';
 import { useAddresses } from '../utils/addressCache';
-import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package, Truck, Calendar, Store } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package, Truck, Calendar, Store, Tag, X } from 'lucide-react';
 import CheckoutRecommendationPopup from '../components/CheckoutRecommendationPopup';
 import { getImageUrl } from '../utils/imageUtils';
 import { load } from '@cashfreepayments/cashfree-js';
@@ -52,6 +53,13 @@ export default function Checkout() {
   const [showNudge, setShowNudge] = useState(false);
   const pendingCheckout = useRef(null);
   const [verifying, setVerifying] = useState(false); // polling overlay state
+  // Coupon: `coupon` holds the server's priced preview for the current cart.
+  // Any cart change re-validates it (see effect below) so the summary never
+  // shows a discount the backend would reject at checkout.
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState(null);
+  const [couponError, setCouponError] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
   // Ref to prevent empty-cart guard from redirecting to /cart after order is placed
   const orderPlaced = useRef(false);
   // Gateway order IDs stored so polling can query status after modal closes
@@ -68,6 +76,60 @@ export default function Checkout() {
   const stockSignature = outOfStockItems
     .map(i => `${i.id}:${i.quantity}:${i.available_stock}`)
     .join('|');
+
+  // The rows an order would actually cover — exactly what the summary prices.
+  // Shared by the coupon preview and checkout so both see the same set.
+  const getOrderableItems = () => (cart?.items || []).filter(
+    item => item.variant?.id && item.quantity >= 1 && !item.unavailable
+  );
+  const buildCartPayload = (orderableItems, currentCartId) => {
+    if (currentCartId) {
+      const rowIds = orderableItems
+        .map(item => item.id)
+        .filter(id => id && !String(id).startsWith('temp-'));
+      return rowIds.length > 0 ? { cart_id: currentCartId, item_ids: rowIds } : { cart_id: currentCartId };
+    }
+    return { items: orderableItems.map(item => ({ variant_id: item.variant.id, quantity: item.quantity })) };
+  };
+
+  const applyCoupon = async (code) => {
+    const trimmed = (code || '').trim();
+    if (!trimmed) return;
+    setCouponLoading(true);
+    setCouponError(null);
+    try {
+      const payload = {
+        code: trimmed,
+        ...buildCartPayload(getOrderableItems(), cartId || cart?.id),
+      };
+      if (!user && shipping.email) payload.guest_email = shipping.email;
+      const data = await CartService.applyCoupon(payload);
+      setCoupon(data);
+      setCouponInput(data.code);
+      trackEvent('coupon_applied', { code: data.code, discount: parseFloat(data.discount_amount) });
+    } catch (err) {
+      setCoupon(null);
+      setCouponError(err.response?.data?.error || 'Could not apply this coupon.');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+  const removeCoupon = () => { setCoupon(null); setCouponInput(''); setCouponError(null); };
+
+  // Re-price the applied coupon whenever the orderable set or quantities move.
+  const cartSignature = getOrderableItems().map(i => `${i.variant.id}:${i.quantity}`).join('|');
+  useEffect(() => {
+    if (!coupon) return;
+    const code = coupon.code;
+    (async () => {
+      if (!cartSignature) removeCoupon();
+      else await applyCoupon(code);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartSignature]);
+
+  const discountAmount = coupon ? parseFloat(coupon.discount_amount) : 0;
+  const payableTotal = Math.max(0, (cart?.grand_total || 0) - discountAmount);
 
   // Fire checkout_initiated once when user lands on checkout with a valid cart
   useEffect(() => {
@@ -284,12 +346,7 @@ export default function Checkout() {
       // The rows this order actually covers — exactly what the summary above
       // priced. Anything the UI excluded (no variant details, or a quantity
       // stock can't fulfil) is left out of both paths.
-      const orderableItems = cart.items.filter(
-        item => item.variant?.id && item.quantity >= 1 && !item.unavailable
-      );
-      const itemList = orderableItems.map(
-        item => ({ variant_id: item.variant.id, quantity: item.quantity })
-      );
+      const orderableItems = getOrderableItems();
 
       const comboPayload = (comboLines || []).map(l => ({ combo_id: l.comboId, quantity: l.qty }));
 
@@ -299,7 +356,11 @@ export default function Checkout() {
         return;
       }
 
-      const checkoutData = {};
+      // Cart: prefer backend cart_id (+ explicit row ids, so the server orders
+      // and prices the same set the buyer just confirmed), else inline items.
+      const checkoutData = buildCartPayload(orderableItems, currentCartId);
+      // Only the code travels — the server re-prices the discount itself.
+      if (coupon) checkoutData.coupon_code = coupon.code;
 
       // Cart: prefer backend cart_id, fall back to inline items.
       // Only send cart/items when there are standalone (non-combo) items.
@@ -478,6 +539,12 @@ export default function Checkout() {
       });
     } catch (err) {
       console.error('Checkout failed:', err);
+      if (err.response?.data?.coupon_error) {
+        // Coupon stopped being valid between preview and checkout — drop it so
+        // the buyer sees the real total before retrying.
+        setCoupon(null);
+        setCouponError(err.response.data.error);
+      }
       setError(err.userMessage || err.message || 'Something went wrong. Please try again.');
       // A 400 means the server cart disagrees with what we're showing (stock
       // moved, a row we pruned locally is still there). Re-pull so the offending
@@ -812,6 +879,12 @@ export default function Checkout() {
                   <span>Subtotal <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>(GST Incl.)</span></span>
                   <span style={{ fontWeight: 700, color: '#1b2d2a' }}>₹{cart.subtotal.toLocaleString()}</span>
                 </div>
+                {coupon && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+                    <span>Discount <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>({coupon.code})</span></span>
+                    <span style={{ fontWeight: 700, color: '#10b981' }}>−₹{discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
                   <span>Shipping</span>
                   <span style={{ fontWeight: 700, color: cart.shipping_total === 0 ? '#10b981' : '#1b2d2a' }}>
@@ -821,10 +894,51 @@ export default function Checkout() {
               </div>
             </div>
 
+            {/* Coupon */}
+            <div style={{ borderTop: '1px solid #f1f5f9', padding: '1.25rem 0' }}>
+              {coupon ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', backgroundColor: '#ecfdf5', border: '1px dashed #10b981' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+                    <Tag size={16} color="#10b981" />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#065f46', letterSpacing: '0.04em' }}>{coupon.code}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#047857', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{coupon.name} · {coupon.discount_label}</div>
+                    </div>
+                  </div>
+                  <button type="button" onClick={removeCoupon} aria-label="Remove coupon" style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    placeholder="Coupon code"
+                    value={couponInput}
+                    onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyCoupon(couponInput); } }}
+                    style={{ ...inputStyle, padding: '0.7rem 0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                    aria-label="Coupon code"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => applyCoupon(couponInput)}
+                    disabled={couponLoading || !couponInput.trim()}
+                    style={{ padding: '0 1.1rem', borderRadius: '10px', border: '1px solid #1b2d2a', backgroundColor: '#1b2d2a', color: 'white', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: couponLoading || !couponInput.trim() ? 'not-allowed' : 'pointer', opacity: couponLoading || !couponInput.trim() ? 0.5 : 1, flexShrink: 0 }}
+                  >
+                    {couponLoading ? 'Checking' : 'Apply'}
+                  </button>
+                </div>
+              )}
+              {couponError && (
+                <div style={{ marginTop: '0.6rem', fontSize: '0.78rem', color: '#b91c1c', lineHeight: 1.4 }}>{couponError}</div>
+              )}
+            </div>
+
             <div style={{ borderTop: '2px solid #000', paddingTop: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</span>
-                <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#1b2d2a' }}>₹{cart.grand_total.toLocaleString()}</span>
+                <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#1b2d2a' }}>₹{payableTotal.toLocaleString()}</span>
               </div>
             </div>
 
