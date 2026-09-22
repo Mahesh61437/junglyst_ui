@@ -1210,6 +1210,9 @@ export default function SuperAdminDashboard() {
             <button onClick={() => navigate('/super-admin/shipping-fees')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               SHIPPING FEES
             </button>
+            <button onClick={() => navigate('/super-admin/coupons')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#8b5cf6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+              COUPONS
+            </button>
             <button onClick={() => navigate('/super-admin/settings')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#475569', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               SETTINGS
             </button>

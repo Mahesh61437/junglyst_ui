@@ -25,6 +25,14 @@ export const CartService = {
     }
   },
 
+  // Preview a coupon against the cart. Stateless: the server only validates and
+  // prices it; the code is re-sent as `coupon_code` at checkout.
+  // payload: { code, cart_id?, item_ids?, items?, guest_email? }
+  applyCoupon: async (payload) => {
+    const response = await api.post('/coupons/apply/', payload);
+    return response.data;
+  },
+
   // Update item quantity
   updateItem: async (itemId, quantity) => {
     try {
