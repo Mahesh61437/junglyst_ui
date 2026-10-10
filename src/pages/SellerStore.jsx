@@ -71,9 +71,14 @@ export default function SellerStore() {
           });
           setProfileFound(true);
           
-          // Now fetch products using the seller's slug
-          const data = await ProductService.getProducts({ seller_slug: sellerName });
-          const results = data.results || data || [];
+          // Now fetch products using the seller's slug. no_pagination returns the
+          // seller's whole catalogue in one request — without it the API caps at
+          // 20 and the storefront only ever shows the first page of stock.
+          const data = await ProductService.getProducts({
+            seller_slug: sellerName,
+            no_pagination: 'true',
+          });
+          const results = Array.isArray(data) ? data : (data?.results || []);
           setProducts(results.filter((p) => p?.is_active !== false));
         } else {
           setProfileFound(false);
@@ -104,6 +109,22 @@ export default function SellerStore() {
   }, [products, searchQuery]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  // Show at most a small window of page numbers: first, last, and the pages
+  // around the current one. A seller with 1500 specimens is 127 pages — every
+  // number on screen is unusable.
+  const pageNumbers = useMemo(() => {
+    const window = 1; // pages shown either side of the current page
+    const pages = [];
+    for (let p = 1; p <= totalPages; p += 1) {
+      if (p === 1 || p === totalPages || Math.abs(p - currentPage) <= window) {
+        pages.push(p);
+      } else if (pages[pages.length - 1] !== '...') {
+        pages.push('...');
+      }
+    }
+    return pages;
+  }, [totalPages, currentPage]);
 
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -398,7 +419,19 @@ export default function SellerStore() {
                   flexWrap: 'wrap',
                   justifyContent: 'center'
                 }}>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  {pageNumbers.map((page, idx) => (
+                    page === '...' ? (
+                      <span
+                        key={`gap-${idx}`}
+                        style={{
+                          width: '40px', height: '40px', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center',
+                          color: '#9ca3af', fontWeight: 600, userSelect: 'none'
+                        }}
+                      >
+                        &hellip;
+                      </span>
+                    ) : (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
@@ -417,6 +450,7 @@ export default function SellerStore() {
                     >
                       {page}
                     </button>
+                    )
                   ))}
                 </div>
 
