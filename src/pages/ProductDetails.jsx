@@ -300,7 +300,11 @@ export default function ProductDetails() {
 
   const sellerProfile = product.seller?.seller_profile || {};
   // Unknown delivery info (older cached payloads) doesn't block — checkout re-validates.
-  const undeliverableTo = undeliverableAreaLabel(sellerProfile, deliveryArea);
+  // The product's own regions already include the seller's category restrictions.
+  const productDelivery = Array.isArray(product.delivery_regions)
+    ? { ...sellerProfile, service_regions: product.delivery_regions }
+    : sellerProfile;
+  const undeliverableTo = undeliverableAreaLabel(productDelivery, deliveryArea);
   const deliversToBuyer = !undeliverableTo;
   const canPurchase = !!selectedVariant && selectedVariant.stock > 0 && deliversToBuyer;
   const sellerStoreName = sellerProfile.store_name || 'Verified Seller';
@@ -782,7 +786,7 @@ export default function ProductDetails() {
                 <div role="status" style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start', marginBottom: '1.25rem', padding: '0.85rem 1rem', borderRadius: '12px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.82rem', lineHeight: 1.5 }}>
                   <Truck size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
                   <span>
-                    {sellerProfile.store_name || 'This grower'} doesn't deliver to {undeliverableTo} yet.{' '}
+                    {sellerProfile.store_name || 'This grower'} doesn't deliver this product to {undeliverableTo}.{' '}
                     <button type="button" onClick={openRegionPicker} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', fontWeight: 800, textDecoration: 'underline', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}>
                       Change delivery location
                     </button>

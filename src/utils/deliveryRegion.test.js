@@ -2,7 +2,7 @@ import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   REGION_STORAGE_KEY, LocationLookupError, findState, loadSavedRegion, saveRegion,
-  detectStateFromLocation, withDeliveryArea, undeliverableAreaLabel,
+  detectStateFromLocation, withDeliveryArea, undeliverableAreaLabel, deliveryForProduct,
 } from './deliveryRegion.js';
 
 const STATES = [
@@ -165,5 +165,18 @@ describe('detectStateFromLocation', () => {
   test('reports "unavailable" when the browser has no geolocation', async () => {
     Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} });
     await assert.rejects(detectStateFromLocation(STATES), err => err.reason === 'unavailable');
+  });
+});
+
+describe('deliveryForProduct', () => {
+  const sellerDelivery = { service_regions: ['south', 'north'], excluded_states: ['KL'], product_regions: { p1: ['south'] } };
+
+  test('narrows regions for a category-restricted product and keeps state exclusions', () => {
+    assert.deepEqual(deliveryForProduct(sellerDelivery, 'p1'), { ...sellerDelivery, service_regions: ['south'] });
+  });
+
+  test('falls back to the seller settings for other products or missing data', () => {
+    assert.equal(deliveryForProduct(sellerDelivery, 'p2'), sellerDelivery);
+    assert.equal(deliveryForProduct(undefined, 'p1'), undefined);
   });
 });

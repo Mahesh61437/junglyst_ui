@@ -143,3 +143,34 @@ describe('existing cart rules still hold', () => {
     assert.equal(calculateFinancials('nope', null, {}, null).total_items, 0);
   });
 });
+
+describe('category-restricted products', () => {
+  test('a product limited to the south is blocked in the north while the seller\'s other products are not', () => {
+    const configs = { s1: sellerConfig() };
+    configs.s1.delivery.product_regions = { 'p-1': ['south'] };
+
+    const cart = calculateFinancials([item(1, 's1'), item(2, 's1')], null, configs, HIMACHAL);
+
+    assert.deepEqual(cart.unavailable_items.map(i => i.id), [1]);
+    assert.equal(cart.unavailable_items[0].area_label, 'North India');
+    assert.equal(cart.total_items, 1);
+  });
+
+  test('the restricted product is orderable inside its regions', () => {
+    const configs = { s1: sellerConfig() };
+    configs.s1.delivery.product_regions = { 'p-1': ['south'] };
+
+    const cart = calculateFinancials([item(1, 's1')], null, configs, TAMIL_NADU);
+
+    assert.equal(cart.unavailable_items.length, 0);
+  });
+
+  test('state exclusions still apply to category-restricted products', () => {
+    const configs = { s1: sellerConfig({ excluded: ['KL'] }) };
+    configs.s1.delivery.product_regions = { 'p-1': ['south'] };
+
+    const cart = calculateFinancials([item(1, 's1')], null, configs, KERALA);
+
+    assert.equal(cart.unavailable_items[0]?.area_label, 'Kerala');
+  });
+});

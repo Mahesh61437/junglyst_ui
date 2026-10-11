@@ -102,6 +102,15 @@ export function withDeliveryArea(params, area) {
 }
 
 /**
+ * Delivery info for one product: the seller's, with the regions narrowed when the
+ * seller restricted the product's category (`product_regions` from the cart API).
+ */
+export function deliveryForProduct(sellerDelivery, productId) {
+  const productRegions = sellerDelivery?.product_regions?.[productId];
+  return productRegions ? { ...sellerDelivery, service_regions: productRegions } : sellerDelivery;
+}
+
+/**
  * Label of the buyer's area a seller can't deliver to — their region, or an
  * excluded state inside it — or null when they can (or we don't know yet).
  * `delivery` is any { service_regions, excluded_states } shape (cart configs, seller profile).

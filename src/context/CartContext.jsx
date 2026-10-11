@@ -69,11 +69,14 @@ export const CartProvider = ({ children }) => {
       items.map(i => i.product?.seller?.id).filter(Boolean)
     )];
     if (sellerIds.length === 0) return;
+    // Product ids let the server report category-restricted products' own regions.
+    const productIds = [...new Set(items.map(i => i.product?.id).filter(Boolean))];
+    const query = `seller_ids=${sellerIds.join(',')}&product_ids=${productIds.join(',')}`;
     // Retry briefly: without these configs the cart can't tell which sellers
     // deliver to the buyer's area and would show everything as orderable.
     for (let attempt = 0; attempt <= SHIPPING_CONFIG_RETRY_DELAYS_MS.length; attempt++) {
       try {
-        const res = await api.get(`/cart/shipping-configs/?seller_ids=${sellerIds.join(',')}`);
+        const res = await api.get(`/cart/shipping-configs/?${query}`);
         shippingConfigsRef.current = res.data || {};
         return;
       } catch {

@@ -1,5 +1,5 @@
 // Pure cart rules — no React, so they can be unit tested with node --test.
-import { undeliverableAreaLabel } from './deliveryRegion.js';
+import { deliveryForProduct, undeliverableAreaLabel } from './deliveryRegion.js';
 
 // ── Shipping window helpers ───────────────────────────────────────────────────
 // shipping_days uses Python/ISO convention: 0=Mon … 6=Sun
@@ -117,7 +117,8 @@ export const SHIPPING_CONFIG_RETRY_DELAYS_MS = [1000, 3000];
 // Shipping fee and nudge are driven by per-seller DB config fetched from the API.
 // configs shape: { [sellerId]: { light?: TierConfig, heavy?: TierConfig, delivery?: DeliveryConfig } }
 // TierConfig: { tier1_max, tier1_fee, tier2_max, tier2_fee, show_nudge_products }
-// DeliveryConfig: { service_regions: string[], region_fees: { [region]: number | null } }
+// DeliveryConfig: { service_regions: string[], excluded_states: string[], region_fees: { [region]: number | null },
+//                   product_regions: { [productId]: string[] } }  ← narrower regions for category-restricted products
 
 export function sellerShippingFee(subtotal, config) {
   if (!config) return 0;
@@ -193,7 +194,8 @@ export function calculateFinancials(items = [], deliveryZone = null, configs = {
     .filter(item => item.quantity > 0)
     .map(withoutAvailabilityFlags)
     .map(item => {
-      const blockedLabel = undeliverableAreaLabel(configs[item.product?.seller?.id]?.delivery, deliveryArea);
+      const delivery = deliveryForProduct(configs[item.product?.seller?.id]?.delivery, item.product?.id);
+      const blockedLabel = undeliverableAreaLabel(delivery, deliveryArea);
       if (blockedLabel) {
         return {
           ...item,
