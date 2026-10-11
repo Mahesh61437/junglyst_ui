@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import DeliveryRegionsPanel from '../components/DeliveryRegionsPanel';
 import {
   Package, Users, IndianRupee, Truck, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
@@ -525,10 +526,19 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const sellerDeliveryRef = useRef(null);
+
   const saveSellerProfile = async () => {
     setEditSellerSaving(true);
     setEditSellerError('');
     try {
+      // Delivery settings save through their own endpoint; persist pending edits
+      // first and stop if they fail (the panel shows why).
+      const deliverySaved = await sellerDeliveryRef.current?.saveIfChanged();
+      if (deliverySaved === false) {
+        setEditSellerError('Delivery regions could not be saved — check that section.');
+        return;
+      }
       const payload = {
         ...editSellerForm,
         expertise_tags: editSellerForm.expertise_tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -2651,6 +2661,11 @@ export default function SuperAdminDashboard() {
                 />
                 Price is buyer-final (seller's typed price IS what buyer pays)
               </label>
+            </div>
+
+            {/* Delivery regions, excluded states, category restrictions and regional fees */}
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem' }}>
+              <DeliveryRegionsPanel ref={sellerDeliveryRef} sellerProfileId={editingSeller.id} brandColor="#0A3029" />
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginBottom: '2rem' }}>

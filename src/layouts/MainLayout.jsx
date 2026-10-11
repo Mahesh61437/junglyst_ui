@@ -6,6 +6,7 @@ import MobileCartFab from '../components/MobileCartFab';
 import CompetitionBanner from '../components/CompetitionBanner';
 import CompetitionTicker from '../components/CompetitionTicker';
 import BugReportModal from '../components/BugReportModal';
+import RegionPicker from '../components/RegionPicker';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -118,6 +119,7 @@ export default function MainLayout() {
         </main>
         <Footer />
         <MobileCartFab />
+        <RegionPicker />
       </div>
     );
   }
@@ -152,6 +154,7 @@ export default function MainLayout() {
       <Footer />
       <MobileCartFab />
       <BugReportModal />
+      <RegionPicker />
     </div>
   );
 }

@@ -47,6 +47,7 @@ import { useLocation } from 'react-router-dom';
 import { trackPageView } from './utils/analytics';
 
 import { CartProvider } from './context/CartContext';
+import { RegionProvider } from './context/RegionContext';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
@@ -79,6 +80,7 @@ function App() {
       <NotificationProvider>
       <WishlistProvider>
         <ToastProvider>
+        <RegionProvider>
         <CartProvider>
         <OrderProvider>
           <BrowserRouter>
@@ -135,6 +137,7 @@ function App() {
           </BrowserRouter>
         </OrderProvider>
         </CartProvider>
+        </RegionProvider>
         </ToastProvider>
       </WishlistProvider>
       </NotificationProvider>

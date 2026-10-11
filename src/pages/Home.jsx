@@ -3,12 +3,14 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import SEO from '../components/SEO';
 import { useQuery } from '@tanstack/react-query';
+import { useRegion } from '../context/RegionContext';
+import { withDeliveryArea } from '../utils/deliveryRegion';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
 import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 import api from '../services/api';
-import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate, isCompetitionPromoVisible } from '../services/CompetitionService';
 
 function useCompetitionCountdown(target) {
   const getLeft = () => {
@@ -36,7 +38,7 @@ function CompetitionPromo() {
   const launchDate = getLaunchDate(status);
   const timeLeft = useCompetitionCountdown(launchDate);
   const announcementDate = formatAnnouncementDate(status?.result_announcement_date);
-  if (!timeLeft) return null;
+  if (!timeLeft || !isCompetitionPromoVisible(status)) return null;
 
   const pad = n => String(n).padStart(2, '0');
 
@@ -325,16 +327,17 @@ function NewsletterSection() {
   );
 }
 
-const fetchHomeData = async () => {
-  const { data } = await api.get('/core/home/');
+const fetchHomeData = async (deliveryArea) => {
+  const { data } = await api.get('/core/home/', { params: withDeliveryArea({}, deliveryArea) });
   return data;
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Home() {
+  const { deliveryArea } = useRegion();
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['home'],
-    queryFn: fetchHomeData,
+    queryKey: ['home', deliveryArea],
+    queryFn: () => fetchHomeData(deliveryArea),
     staleTime: 1000 * 60 * 5,
   });
 
