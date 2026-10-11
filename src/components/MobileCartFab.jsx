@@ -2,7 +2,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
-const HIDDEN_PREFIXES = ['/cart', '/checkout', '/orders'];
+// '/workshops/' (trailing slash) covers workshop detail + booking pages, which
+// have their own sticky pay bar; the /workshops listing keeps the FAB.
+const HIDDEN_PREFIXES = ['/cart', '/checkout', '/orders', '/workshops/'];
 
 export default function MobileCartFab() {
   const { cart } = useCart();

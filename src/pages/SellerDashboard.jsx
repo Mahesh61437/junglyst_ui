@@ -18,6 +18,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import NaturalLogo from '../components/NaturalLogo';
 import ItemizedInvoiceModal from '../components/ItemizedInvoiceModal';
+import SellerWorkshopBookings from '../components/workshops/SellerWorkshopBookings';
+import WorkshopBookingsNotice from '../components/workshops/WorkshopBookingsNotice';
 import { ProductService } from '../services/ProductService';
 import { OrderService } from '../services/OrderService';
 import { getImageUrl } from '../utils/imageUtils';
@@ -1385,6 +1387,7 @@ export default function SellerDashboard() {
     { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard size={20} /> },
     { id: 'products', label: 'Collection', icon: <Package size={20} /> },
     { id: 'orders', label: 'Fulfillment', icon: <ShoppingBag size={20} /> },
+    { id: 'workshops', label: 'Workshops', icon: <Calendar size={20} /> },
     { id: 'bulk-upload', label: 'Bulk Upload', icon: <Upload size={20} /> },
     { id: 'gst', label: 'GST Invoices', icon: <FileText size={20} /> },
     { id: 'spotlight', label: 'Studio Identity', icon: <Palette size={20} /> },
@@ -1597,6 +1600,7 @@ export default function SellerDashboard() {
             </div>
           ) : (
             <div>
+              {activeTab === 'workshops' && <SellerWorkshopBookings />}
               {activeTab === 'gst' && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -2448,6 +2452,7 @@ export default function SellerDashboard() {
                 );
               })()}
 
+              {activeTab === 'orders' && <WorkshopBookingsNotice onOpen={() => handleTabChange('workshops')} />}
               {activeTab === 'orders' && (() => {
                 // ── Tab definitions ──────────────────────────────────────────────────────
                 // Pending   : new orders, confirmed, being packed — no courier booked yet

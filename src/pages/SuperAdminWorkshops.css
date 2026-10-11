@@ -1,0 +1,145 @@
+/* Super-admin Workshops console. Mobile first; tables scroll in their own box. */
+
+.wa-page { min-height: 100vh; background: #f8fafc; padding: 1.25rem 1rem 4rem; font-family: var(--font-sans); color: #0f172a; }
+@media (min-width: 768px) { .wa-page { padding: 2rem 2rem 4rem; } }
+.wa-shell { max-width: 1280px; margin: 0 auto; }
+
+.wa-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.wa-header h1 { font-size: 1.6rem; font-family: var(--font-serif); }
+.wa-sub { color: #64748b; font-size: 0.85rem; }
+.wa-back { display: inline-flex; align-items: center; gap: 0.35rem; color: #64748b; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.4rem; background: none; border: none; cursor: pointer; padding: 0; min-height: 32px; font-family: inherit; }
+
+.wa-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 40px; padding: 0.5rem 1rem; border-radius: 10px; border: 1px solid transparent; font-weight: 700; font-size: 0.8rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.wa-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.wa-btn:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
+.wa-btn--primary { background: #0a3029; color: #fff; }
+.wa-btn--primary:hover:not(:disabled) { background: #105c44; }
+.wa-btn--ghost { background: #fff; color: #0f172a; border-color: #e2e8f0; }
+.wa-btn--ghost:hover:not(:disabled) { background: #f1f5f9; }
+.wa-btn--danger { background: #fff; color: #b91c1c; border-color: #fecaca; }
+.wa-btn--sm { min-height: 34px; padding: 0.35rem 0.7rem; font-size: 0.75rem; }
+.wa-icon-btn { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; color: #475569; }
+.wa-icon-btn:hover { background: #f1f5f9; }
+.wa-icon-btn--danger { color: #b91c1c; }
+
+.wa-tabs { display: flex; gap: 0.25rem; background: #e2e8f0; padding: 0.25rem; border-radius: 12px; margin-bottom: 1.25rem; overflow-x: auto; }
+.wa-tab { flex: 1 0 auto; min-height: 40px; padding: 0.5rem 1rem; border-radius: 9px; border: none; background: transparent; font-weight: 700; font-size: 0.8rem; color: #475569; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; font-family: inherit; }
+.wa-tab[aria-selected="true"] { background: #fff; color: #0a3029; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+.wa-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; }
+.wa-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+@media (min-width: 900px) { .wa-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.wa-kpi { padding: 1rem; }
+.wa-kpi-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+.wa-kpi-value { font-size: 1.3rem; font-weight: 800; margin-top: 0.25rem; }
+.wa-kpi-hint { font-size: 0.7rem; color: #94a3b8; margin-top: 0.15rem; }
+
+/* Workshop list */
+.wa-ws-list { display: grid; grid-template-columns: 1fr; gap: 0.9rem; }
+@media (min-width: 760px) { .wa-ws-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1150px) { .wa-ws-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.wa-ws { display: flex; flex-direction: column; overflow: hidden; }
+.wa-ws-cover { aspect-ratio: 16 / 7; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8; }
+.wa-ws-cover img { width: 100%; height: 100%; object-fit: cover; }
+.wa-ws-body { padding: 0.9rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+.wa-ws-title { font-weight: 800; font-size: 1rem; }
+.wa-ws-meta { font-size: 0.75rem; color: #64748b; display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
+.wa-progress { height: 6px; border-radius: 6px; background: #e2e8f0; overflow: hidden; }
+.wa-progress > span { display: block; height: 100%; background: linear-gradient(90deg, #105c44, #34d399); }
+.wa-ws-actions { display: flex; gap: 0.4rem; margin-top: auto; padding-top: 0.5rem; }
+
+/* Filters */
+.wa-filters { display: grid; grid-template-columns: 1fr; gap: 0.6rem; padding: 0.9rem; margin-bottom: 1rem; }
+@media (min-width: 760px) { .wa-filters { grid-template-columns: 2fr 1.4fr 1fr 1fr 1fr auto; align-items: end; } }
+
+/* Form controls */
+.wa-label { display: block; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 0.3rem; }
+.wa-input { width: 100%; padding: 0.6rem 0.7rem; border-radius: 9px; border: 1px solid #cbd5e1; font-size: 16px; font-family: inherit; background: #fff; color: inherit; }
+@media (min-width: 760px) { .wa-input { font-size: 0.85rem; } }
+.wa-input:focus { outline: none; border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15,118,110,0.12); }
+.wa-input[aria-invalid="true"] { border-color: #ef4444; }
+.wa-help { font-size: 0.7rem; color: #94a3b8; margin-top: 0.25rem; }
+.wa-error { font-size: 0.72rem; color: #b91c1c; margin-top: 0.25rem; }
+.wa-check { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600; min-height: 40px; cursor: pointer; }
+.wa-check input { width: 18px; height: 18px; accent-color: #0a3029; }
+
+/* Tables */
+.wa-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.wa-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 880px; }
+.wa-table th { text-align: left; padding: 0.7rem 0.8rem; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; background: #f8fafc; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+.wa-table td { padding: 0.75rem 0.8rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.wa-table tr:last-child td { border-bottom: none; }
+.wa-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wa-table tbody tr.wa-row-click { cursor: pointer; }
+.wa-table tbody tr.wa-row-click:hover { background: #f8fafc; }
+.wa-muted { color: #94a3b8; font-size: 0.72rem; }
+.wa-strong { font-weight: 700; }
+.wa-link { color: #0f766e; font-weight: 700; }
+
+/* Modal / drawer */
+/* Modal: a fixed-height column. Header and footer never scroll; only the body
+   does, so the action bar always sits at the dialog's bottom edge. */
+.wa-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,23,42,0.55); display: flex; justify-content: center; align-items: stretch; }
+@media (min-width: 900px) { .wa-modal-backdrop { align-items: center; padding: 2rem 1rem; } }
+.wa-modal { background: #fff; width: 100%; max-width: 1040px; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+@media (min-width: 900px) { .wa-modal { border-radius: 18px; height: auto; max-height: calc(100vh - 4rem); max-height: calc(100dvh - 4rem); } }
+.wa-modal-head { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.wa-modal-body { padding: 1.25rem; overflow-y: auto; overscroll-behavior: contain; flex: 1 1 auto; min-height: 0; }
+.wa-modal-foot { flex-shrink: 0; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.6rem; padding: 0.9rem 1.25rem calc(0.9rem + env(safe-area-inset-bottom)); border-top: 1px solid #e2e8f0; background: #fff; }
+
+.wa-section { padding: 1.1rem 0; border-bottom: 1px solid #f1f5f9; }
+.wa-section:first-child { padding-top: 0; }
+.wa-section:last-child { border-bottom: none; }
+.wa-section-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.45rem; }
+.wa-section-sub { font-size: 0.75rem; color: #64748b; margin-bottom: 0.9rem; }
+.wa-grid { display: grid; grid-template-columns: 1fr; gap: 0.8rem; }
+/* Let wide children (e.g. the calculator table) scroll inside instead of widening the grid. */
+.wa-grid > * { min-width: 0; }
+@media (min-width: 700px) {
+  .wa-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wa-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .wa-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.wa-span-all { grid-column: 1 / -1; }
+
+.wa-rows { display: flex; flex-direction: column; gap: 0.6rem; }
+.wa-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 12px; background: #fcfdfd; align-items: end; }
+.wa-row--inactive { opacity: 0.6; background: #f8fafc; }
+@media (min-width: 900px) {
+  .wa-row--option { grid-template-columns: 2fr 1fr 1fr 1fr auto auto; }
+  .wa-row--session { grid-template-columns: 1.3fr 1fr 1fr 0.8fr 1.6fr auto auto; }
+}
+.wa-row--cohost { grid-template-columns: 1fr 1fr; }
+.wa-row--cohost > :first-child { grid-column: 1 / -1; }
+@media (min-width: 900px) {
+  .wa-row--cohost { grid-template-columns: 2fr 1fr 1fr auto; }
+  .wa-row--cohost > :first-child { grid-column: auto; }
+}
+.wa-row .wa-row-actions { display: flex; gap: 0.35rem; align-items: center; justify-content: flex-end; grid-column: 1 / -1; }
+@media (min-width: 900px) { .wa-row .wa-row-actions { grid-column: auto; } }
+.wa-row-meta { grid-column: 1 / -1; font-size: 0.7rem; color: #64748b; }
+
+.wa-images { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.wa-image { position: relative; width: 120px; height: 90px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; }
+.wa-image img { width: 100%; height: 100%; object-fit: cover; }
+.wa-image-cover { position: absolute; left: 0.3rem; top: 0.3rem; background: #0a3029; color: #fff; font-size: 0.55rem; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 6px; text-transform: uppercase; }
+.wa-image-tools { position: absolute; right: 0.25rem; bottom: 0.25rem; display: flex; gap: 0.25rem; }
+.wa-image-tools button { width: 28px; height: 28px; border-radius: 7px; border: none; background: rgba(255,255,255,0.95); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.wa-upload { width: 120px; height: 90px; border-radius: 10px; border: 1.5px dashed #94a3b8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; font-size: 0.7rem; font-weight: 700; color: #475569; cursor: pointer; background: #fff; }
+
+.wa-preview-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.5rem; }
+.wa-preview-list li { display: flex; gap: 0.4rem; align-items: flex-start; font-size: 0.8rem; }
+
+.wa-calc { background: linear-gradient(135deg, #f0fdf4, #ecfeff); border: 1px solid #bbf7d0; border-radius: 14px; padding: 1rem; }
+.wa-calc-out { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.8rem; }
+.wa-calc-out div { background: #fff; border-radius: 10px; padding: 0.6rem; text-align: center; }
+.wa-calc-out strong { display: block; font-size: 1rem; }
+.wa-calc-out span { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; }
+
+.wa-banner { padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.82rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.wa-banner--error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.wa-banner--warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.wa-banner--ok { background: #f0fdf4; color: #14532d; border: 1px solid #bbf7d0; }
+.wa-empty { text-align: center; padding: 3rem 1rem; color: #64748b; }
+.wa-empty h3 { color: #0f172a; font-size: 1.1rem; margin: 0.75rem 0 0.35rem; font-family: var(--font-sans); }
+.wa-pager { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-top: 1px solid #f1f5f9; font-size: 0.78rem; color: #64748b; }
