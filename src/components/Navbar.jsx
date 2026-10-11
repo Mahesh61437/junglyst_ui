@@ -66,6 +66,8 @@ function TopBar() {
   );
 }
 import { useCart } from '../context/CartContext';
+import { useRegion } from '../context/RegionContext';
+import { withDeliveryArea } from '../utils/deliveryRegion';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -79,6 +81,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const { wishlist } = useWishlist();
   const { unreadCount } = useNotifications();
+  const { deliveryArea, stateName, openPicker: openRegionPicker } = useRegion();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -112,8 +115,8 @@ export default function Navbar() {
 
   // Live preview results for dropdown — only fires when input has content.
   const { data: previewData, isFetching: isPreviewLoading } = useQuery({
-    queryKey: ['navbar-search-preview', debouncedSearch],
-    queryFn: () => ProductService.getProducts({ search: debouncedSearch, page: 1 }),
+    queryKey: ['navbar-search-preview', debouncedSearch, deliveryArea],
+    queryFn: () => ProductService.getProducts(withDeliveryArea({ search: debouncedSearch, page: 1 }, deliveryArea)),
     enabled: !!debouncedSearch,
     staleTime: 30_000,
     keepPreviousData: true,
@@ -338,6 +341,26 @@ export default function Navbar() {
           marginLeft: 'auto', flexShrink: 0,
           color: 'var(--text-primary)'
         }}>
+          {/* Delivery region — desktop only; mobile shows a strip under the bar */}
+          <button
+            type="button"
+            className="desktop-flex"
+            onClick={openRegionPicker}
+            aria-label={stateName ? `Delivering to ${stateName}. Change delivery location` : 'Choose delivery location'}
+            style={{
+              alignItems: 'center', gap: '0.35rem', background: 'none', border: 'none',
+              cursor: 'pointer', color: 'inherit', padding: '2px', textAlign: 'left',
+            }}
+          >
+            <MapPin size={18} strokeWidth={1.5} />
+            <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+              <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Deliver to</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {stateName || 'Select state'}
+              </span>
+            </span>
+          </button>
+
           {/* Admin — desktop only */}
           {user?.is_superuser && (
             <Link to="/super-admin" className="desktop-flex" style={{ color: 'inherit', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}>
@@ -491,6 +514,25 @@ export default function Navbar() {
           </button>
         </div>
       </div>
+
+      {/* Mobile delivery-region strip */}
+      <button
+        type="button"
+        className="mobile-only"
+        onClick={openRegionPicker}
+        style={{
+          width: '100%', alignItems: 'center', gap: '0.4rem',
+          minHeight: '44px', padding: '0.45rem 1rem', border: 'none', borderTop: '1px solid var(--border-subtle)',
+          backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)',
+          fontSize: '0.75rem', cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <MapPin size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {stateName ? <>Delivering to <strong>{stateName}</strong></> : 'Choose your delivery state'}
+        </span>
+        <span style={{ marginLeft: 'auto', color: 'var(--brand-green)', fontWeight: 700, flexShrink: 0 }}>Change</span>
+      </button>
 
       {/* Desktop Sub-nav */}
       <nav className="desktop-only" style={{

@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import { useCart } from '../context/CartContext';
+import { useRegion } from '../context/RegionContext';
+import { undeliverableAreaLabel } from '../utils/deliveryRegion';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import { trackProductViewed, trackAddToCart, trackAddToWishlist } from '../utils/analytics';
@@ -98,6 +100,7 @@ export default function ProductDetails() {
   // Guard against rapid double-taps / React Strict Mode double-fires calling add_item 2-3× at once
   const isAddingToCart = useRef(false);
   const { addItemToCart, cart } = useCart();
+  const { deliveryArea, openPicker: openRegionPicker } = useRegion();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
 
@@ -296,6 +299,10 @@ export default function ProductDetails() {
   const discount = originalPrice > displayPrice ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100) : 0;
 
   const sellerProfile = product.seller?.seller_profile || {};
+  // Unknown delivery info (older cached payloads) doesn't block — checkout re-validates.
+  const undeliverableTo = undeliverableAreaLabel(sellerProfile, deliveryArea);
+  const deliversToBuyer = !undeliverableTo;
+  const canPurchase = !!selectedVariant && selectedVariant.stock > 0 && deliversToBuyer;
   const sellerStoreName = sellerProfile.store_name || 'Verified Seller';
   const sellerIcon = getImageUrl(sellerProfile.icon_url);
 
@@ -771,6 +778,18 @@ export default function ProductDetails() {
                 </div>
               </div>
 
+              {!deliversToBuyer && (
+                <div role="status" style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start', marginBottom: '1.25rem', padding: '0.85rem 1rem', borderRadius: '12px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                  <Truck size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>
+                    {sellerProfile.store_name || 'This grower'} doesn't deliver to {undeliverableTo} yet.{' '}
+                    <button type="button" onClick={openRegionPicker} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', fontWeight: 800, textDecoration: 'underline', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}>
+                      Change delivery location
+                    </button>
+                  </span>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <button
                   onClick={async () => {
@@ -784,23 +803,25 @@ export default function ProductDetails() {
                       isAddingToCart.current = false;
                     }
                   }}
-                  disabled={!selectedVariant || selectedVariant.stock <= 0}
+                  disabled={!canPurchase}
                   style={{
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: '2px solid var(--bg-deep)',
-                    backgroundColor: 'transparent', color: 'var(--bg-deep)', fontWeight: 800, cursor: 'pointer',
+                    backgroundColor: 'transparent', color: 'var(--bg-deep)', fontWeight: 800,
+                    cursor: canPurchase ? 'pointer' : 'not-allowed', opacity: canPurchase ? 1 : 0.5,
                     transition: 'all 0.2s'
                   }}
                   onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(10,31,28,0.05)'}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  {selectedVariant?.stock > 0 ? 'ADD TO BOX' : 'OUT OF STOCK'}
+                  {!deliversToBuyer ? 'NOT DELIVERED TO YOUR LOCATION' : selectedVariant?.stock > 0 ? 'ADD TO BOX' : 'OUT OF STOCK'}
                 </button>
                 <button
                   onClick={handleBuyNow}
-                  disabled={!selectedVariant || selectedVariant.stock <= 0}
+                  disabled={!canPurchase}
                   style={{
                     width: '100%', padding: '1.125rem', borderRadius: '14px', border: 'none',
-                    backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800, cursor: 'pointer',
+                    backgroundColor: 'var(--bg-deep)', color: 'white', fontWeight: 800,
+                    cursor: canPurchase ? 'pointer' : 'not-allowed', opacity: canPurchase ? 1 : 0.5,
                     transition: 'all 0.2s', boxShadow: '0 10px 20px rgba(10,31,28,0.2)'
                   }}
                   onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}

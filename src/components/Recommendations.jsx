@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { ProductService } from '../services/ProductService';
 import ProductCard from './ProductCard';
+import { useRegion } from '../context/RegionContext';
+import { withDeliveryArea } from '../utils/deliveryRegion';
 
 export default function Recommendations({ category, currentProductId }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { deliveryArea } = useRegion();
 
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const data = await ProductService.getProducts();
+        const data = await ProductService.getProducts(withDeliveryArea({}, deliveryArea));
         const results = data.results || data || [];
         // Filter by same category, exclude current product, and take top 4
         const filtered = results
@@ -23,7 +26,7 @@ export default function Recommendations({ category, currentProductId }) {
       }
     };
     fetchRecommendations();
-  }, [category, currentProductId]);
+  }, [category, currentProductId, deliveryArea]);
 
   if (loading || products.length === 0) return null;
 

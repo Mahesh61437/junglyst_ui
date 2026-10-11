@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck, MapPin, Trophy, Clock, Heart, Sparkles } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
-import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate, isCompetitionPromoVisible } from '../services/CompetitionService';
 
 const COMPETITION_SLIDE = {
   id: '__competition',
@@ -37,13 +37,9 @@ function getAnnouncementDate(status) {
 
 function buildSlides(sellers, status) {
   const base = (sellers && sellers.length > 0) ? sellers : FALLBACK_SLIDES;
-  // Keep the competition slide visible through ALL phases — submission, voting,
-  // and results — so the hero always surfaces the live competition state.
-  const phase = status?.phase || 'submission';
-  if (['submission', 'voting', 'results'].includes(phase)) {
-    return [COMPETITION_SLIDE, ...base];
-  }
-  return base;
+  // The backend decides visibility (admin toggle + how long the results
+  // slide lingers after the announcement).
+  return isCompetitionPromoVisible(status) ? [COMPETITION_SLIDE, ...base] : base;
 }
 
 function useCountdown(target) {

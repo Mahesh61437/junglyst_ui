@@ -7,6 +7,8 @@ import { CartService } from '../services/CartService';
 import api from '../services/api';
 import { ShieldCheck, ArrowLeft, Leaf, ChevronRight, Info, Trash2, Package, Truck, Calendar, Store, Tag, X } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
+import { useRegion } from '../context/RegionContext';
+import { findState } from '../utils/deliveryRegion';
 import { load } from '@cashfreepayments/cashfree-js';
 import { trackEvent, trackCheckoutInitiated } from '../utils/analytics';
 
@@ -28,7 +30,10 @@ function loadRazorpayScript() {
 }
 
 export default function Checkout() {
-  const { cart, cartId, clearCart, removeItem, updateItemQuantity, fetchCart } = useCart();
+  const { cart, cartId, clearCart, removeItem, updateItemQuantity, fetchCart, checkPincode, setAddressArea, pincodeResult } = useCart();
+  const {
+    states: regionStates, stateCode: shoppingStateCode, stateName: shoppingStateName, selectState,
+  } = useRegion();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -180,6 +185,37 @@ export default function Checkout() {
       });
   }, [user]);
 
+  // Re-check the cart against the delivery address, not just the region picked
+  // in the navbar: sellers who don't deliver there drop into "Not included in
+  // this order" before the buyer pays. The State field gives the state (for
+  // sellers' excluded states) and a provisional region; a complete pincode then
+  // decides the region and re-checks serviceability. The server repeats this
+  // check when the order is placed.
+  const addressPincode = (shipping.pincode || '').trim();
+  const addressState = shipping.state;
+  useEffect(() => {
+    const state = findState(regionStates, addressState);
+    setAddressArea(state ? { region: state.region, stateCode: state.code, stateName: state.name } : null);
+    if (/^\d{6}$/.test(addressPincode)) checkPincode(addressPincode);
+  }, [addressPincode, addressState, regionStates, checkPincode, setAddressArea]);
+
+  // Leaving checkout: fall back to the area picked in the navbar.
+  useEffect(() => () => setAddressArea(null), [setAddressArea]);
+
+  // A PIN code from another state would ship (and be checked) somewhere other
+  // than the address the buyer chose — flag it and block the order.
+  const addressStateInfo = findState(regionStates, addressState);
+  const pincodeStates = pincodeResult?.pincode === addressPincode ? (pincodeResult.states || []) : [];
+  const pincodeStateMismatch = !!addressStateInfo && pincodeStates.length > 0
+    && !pincodeStates.includes(addressStateInfo.code);
+  const pincodeMismatchMessage = pincodeStateMismatch
+    ? `PIN code ${addressPincode} is in ${pincodeStates.map(code => findState(regionStates, code)?.name || code).join(' / ')}, not ${addressStateInfo.name}. Please check your state or PIN code.`
+    : null;
+  // Shopping location (navbar) and delivery address in different states: the
+  // order is checked for the address, so say so rather than surprise the buyer.
+  const shipsOutsideShoppingLocation = !!addressStateInfo && !!shoppingStateCode
+    && addressStateInfo.code !== shoppingStateCode && !pincodeStateMismatch;
+
   // ── Payment status polling (handles UPI in-processing / modal-close edge case) ──
   const startPolling = async (gatewayType, gatewayId) => {
     setVerifying(true);
@@ -278,11 +314,21 @@ export default function Checkout() {
     setIsDefault(false);
   };
 
-  const f = (field) => e => setShipping(prev => ({ ...prev, [field]: e.target.value }));
+  // Editing a selected saved address turns it into a one-time address: checkout
+  // sends saved addresses by id, so edits would otherwise be silently ignored.
+  const f = (field) => e => {
+    setShipping(prev => ({ ...prev, [field]: e.target.value }));
+    if (selectedAddressId) setSelectedAddressId(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (pincodeStateMismatch) {
+      setError(pincodeMismatchMessage);
+      return;
+    }
 
     // Items stock can't fulfil are excluded from this order. Never do that
     // silently — show exactly what drops out and what the order costs without
@@ -658,13 +704,61 @@ export default function Checkout() {
                 </div>
                 <div>
                   <label style={labelStyle}>State <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required value={shipping.state} onChange={f('state')} style={inputStyle} />
+                  {/* A known state is needed to honour sellers' excluded states;
+                      falls back to free text if the list hasn't loaded. */}
+                  {regionStates.length > 0 ? (
+                    <select
+                      required
+                      aria-label="State"
+                      value={findState(regionStates, shipping.state)?.name || ''}
+                      onChange={f('state')}
+                      style={inputStyle}
+                    >
+                      <option value="">Select state</option>
+                      {[...regionStates].sort((a, b) => a.name.localeCompare(b.name)).map(state => (
+                        <option key={state.code} value={state.name}>{state.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input required value={shipping.state} onChange={f('state')} style={inputStyle} />
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>PIN Code <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input required placeholder="6-digit" maxLength={6} value={shipping.pincode} onChange={f('pincode')} style={inputStyle} />
+                  <input
+                    required
+                    placeholder="6-digit"
+                    maxLength={6}
+                    inputMode="numeric"
+                    value={shipping.pincode}
+                    onChange={f('pincode')}
+                    aria-invalid={pincodeStateMismatch}
+                    aria-describedby={pincodeStateMismatch ? 'pincode-state-error' : undefined}
+                    style={{ ...inputStyle, ...(pincodeStateMismatch ? { borderColor: '#ef4444' } : {}) }}
+                  />
                 </div>
               </div>
+
+              {pincodeStateMismatch && (
+                <p id="pincode-state-error" role="alert" style={{ margin: '0.75rem 0 0', padding: '0.75rem 1rem', borderRadius: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                  {pincodeMismatchMessage}
+                </p>
+              )}
+
+              {shipsOutsideShoppingLocation && (
+                <div role="status" style={{ marginTop: '0.75rem', padding: '0.85rem 1rem', borderRadius: '10px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.82rem', lineHeight: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 1rem' }}>
+                  <span style={{ flex: '1 1 220px' }}>
+                    Your location is set to <strong>{shoppingStateName}</strong>, but this order ships to <strong>{addressStateInfo.name}</strong>. Availability and delivery charges are checked for {addressStateInfo.name}.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => selectState(addressStateInfo, 'manual')}
+                    style={{ minHeight: '44px', padding: '0.5rem 0.9rem', borderRadius: '8px', border: '1px solid #f59e0b', backgroundColor: 'white', color: '#92400e', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
+                  >
+                    Use {addressStateInfo.name} as my location
+                  </button>
+                </div>
+              )}
 
               {/* Save options — only shown for logged-in users entering a new address */}
               {user && !selectedAddressId && (
@@ -915,9 +1009,11 @@ export default function Checkout() {
                   return (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ flexGrow: 1, minWidth: 0 }}>
-                        <strong>{item.product?.name}</strong> ({item.variant?.name || 'Standard'}) — {stock < 1
-                          ? 'out of stock.'
-                          : `only ${stock} left, but ${item.quantity} are in your cart.`}
+                        <strong>{item.product?.name}</strong> ({item.variant?.name || 'Standard'}) — {item.area_blocked
+                          ? `the seller doesn't deliver to ${item.area_label}.`
+                          : stock < 1
+                            ? 'out of stock.'
+                            : `only ${stock} left, but ${item.quantity} are in your cart.`}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flexShrink: 0 }}>
                         {stock > 0 && (
@@ -950,12 +1046,12 @@ export default function Checkout() {
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading || deliveryBlocked || cart.total_items === 0}
+              disabled={loading || deliveryBlocked || pincodeStateMismatch || cart.total_items === 0}
               style={{
                 width: '100%', padding: '1.25rem',
-                backgroundColor: loading || deliveryBlocked || cart.total_items === 0 ? '#94a3b8' : '#1b2d2a',
+                backgroundColor: loading || deliveryBlocked || pincodeStateMismatch || cart.total_items === 0 ? '#94a3b8' : '#1b2d2a',
                 color: 'white', border: 'none', borderRadius: '14px',
-                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked || cart.total_items === 0 ? 'not-allowed' : 'pointer',
+                fontWeight: 800, fontSize: '1rem', cursor: loading || deliveryBlocked || pincodeStateMismatch || cart.total_items === 0 ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
                 transition: 'opacity 0.2s'
               }}
@@ -996,7 +1092,10 @@ export default function Checkout() {
               Some items can't be included
             </h3>
             <p style={{ fontSize: '0.88rem', color: '#64748b', lineHeight: 1.6, marginBottom: '1.25rem' }}>
-              Stock changed since you added these. We can place the rest of your order now — these won't be charged, and they stay in your cart.
+              {outOfStockItems.some(item => item.area_blocked)
+                ? "Some of these can't be delivered to your address, or stock changed since you added them."
+                : 'Stock changed since you added these.'}{' '}
+              We can place the rest of your order now — these won't be charged, and they stay in your cart.
             </p>
 
             <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '1rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1006,9 +1105,11 @@ export default function Checkout() {
                   <div key={item.id} style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.5 }}>
                     <strong>{item.product?.name}</strong> ({item.variant?.name || 'Standard'})
                     <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>
-                      {stock < 1
-                        ? `Out of stock — all ${item.quantity} removed from this order`
-                        : `Only ${stock} left, ${item.quantity} in cart — removed from this order`}
+                      {item.area_blocked
+                        ? `${item.note} — removed from this order`
+                        : stock < 1
+                          ? `Out of stock — all ${item.quantity} removed from this order`
+                          : `Only ${stock} left, ${item.quantity} in cart — removed from this order`}
                     </div>
                   </div>
                 );

@@ -8,12 +8,15 @@ import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import Pagination from '../components/Pagination';
 import { ProductService } from '../services/ProductService';
+import { useRegion } from '../context/RegionContext';
+import { withDeliveryArea } from '../utils/deliveryRegion';
 import { Search, X, Leaf, SlidersHorizontal, Check, IndianRupee } from 'lucide-react';
 
 export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
   const navigationType = useNavigationType(); // 'POP' = back button, 'PUSH' = forward nav
+  const { deliveryArea, stateName, openPicker: openRegionPicker } = useRegion();
 
   // Restore filter state when user navigates back (POP), otherwise start fresh.
   // Declared here so all useState calls below can reference it.
@@ -125,8 +128,8 @@ export default function Shop() {
     if (minPrice) p.min_price = minPrice;
     if (maxPrice) p.max_price = maxPrice;
     if (selectedSubCat) p.sub_category_id = selectedSubCat;
-    return p;
-  }, [page, sortParam, searchTerm, activeCats, activeDiffs, inStock, minPrice, maxPrice, selectedSubCat]);
+    return withDeliveryArea(p, deliveryArea);
+  }, [page, sortParam, searchTerm, activeCats, activeDiffs, inStock, minPrice, maxPrice, selectedSubCat, deliveryArea]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['products', apiParams],
@@ -170,6 +173,14 @@ export default function Shop() {
     if (navigationType === 'POP') return; // back nav: scroll handled by useScrollRestoration
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Changing the delivery state changes the whole product set — restart at page 1.
+  const previousArea = useRef(deliveryArea);
+  useEffect(() => {
+    if (previousArea.current === deliveryArea) return;
+    previousArea.current = deliveryArea;
+    setPage(1);
+  }, [deliveryArea, setPage]);
 
   const handleCategoryChange = (cat) => {
     setCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -657,6 +668,16 @@ export default function Shop() {
                 ? 'Updating…'
                 : `${totalCount} result${totalCount !== 1 ? 's' : ''}${hasActiveFilters ? ' · filtered' : ''}`
               }
+              {stateName && (
+                <>
+                  {' · '}Growers delivering to {stateName}{' '}
+                  <button
+                    type="button"
+                    onClick={openRegionPicker}
+                    style={{ background: 'none', border: 'none', padding: 0, color: '#10b981', fontWeight: 800, textDecoration: 'underline', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+                  >Change</button>
+                </>
+              )}
             </p>
             <select
               value={sortBy}
@@ -727,7 +748,9 @@ export default function Shop() {
                     No specimens found
                   </h3>
                   <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                    Try adjusting your filters
+                    {stateName
+                      ? `Try adjusting your filters — we're only showing growers who deliver to ${stateName}.`
+                      : 'Try adjusting your filters'}
                   </p>
                   <button
                     onClick={clearAllFilters}

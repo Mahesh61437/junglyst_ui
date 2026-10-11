@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ChevronRight } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import ProductCard from './ProductCard';
+import { useRegion } from '../context/RegionContext';
+import { withDeliveryArea } from '../utils/deliveryRegion';
 
 /**
  * Fetches products related to a blog post by running parallel searches against
@@ -19,6 +21,7 @@ import ProductCard from './ProductCard';
 export default function BlogFeaturedProducts({ tags = [], limit = 4, blogTitle = '' }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { deliveryArea } = useRegion();
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +37,7 @@ export default function BlogFeaturedProducts({ tags = [], limit = 4, blogTitle =
         // ?search= against product name, tag name, and scientific name.
         const responses = await Promise.allSettled(
           tags.map(tag =>
-            ProductService.getProducts({ search: tag, page_size: limit })
+            ProductService.getProducts(withDeliveryArea({ search: tag, page_size: limit }, deliveryArea))
           )
         );
 
@@ -77,7 +80,7 @@ export default function BlogFeaturedProducts({ tags = [], limit = 4, blogTitle =
 
     fetchRelated();
     return () => { cancelled = true; };
-  }, [JSON.stringify(tags), limit]);
+  }, [JSON.stringify(tags), limit, deliveryArea]);
 
   // Hide entire block if we have nothing to show — keeps blog page clean
   if (loading) {

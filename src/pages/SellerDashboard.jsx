@@ -23,6 +23,7 @@ import { OrderService } from '../services/OrderService';
 import { getImageUrl } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
 import Pagination from '../components/Pagination';
+import DeliveryRegionsPanel from '../components/DeliveryRegionsPanel';
 
 // Compress an image file client-side before upload.
 // Resizes to maxDimension (longest edge) and re-encodes as JPEG at the given quality.
@@ -756,6 +757,8 @@ export default function SellerDashboard() {
     }
   };
 
+  const deliveryRegionsRef = useRef(null);
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
 
@@ -768,6 +771,14 @@ export default function SellerDashboard() {
     setSavingProfile(true);
     setFieldErrors({});
     try {
+      // Delivery regions live in their own panel; save pending edits there too
+      // so they aren't lost when this button is used. Stop on failure — the
+      // panel shows the reason inline, and navigating away would discard it.
+      const regionsSaved = await deliveryRegionsRef.current?.saveIfChanged();
+      if (regionsSaved === false) {
+        setFormError('Delivery regions could not be saved — please check that section.');
+        return;
+      }
       await api.post('/sellers/dashboard/', spotlight);
       setSuccess("Studio Identity updated successfully");
       setActiveTab('dashboard');
@@ -2117,6 +2128,9 @@ export default function SellerDashboard() {
                           initial={spotlight.blackout_dates || []}
                           onChange={list => setSpotlight(prev => ({ ...prev, blackout_dates: list }))}
                         />
+
+                        {/* Delivery regions + per-region fees (saves on its own) */}
+                        <DeliveryRegionsPanel ref={deliveryRegionsRef} brandColor={spotlight.brand_color || '#0A3029'} />
                       </div>
                     </div>
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Trophy, ArrowRight, Heart, Sparkles } from 'lucide-react';
-import { useCompetitionStatus, getLaunchDate } from '../services/CompetitionService';
+import { useCompetitionStatus, getLaunchDate, isCompetitionPromoVisible } from '../services/CompetitionService';
 
 // Storage key is namespaced by phase, so dismissing the submission banner does
 // NOT hide the voting or results banner that comes later — each phase shows
@@ -85,6 +85,7 @@ export default function CompetitionBanner() {
   // Submission-phase fallback: hide the countdown banner once the timer hits zero,
   // because the `voting` content will take over on the next status fetch.
   const timeLeft = useCountdown(getLaunchDate(status));
+  if (!isCompetitionPromoVisible(status)) return null;
   if (phase === 'submission' && !timeLeft) return null;
   if (dismissed) return null;
 

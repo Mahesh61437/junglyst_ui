@@ -53,6 +53,10 @@ export default function Cart() {
   // rendered separately — otherwise they are invisible here while checkout keeps
   // rejecting them with a 400.
   const outOfStockItems = cart.unavailable_items || [];
+  // Location-only blocks are judged against the navbar location; the real
+  // delivery address (entered at checkout) may still be deliverable, so they
+  // must not stop the buyer reaching checkout. Stock problems still do.
+  const canProceedToCheckout = cart.total_items > 0 || outOfStockItems.some(item => item.area_blocked);
 
   const handleCheckout = () => {
     trackCheckoutInitiated({ value: cart.grand_total, numItems: cart.total_items });
@@ -267,9 +271,11 @@ export default function Cart() {
                             {variant.name || 'Standard'} · In cart: {item.quantity}
                           </div>
                           <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#dc2626', marginTop: '0.3rem' }}>
-                            {stock < 1
-                              ? 'Out of stock — remove it to continue'
-                              : `Only ${stock} left — reduce the quantity to continue`}
+                            {item.area_blocked
+                              ? `${item.note} — shipping elsewhere? Enter that address at checkout, or change your location`
+                              : stock < 1
+                                ? 'Out of stock — remove it to continue'
+                                : `Only ${stock} left — reduce the quantity to continue`}
                           </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flexShrink: 0 }}>
@@ -345,9 +351,11 @@ export default function Cart() {
                 <div style={{ fontWeight: 800, marginBottom: '0.35rem' }}>Not included in the total above</div>
                 {outOfStockItems.map(item => (
                   <div key={item.id}>
-                    {item.product?.name} ({item.variant?.name}) — {(item.available_stock ?? 0) < 1
-                      ? 'out of stock.'
-                      : `only ${item.available_stock} left, ${item.quantity} in cart.`}
+                    {item.product?.name} ({item.variant?.name}) — {item.area_blocked
+                      ? `doesn't deliver to ${item.area_label}.`
+                      : (item.available_stock ?? 0) < 1
+                        ? 'out of stock.'
+                        : `only ${item.available_stock} left, ${item.quantity} in cart.`}
                   </div>
                 ))}
               </div>
@@ -358,12 +366,12 @@ export default function Cart() {
                 slabs. Only a cart with nothing orderable left is a dead end. */}
             <button
               onClick={handleCheckout}
-              disabled={cart.total_items === 0}
+              disabled={!canProceedToCheckout}
               style={{
                 width: '100%', padding: '1.25rem',
-                backgroundColor: cart.total_items === 0 ? '#94a3b8' : 'var(--bg-deep)',
+                backgroundColor: canProceedToCheckout ? 'var(--bg-deep)' : '#94a3b8',
                 color: 'white', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1rem',
-                cursor: cart.total_items === 0 ? 'not-allowed' : 'pointer',
+                cursor: canProceedToCheckout ? 'pointer' : 'not-allowed',
                 display: 'flex', alignItems: 'center',
                 justifyContent: 'center', gap: '0.75rem', boxShadow: '0 10px 30px rgba(10, 48, 41, 0.15)',
               }}

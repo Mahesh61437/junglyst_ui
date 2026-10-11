@@ -3,300 +3,15 @@ import { CartService } from '../services/CartService';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import api from '../services/api';
+import { useRegion } from './RegionContext';
 
-// ── Shipping window helpers ───────────────────────────────────────────────────
-// shipping_days uses Python/ISO convention: 0=Mon … 6=Sun
-// JS Date.getDay() uses: 0=Sun, 1=Mon … 6=Sat → convert via (jsDay + 6) % 7
-//
-// Source of truth is the backend `next_shipping_date` (already honors cutoff +
-// blackouts). The client-side calculator below is a fallback when the value
-// isn't present in the payload (e.g. local guest cart with stale snapshot).
-function parseIsoDate(s) {
-  if (!s || typeof s !== 'string') return null;
-  const [y, m, d] = s.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
-
-function buildBlackoutSet(blackouts) {
-  const set = new Set();
-  if (!Array.isArray(blackouts)) return set;
-  for (const b of blackouts) {
-    const start = parseIsoDate(b.start_date);
-    const end = parseIsoDate(b.end_date);
-    if (!start || !end) continue;
-    const cur = new Date(start);
-    while (cur <= end) {
-      set.add(cur.toISOString().slice(0, 10));
-      cur.setDate(cur.getDate() + 1);
-    }
-  }
-  return set;
-}
-
-function getNextShippingDate(shippingDays, { cutoff = '12:00', blackouts = [], asOf = null } = {}) {
-  if (!shippingDays || shippingDays.length === 0) return null;
-  const days = new Set(shippingDays);
-  const blackoutSet = buildBlackoutSet(blackouts);
-  const [cutH, cutM] = (cutoff || '12:00').split(':').map(Number);
-
-  const now = asOf ? new Date(asOf) : new Date();
-  const today = new Date(now); today.setHours(0, 0, 0, 0);
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const cutoffMins = (cutH || 0) * 60 + (cutM || 0);
-
-  for (let offset = 0; offset < 90; offset++) {
-    const cand = new Date(today);
-    cand.setDate(today.getDate() + offset);
-    const wd = (cand.getDay() + 6) % 7;
-    if (!days.has(wd)) continue;
-    const iso = cand.toISOString().slice(0, 10);
-    if (blackoutSet.has(iso)) continue;
-    if (offset === 0 && nowMins >= cutoffMins) continue;
-    return cand;
-  }
-  return null;
-}
-
-function formatShipDate(date) {
-  const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (date.getTime() === today.getTime()) return 'Today';
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  if (date.getTime() === tomorrow.getTime()) return 'Tomorrow';
-  return `${DAY[date.getDay()]}, ${date.getDate()} ${MON[date.getMonth()]}`;
-}
-
-// Zone-based transit days after dispatch
-function transitDays(zone) {
-  if (zone === 'A') return { min: 1, max: 2 };
-  if (zone === 'B') return { min: 2, max: 3 };
-  if (zone === 'D_whitelisted') return { min: 4, max: 6 };
-  return { min: 3, max: 5 }; // C and unknown
-}
-
-export function buildShippingWindow(shippingDays, zone = null, opts = {}) {
-  // Prefer the backend-supplied next_shipping_date (already honors cutoff + blackouts).
-  // Fall back to client-side computation when not provided.
-  const serverNext = parseIsoDate(opts.nextShippingDate);
-  const next = serverNext || getNextShippingDate(shippingDays, {
-    cutoff: opts.cutoff,
-    blackouts: opts.blackouts,
-  });
-  if (!next) {
-    return shippingDays && shippingDays.length === 0
-      ? { ships_on: 'Schedule not set', estimated_delivery: '—', unavailable: true }
-      : null;
-  }
-  const { min: minDays, max: maxDays } = transitDays(zone);
-  const min = new Date(next); min.setDate(next.getDate() + minDays);
-  const max = new Date(next); max.setDate(next.getDate() + maxDays);
-  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const minStr = `${min.getDate()} ${MON[min.getMonth()]}`;
-  const maxStr = `${max.getDate()} ${MON[max.getMonth()]}`;
-
-  // "On a break" indicator — true if the seller has an active blackout covering today
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayIso = today.toISOString().slice(0, 10);
-  const blackoutSet = buildBlackoutSet(opts.blackouts || []);
-  const onBreak = blackoutSet.has(todayIso);
-
-  return {
-    ships_on: formatShipDate(next),
-    ships_date: next,
-    estimated_delivery: `${minStr} – ${maxStr}`,
-    on_break: onBreak,
-  };
-}
+import {
+  calculateFinancials, _empty,
+  MAX_SELLERS, MAX_ITEM_QUANTITY, SHIPPING_CONFIG_RETRY_DELAYS_MS,
+} from '../utils/cartFinancials';
 
 const CartContext = createContext();
 export const useCart = () => useContext(CartContext);
-
-// ── Cart policy constants ─────────────────────────────────────────────────────
-const MAX_SELLERS = 3;
-const MAX_ITEM_QUANTITY = 10;
-
-// Shipping fee and nudge are driven by per-seller DB config fetched from the API.
-// configs shape: { [sellerId]: { light?: TierConfig, heavy?: TierConfig } }
-// TierConfig: { tier1_max, tier1_fee, tier2_max, tier2_fee, show_nudge_products }
-
-function sellerShippingFee(subtotal, config) {
-  if (!config) return 0;
-  if (subtotal < config.tier1_max) return config.tier1_fee;
-  if (subtotal < config.tier2_max) return config.tier2_fee;
-  return 0;
-}
-
-function nudgeForSeller(subtotal, config, sellerName) {
-  if (!config) return { type: 'free', message: `✓ Free shipping from ${sellerName}`, show_products: false };
-
-  const currentFee = sellerShippingFee(subtotal, config);
-
-  if (currentFee === 0) {
-    return { type: 'free', message: `✓ Free shipping from ${sellerName}`, show_products: false, current_fee: 0 };
-  }
-
-  let message = null;
-  let secondary_message = null;
-  let to_next_tier = null;
-  let next_fee = null;
-
-  // In tier-1 (highest fee): show how much to add to reach tier-2
-  if (subtotal < config.tier1_max && config.tier2_fee < config.tier1_fee) {
-    to_next_tier = Math.ceil(config.tier1_max - subtotal);
-    next_fee = config.tier2_fee;
-    message = `Add ₹${to_next_tier} from ${sellerName} to drop shipping ₹${config.tier1_fee} → ₹${config.tier2_fee}`;
-  }
-
-  // Show distance to free shipping
-  const to_free = Math.ceil(config.tier2_max - subtotal);
-  if (to_free > 0) {
-    if (!message) {
-      message = `Add ₹${to_free} from ${sellerName} for free shipping`;
-    } else {
-      secondary_message = `Add ₹${to_free} for free shipping`;
-    }
-  }
-
-  return {
-    type: to_next_tier ? 'tier_upgrade' : 'free_shipping',
-    message,
-    secondary_message,
-    current_fee: currentFee,
-    to_next_tier,
-    next_fee,
-    to_free: to_free > 0 ? to_free : 0,
-    show_products: config.show_nudge_products || false,
-  };
-}
-
-// ── Main financials engine ────────────────────────────────────────────────────
-function calculateFinancials(items = [], deliveryZone = null, configs = {}) {
-  if (!Array.isArray(items)) return _empty();
-
-  // 1. Flag items stock can't fulfil.
-  //
-  // These are NOT clamped locally. The backend cart row still holds the original
-  // quantity, so clamping here only hides the mismatch: the item vanishes from
-  // the UI while checkout keeps rejecting it with a 400 ("out of stock" /
-  // "only N units available") and the buyer has nothing to remove. Flag instead,
-  // keep the real quantity, and let the UI ask the buyer to fix it.
-  const adjustedItems = items
-    .filter(item => item.quantity > 0)
-    .map(item => {
-      const stock = item.variant?.stock ?? 999;
-      if (item.quantity > stock) {
-        return {
-          ...item,
-          unavailable: true,
-          available_stock: stock,
-          note: stock < 1 ? 'Out of stock' : 'Quantity adjusted',
-        };
-      }
-      if (item.quantity > MAX_ITEM_QUANTITY) {
-        return { ...item, quantity: MAX_ITEM_QUANTITY, note: 'Quantity adjusted' };
-      }
-      return item;
-    });
-
-  const availableItems = adjustedItems.filter(item => !item.unavailable);
-  const unavailable_items = adjustedItems.filter(item => item.unavailable);
-
-  // 2. Group by seller
-  const seller_groups = {};
-  for (const item of adjustedItems) {
-    if (item.unavailable) continue;
-    const product = item.product || {};
-    const variant = item.variant || {};
-    const sellerId = product.seller?.id || 'unknown';
-
-    if (!seller_groups[sellerId]) {
-      const sellerProfile = product.seller?.seller_profile || {};
-      // shipping_days / cutoff / blackouts may come nested (core serializer) or flat (cart serializer)
-      const shippingDays = sellerProfile.shipping_days ?? product.seller?.shipping_days ?? [];
-      const cutoff = sellerProfile.daily_cutoff_time ?? product.seller?.daily_cutoff_time ?? '12:00';
-      const blackouts = sellerProfile.blackout_dates ?? product.seller?.blackout_dates ?? [];
-      const nextShippingDate = sellerProfile.next_shipping_date ?? product.seller?.next_shipping_date ?? null;
-      seller_groups[sellerId] = {
-        seller: product.seller || {},
-        items: [],
-        subtotal: 0,
-        has_heavy: false,
-        has_light: false,
-        shipping_fee: 0,
-        nudge: null,
-        shipping_window: buildShippingWindow(shippingDays, deliveryZone, {
-          cutoff,
-          blackouts,
-          nextShippingDate,
-        }),
-      };
-    }
-
-    const price = parseFloat(variant.price || product.price || 0);
-    seller_groups[sellerId].items.push(item);
-    seller_groups[sellerId].subtotal += price * item.quantity;
-
-    // item_category on the variant drives light/heavy classification
-    const cat = variant.item_category || 'light';
-    if (cat === 'heavy') seller_groups[sellerId].has_heavy = true;
-    if (cat === 'light') seller_groups[sellerId].has_light = true;
-  }
-
-  // 3. Per-seller shipping + nudge using DB-driven configs
-  let shipping_total = 0;
-  const sellerIds = Object.keys(seller_groups);
-
-  for (const id of sellerIds) {
-    const g = seller_groups[id];
-    const storeName = g.seller?.store_name || g.seller?.seller_profile?.store_name || g.seller?.full_name || 'this seller';
-    const blocked = deliveryZone === 'E';
-    let cat = 'light';
-    if (g.has_heavy && g.has_light) cat = 'hybrid';
-    else if (g.has_heavy) cat = 'heavy';
-    const sellerConfig = (configs[id] || {})[cat] || null;
-
-    if (!blocked) {
-      g.shipping_fee = sellerShippingFee(g.subtotal, sellerConfig);
-      g.nudge = nudgeForSeller(g.subtotal, sellerConfig, storeName);
-    } else {
-      g.shipping_fee = 0;
-      g.nudge = null;
-    }
-  }
-
-  const subtotal = availableItems.reduce((acc, item) => {
-    return acc + parseFloat(item.variant?.price || item.product?.price || 0) * item.quantity;
-  }, 0);
-  const total_items = availableItems.reduce((acc, item) => acc + item.quantity, 0);
-  // Sum each seller's individual shipping fee (calculated per-seller above)
-  shipping_total = sellerIds.reduce((sum, id) => sum + (seller_groups[id].shipping_fee || 0), 0);
-
-  return {
-    items: adjustedItems,
-    unavailable_items,
-    total_items,
-    subtotal,
-    shipping_total,
-    grand_total: subtotal + shipping_total,
-    seller_groups,
-    seller_count: sellerIds.length,
-    sellers_at_limit: sellerIds.length >= MAX_SELLERS,
-    delivery_zone: deliveryZone,
-    delivery_blocked: deliveryZone === 'E',
-  };
-}
-
-function _empty() {
-  return {
-    items: [], unavailable_items: [], total_items: 0, subtotal: 0, shipping_total: 0, grand_total: 0,
-    seller_groups: {}, seller_count: 0, sellers_at_limit: false,
-    delivery_zone: null, delivery_blocked: false,
-  };
-}
 
 // Normalize backend cart items: map product_details/variant_details → product/variant
 function normalizeItems(items = []) {
@@ -323,8 +38,30 @@ export const CartProvider = ({ children }) => {
   // Shipping configs keyed by seller_id → { light: TierConfig, heavy: TierConfig }
   const shippingConfigsRef = useRef({});
 
+  // Delivery area { region, stateCode, stateName }: the delivery address (region
+  // from its pincode, state from its State field) wins over the area picked in
+  // the navbar — that is where the order actually ships.
+  const { deliveryArea: selectedArea } = useRegion();
+  const selectedAreaRef = useRef(selectedArea);
+  const addressAreaRef = useRef(null);
+  const deliveryAreaRef = useRef(selectedArea);
+
+  const refreshDeliveryArea = useCallback(() => {
+    const address = addressAreaRef.current;
+    const selected = selectedAreaRef.current;
+    deliveryAreaRef.current = address
+      ? { region: address.region || selected?.region || null, stateCode: address.stateCode || null, stateName: address.stateName || null }
+      : selected;
+    setCart(prev => calculateFinancials(prev.items, deliveryZoneRef.current, shippingConfigsRef.current, deliveryAreaRef.current));
+  }, []);
+
+  useEffect(() => {
+    selectedAreaRef.current = selectedArea;
+    refreshDeliveryArea();
+  }, [selectedArea, refreshDeliveryArea]);
+
   const recalc = useCallback((items, zone) => {
-    setCart(calculateFinancials(items, zone, shippingConfigsRef.current));
+    setCart(calculateFinancials(items, zone, shippingConfigsRef.current, deliveryAreaRef.current));
   }, []);
 
   const fetchShippingConfigs = useCallback(async (items) => {
@@ -332,13 +69,27 @@ export const CartProvider = ({ children }) => {
       items.map(i => i.product?.seller?.id).filter(Boolean)
     )];
     if (sellerIds.length === 0) return;
-    try {
-      const res = await api.get(`/cart/shipping-configs/?seller_ids=${sellerIds.join(',')}`);
-      shippingConfigsRef.current = res.data || {};
-    } catch {
-      // fail silently — shipping defaults to 0 when configs unavailable
+    // Retry briefly: without these configs the cart can't tell which sellers
+    // deliver to the buyer's area and would show everything as orderable.
+    for (let attempt = 0; attempt <= SHIPPING_CONFIG_RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        const res = await api.get(`/cart/shipping-configs/?seller_ids=${sellerIds.join(',')}`);
+        shippingConfigsRef.current = res.data || {};
+        return;
+      } catch {
+        const delay = SHIPPING_CONFIG_RETRY_DELAYS_MS[attempt];
+        // Out of retries — fees fall back to 0; checkout re-validates delivery server-side.
+        if (delay === undefined) return;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }, []);
+
+  // Checkout sets this from the delivery address; null falls back to the picked area.
+  const setAddressArea = useCallback((area) => {
+    addressAreaRef.current = area || null;
+    refreshDeliveryArea();
+  }, [refreshDeliveryArea]);
 
   const checkPincode = useCallback(async (pincode) => {
     if (!pincode || pincode.length !== 6) return null;
@@ -348,16 +99,18 @@ export const CartProvider = ({ children }) => {
       const data = res.data;
       const zone = data.deliverable ? data.zone : 'E';
       deliveryZoneRef.current = zone;
+      // The pincode decides the region; keep any state the address already gave.
+      addressAreaRef.current = { ...(addressAreaRef.current || {}), region: data.region || null };
       setDeliveryZoneState(zone);
       setPincodeResult(data);
-      setCart(prev => calculateFinancials(prev.items, zone, shippingConfigsRef.current));
+      refreshDeliveryArea();
       return data;
     } catch {
       return null;
     } finally {
       setPincodeChecking(false);
     }
-  }, []);
+  }, [refreshDeliveryArea]);
 
   const syncCartWithBackend = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -458,7 +211,7 @@ export const CartProvider = ({ children }) => {
         const localVariant = variantData ? { ...variantData, id: variantId ?? variantData.id } : (variantId ? { id: variantId } : null);
         newItems.push({ id: `temp-${Date.now()}`, product: localProduct, variant: localVariant, quantity });
       }
-      return calculateFinancials(newItems, deliveryZoneRef.current, shippingConfigsRef.current);
+      return calculateFinancials(newItems, deliveryZoneRef.current, shippingConfigsRef.current, deliveryAreaRef.current);
     });
 
     if (isAuthenticated) {
@@ -510,7 +263,7 @@ export const CartProvider = ({ children }) => {
     setCart(prev => {
       const newItems = [...prev.items];
       newItems[itemIndex] = { ...newItems[itemIndex], quantity: newQuantity };
-      return calculateFinancials(newItems, deliveryZoneRef.current, shippingConfigsRef.current);
+      return calculateFinancials(newItems, deliveryZoneRef.current, shippingConfigsRef.current, deliveryAreaRef.current);
     });
     if (isAuthenticated) {
       try {
@@ -525,7 +278,7 @@ export const CartProvider = ({ children }) => {
   const removeItem = async (itemIndex) => {
     const item = cart.items[itemIndex];
     if (!item) return;
-    setCart(prev => calculateFinancials(prev.items.filter((_, i) => i !== itemIndex), deliveryZoneRef.current, shippingConfigsRef.current));
+    setCart(prev => calculateFinancials(prev.items.filter((_, i) => i !== itemIndex), deliveryZoneRef.current, shippingConfigsRef.current, deliveryAreaRef.current));
     if (isAuthenticated && !item.id?.toString().startsWith('temp-')) {
       try {
         const updatedCart = await CartService.updateItem(item.id, 0);
@@ -540,6 +293,8 @@ export const CartProvider = ({ children }) => {
     localStorage.removeItem('junglyst_cart');
     setCart(_empty());
     deliveryZoneRef.current = null;
+    addressAreaRef.current = null;
+    deliveryAreaRef.current = selectedAreaRef.current;
     setDeliveryZoneState(null);
     setPincodeResult(null);
   };
@@ -553,6 +308,7 @@ export const CartProvider = ({ children }) => {
       pincodeChecking,
       pincodeResult,
       checkPincode,
+      setAddressArea,
       addItemToCart,
       updateItemQuantity,
       removeItem,
