@@ -11,9 +11,10 @@ import { WorkshopService } from '../services/WorkshopService';
 import { launchGatewayPayment } from '../utils/paymentGateway';
 import { trackEvent } from '../utils/analytics';
 import { getImageUrl } from '../utils/imageUtils';
+import FramedImage from '../components/workshops/FramedImage';
 import {
   SKILL_LEVELS, WORKSHOP_CATEGORIES, bookingTotal, hostNames, formatDate, formatDuration, formatINR, formatTime,
-  labelFor, registrationState, seatsLabel, validateAttendee,
+  labelFor, msUntil, registrationState, seatsLabel, validateAttendee,
 } from '../utils/workshops';
 import './Workshops.css';
 
@@ -27,7 +28,7 @@ function Gallery({ images, title }) {
   return (
     <div>
       <div className="ws-gallery-main">
-        <img src={getImageUrl(images[active])} alt={`${title}, photo ${active + 1} of ${images.length}`} />
+        <FramedImage src={getImageUrl(images[active])} alt={`${title}, photo ${active + 1} of ${images.length}`} />
       </div>
       {images.length > 1 && (
         <div className="ws-thumbs" role="list">
@@ -159,12 +160,26 @@ function BookingPanel({ workshop, onBooked }) {
   };
 
   if (!registration.open) {
+    const notes = {
+      opens_later: 'Bookings open automatically at this time. Keep this page open, or come back then.',
+      sold_out: 'Every upcoming session is fully booked. Seats freed by cancellations re-open bookings automatically.',
+      no_dates: 'New sessions for this workshop will be announced shortly.',
+      closed: 'Follow us for new dates, or browse other upcoming workshops.',
+    };
     return (
       <aside className="ws-book" id="book">
         <h2>{registration.label}</h2>
-        <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-          Follow us for new dates, or browse other upcoming workshops.
-        </p>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.5rem' }}>{notes[registration.state] || notes.closed}</p>
+        {registration.state === 'opens_later' && sessions.length > 0 && (
+          <ul style={{ margin: '1rem 0 0', display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem' }}>
+            {sessions.map(sess => (
+              <li key={sess.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <CalendarDays size={14} color="var(--brand-green)" />
+                {formatDate(sess.date)} · {formatTime(sess.start_time)} – {formatTime(sess.end_time)}
+              </li>
+            ))}
+          </ul>
+        )}
         <Link to="/workshops" className="btn btn-outline" style={{ width: '100%', marginTop: '1rem' }}>See other workshops</Link>
       </aside>
     );
@@ -288,11 +303,21 @@ export default function WorkshopDetail() {
   const bookRef = useRef(null);
   // The mobile "Book a seat" bar is redundant once the booking panel is on screen.
   const [panelInView, setPanelInView] = useState(false);
-  const { data: workshop, isLoading, isError, error } = useQuery({
+  const { data: workshop, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['workshop', slug],
     queryFn: () => WorkshopService.get(slug),
     retry: (count, err) => err?.response?.status !== 404 && count < 2,
   });
+
+  // Registrations open / close on a schedule: re-fetch the moment they flip so
+  // a buyer waiting on the page sees the booking form appear (or close) without
+  // reloading. Seat changes are picked up on focus by react-query.
+  const nextChangeAt = registrationState(workshop).nextChangeAt?.getTime();
+  useEffect(() => {
+    if (!nextChangeAt) return undefined;
+    const timer = setTimeout(() => refetch(), msUntil(new Date(nextChangeAt)) + 1000);
+    return () => clearTimeout(timer);
+  }, [nextChangeAt, refetch]);
 
   const hasWorkshop = Boolean(workshop);
   useEffect(() => {

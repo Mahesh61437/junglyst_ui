@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../services/api';
+import { validateProductForm, cleanVariantForSubmit, mapProductServerErrors, NAME_MAX_LENGTH, TAGLINE_MAX_LENGTH } from '../utils/productForm';
 import {
   LayoutDashboard, Package, ShoppingBag, Settings, LogOut,
   TrendingUp, PackageCheck, AlertCircle, Plus, Box, X,
@@ -806,6 +807,7 @@ export default function SellerDashboard() {
       const updated = [...newProduct.images];
       updated[idx].image_url = url;
       setNewProduct({ ...newProduct, images: updated });
+      clearFieldError('images');
     } catch (error) {
       setFormError("Failed to upload specimen image. Please check your connection.");
     } finally {
@@ -834,57 +836,37 @@ export default function SellerDashboard() {
     }
   };
 
+  // Highlight errored fields and bring the first one into view (form order).
+  const showFieldErrors = (errors) => {
+    setFieldErrors(errors);
+    const firstKey = Object.keys(errors)[0];
+    requestAnimationFrame(() => {
+      const field = document.querySelector(`[data-field="${firstKey}"]`);
+      if (!field) return;
+      field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      field.querySelector('input:not([type="hidden"]), textarea, select, button')?.focus({ preventScroll: true });
+    });
+  };
+
+  const clearFieldError = (key) => {
+    if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: null }));
+  };
+
   const handleAddProduct = async (e, addAnother = false, isDraft = false) => {
     if (e) e.preventDefault();
 
-    // Client-side Validation — skip strict validation for drafts
-    const errors = {};
-    if (!newProduct.name?.trim()) errors.name = "Specimen name is required";
-    else if (newProduct.name.trim().length < 2) errors.name = "Must be at least 2 characters";
-    else if (newProduct.name.trim().length > 200) errors.name = "Must be under 200 characters";
-
-    if (newProduct.tagline && newProduct.tagline.length > 200) errors.tagline = "Max 200 characters";
-
-    if (!isDraft) {
-      if (!newProduct.category_ids || newProduct.category_ids.length === 0) errors.category_ids = "Please select at least one category";
-      if (!newProduct.description?.trim()) errors.description = "Botanical description is required";
-      else if (newProduct.description.trim().length < 20) errors.description = "Must be at least 20 characters";
-
-      newProduct.variants.forEach((v, idx) => {
-        const price = parseFloat(v.base_price);
-        if (!v.base_price && v.base_price !== 0) errors[`variant_${idx}_base_price`] = "Price required";
-        else if (isNaN(price) || price <= 0) errors[`variant_${idx}_base_price`] = "Must be a positive number";
-        else if (price > 1000000) errors[`variant_${idx}_base_price`] = "Price seems too high";
-
-        const stock = parseInt(v.stock);
-        if (v.stock === '' || v.stock === undefined || v.stock === null) errors[`variant_${idx}_stock`] = "Stock required";
-        else if (isNaN(stock) || stock < 0) errors[`variant_${idx}_stock`] = "Must be 0 or more";
-        else if (!Number.isInteger(Number(v.stock))) errors[`variant_${idx}_stock`] = "Must be a whole number";
-
-        if (!v.packed_weight_grams) errors[`variant_${idx}_packed_weight_grams`] = "Packed weight required";
-        else if (parseInt(v.packed_weight_grams) < 1 || parseInt(v.packed_weight_grams) > 30000) errors[`variant_${idx}_packed_weight_grams`] = "Must be 1–30,000g";
-
-        const dims = ['length', 'width', 'height'];
-        dims.forEach(dim => {
-          const val = parseFloat(v[dim]);
-          if (!v[dim]) errors[`variant_${idx}_${dim}`] = "Required";
-          else if (isNaN(val) || val <= 0) errors[`variant_${idx}_${dim}`] = "Must be > 0";
-        });
-      });
-
-      if (newProduct.images.every(img => !img.image_url?.trim())) {
-        errors.images = "At least one product image is required";
-      }
-    }
-
+    const errors = validateProductForm(newProduct, { isDraft });
     if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      setFormError("Please correct the highlighted botanical errors.");
+      showFieldErrors(errors);
+      const count = Object.keys(errors).length;
+      setFormError(`Please fix ${count} highlighted field${count > 1 ? 's' : ''} before ${isDraft ? 'saving the draft' : 'listing'}.`);
       return;
     }
 
     setSaving(true);
     setFieldErrors({});
+    setFormError(null);
+    const submitContext = { variantIndexes: [] };
 
     try {
       const payload = { ...newProduct };
@@ -909,10 +891,17 @@ export default function SellerDashboard() {
       delete payload.light_requirements_max;
       delete payload.growth_rate_max;
 
-      // Save the label exactly as the user typed it — variant_type is a separate field.
+      // Drafts may hold half-filled variants; only send ones with price + stock.
+      // Remember each sent variant's on-screen index so server errors map back.
+      const submittedVariantIndexes = [];
       payload.variants = payload.variants
-        .filter(v => v.base_price !== '' && v.stock !== '')
-        .map(v => ({ ...v, name: v.name?.trim() || '' }));
+        .filter((v, idx) => {
+          const keep = v.base_price !== '' && v.stock !== '';
+          if (keep) submittedVariantIndexes.push(idx);
+          return keep;
+        })
+        .map(cleanVariantForSubmit);
+      submitContext.variantIndexes = submittedVariantIndexes;
       payload.images = payload.images.filter(img => img.image_url.trim() !== '');
 
       if (editingProduct) await ProductService.updateProduct(editingProduct.id, payload);
@@ -943,7 +932,9 @@ export default function SellerDashboard() {
         await fetchData();   // refresh product list with updated data
       }
     } catch (error) {
-      setFormError(error.response?.data?.error || "Failed to save specimen. Please verify all fields.");
+      const { fieldErrors: serverFieldErrors, message } = mapProductServerErrors(error, submitContext.variantIndexes);
+      if (Object.keys(serverFieldErrors).length) showFieldErrors(serverFieldErrors);
+      setFormError(message);
     } finally {
       setSaving(false);
     }
@@ -4249,7 +4240,7 @@ export default function SellerDashboard() {
                         <CheckCircle2 size={20} /> {success}
                       </motion.div>
                     )}
-                    <form id="product-form" onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '4rem' }}>
+                    <form id="product-form" noValidate onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '4rem' }}>
                       {/* Section 1: Basic Identity */}
                       {/* Section 1: Specimen Identity (Merged & Dense) */}
                       <div style={{ backgroundColor: 'white', padding: isMobile ? '2rem 1.5rem' : '3.5rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 30px rgba(0,0,0,0.03)' }}>
@@ -4267,9 +4258,9 @@ export default function SellerDashboard() {
                           {/* Primary Information */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
-                              <div>
+                              <div data-field="name">
                                 <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.name ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Name <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.name && `— ${fieldErrors.name}`}</label>
-                                <input value={newProduct.name} onChange={e => { setNewProduct({ ...newProduct, name: e.target.value }); setFieldErrors({ ...fieldErrors, name: null }); }} placeholder="e.g. Alocasia Azlanii" className={fieldErrors.name ? 'form-error-input' : ''} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', fontWeight: 500 }} />
+                                <input value={newProduct.name} maxLength={NAME_MAX_LENGTH} aria-invalid={!!fieldErrors.name} onChange={e => { setNewProduct({ ...newProduct, name: e.target.value }); clearFieldError('name'); }} placeholder="e.g. Alocasia Azlanii" className={fieldErrors.name ? 'form-error-input' : ''} style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', fontWeight: 500 }} />
                               </div>
                               <div>
                                 <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Scientific Name</label>
@@ -4277,13 +4268,13 @@ export default function SellerDashboard() {
                               </div>
                             </div>
 
-                            <div>
-                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: '#64748b', letterSpacing: '0.05em' }}>Short Summary / Tagline</label>
-                              <input value={newProduct.tagline} onChange={e => setNewProduct({ ...newProduct, tagline: e.target.value })} placeholder="e.g. Rare jewel alocasia with deep metallic purple leaves" style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
+                            <div data-field="tagline">
+                              <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.tagline ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Short Summary / Tagline <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(optional)</span> {fieldErrors.tagline && `— ${fieldErrors.tagline}`}</label>
+                              <input value={newProduct.tagline} maxLength={TAGLINE_MAX_LENGTH} aria-invalid={!!fieldErrors.tagline} className={fieldErrors.tagline ? 'form-error-input' : ''} onChange={e => { setNewProduct({ ...newProduct, tagline: e.target.value }); clearFieldError('tagline'); }} placeholder="e.g. Rare jewel alocasia with deep metallic purple leaves" style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }} />
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '2rem' }}>
-                              <div>
+                              <div data-field="category_ids">
                                 <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.85rem', color: fieldErrors.category_ids ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Marketplace Categories <span style={{ color: '#ef4444' }}>*</span> <span style={{ color: '#94a3b8', fontWeight: 500, textTransform: 'none' }}>(select one or more)</span> {fieldErrors.category_ids && `— ${fieldErrors.category_ids}`}</label>
                                 <div style={{ border: `1px solid ${fieldErrors.category_ids ? '#ef4444' : '#e2e8f0'}`, borderRadius: '10px', overflow: 'hidden' }}>
                                   <input
@@ -4348,7 +4339,7 @@ export default function SellerDashboard() {
                                                   category_ids: next,
                                                   sub_category_ids: newProduct.sub_category_ids.filter(sid => allowedSubs.has(String(sid))),
                                                 });
-                                                setFieldErrors({ ...fieldErrors, category_ids: null });
+                                                clearFieldError('category_ids');
                                               }}
                                               style={{ cursor: 'pointer' }}
                                             />
@@ -4559,7 +4550,7 @@ export default function SellerDashboard() {
                                   />
                                 </div>
                                 {/* Stock */}
-                                <div>
+                                <div data-field={`variant_${idx}_stock`}>
                                   <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.75rem', color: fieldErrors[`variant_${idx}_stock`] ? '#ef4444' : '#64748b' }}>Stock <span style={{ color: '#ef4444' }}>*</span> {fieldErrors[`variant_${idx}_stock`] && `— ${fieldErrors[`variant_${idx}_stock`]}`}</label>
                                   <input
                                     type="number"
@@ -4568,9 +4559,12 @@ export default function SellerDashboard() {
                                       const updated = [...newProduct.variants];
                                       updated[idx].stock = e.target.value;
                                       setNewProduct({ ...newProduct, variants: updated });
-                                      setFieldErrors({ ...fieldErrors, [`variant_${idx}_stock`]: null });
+                                      clearFieldError(`variant_${idx}_stock`);
                                     }}
                                     placeholder="0"
+                                    min="0"
+                                    step="1"
+                                    aria-invalid={!!fieldErrors[`variant_${idx}_stock`]}
                                     className={fieldErrors[`variant_${idx}_stock`] ? 'form-error-input' : ''}
                                     style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
                                   />
@@ -4578,7 +4572,7 @@ export default function SellerDashboard() {
                               </div>
 
                               {/* Pricing — seller enters their price, we show payout after commission */}
-                              <div style={{ padding: isMobile ? '1.25rem' : '2rem', backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', marginBottom: '2.5rem' }}>
+                              <div data-field={`variant_${idx}_base_price`} style={{ padding: isMobile ? '1.25rem' : '2rem', backgroundColor: 'white', borderRadius: '20px', border: '1px solid #edf2ed', marginBottom: '2.5rem' }}>
                                 <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.4rem', color: fieldErrors[`variant_${idx}_base_price`] ? '#ef4444' : '#64748b' }}>
                                   Your Listed Price (₹) <span style={{ color: '#ef4444' }}>*</span>
                                   {fieldErrors[`variant_${idx}_base_price`] && ` — ${fieldErrors[`variant_${idx}_base_price`]}`}
@@ -4591,9 +4585,11 @@ export default function SellerDashboard() {
                                     const updated = [...newProduct.variants];
                                     updated[idx].base_price = e.target.value;
                                     setNewProduct({ ...newProduct, variants: updated });
-                                    setFieldErrors({ ...fieldErrors, [`variant_${idx}_base_price`]: null });
+                                    clearFieldError(`variant_${idx}_base_price`);
                                   }}
                                   placeholder="e.g. 450"
+                                  min="0"
+                                  aria-invalid={!!fieldErrors[`variant_${idx}_base_price`]}
                                   className={fieldErrors[`variant_${idx}_base_price`] ? 'form-error-input' : ''}
                                   style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', marginBottom: '1.25rem' }}
                                 />
@@ -4625,7 +4621,7 @@ export default function SellerDashboard() {
 
                                 {/* Packed weight + box dims */}
                                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '1.5rem' }}>
-                                  <div>
+                                  <div data-field={`variant_${idx}_packed_weight_grams`}>
                                     <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: fieldErrors[`variant_${idx}_packed_weight_grams`] ? '#ef4444' : '#94a3b8' }}>
                                       PACKED WEIGHT (g) <span style={{ color: '#ef4444' }}>*</span>
                                       {fieldErrors[`variant_${idx}_packed_weight_grams`] && ` — ${fieldErrors[`variant_${idx}_packed_weight_grams`]}`}
@@ -4641,8 +4637,10 @@ export default function SellerDashboard() {
                                         const updated = [...newProduct.variants];
                                         updated[idx].packed_weight_grams = e.target.value;
                                         setNewProduct({ ...newProduct, variants: updated });
-                                        setFieldErrors({ ...fieldErrors, [`variant_${idx}_packed_weight_grams`]: null });
+                                        clearFieldError(`variant_${idx}_packed_weight_grams`);
                                       }}
+                                      aria-invalid={!!fieldErrors[`variant_${idx}_packed_weight_grams`]}
+                                      className={fieldErrors[`variant_${idx}_packed_weight_grams`] ? 'form-error-input' : ''}
                                       style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: `1px solid ${fieldErrors[`variant_${idx}_packed_weight_grams`] ? '#ef4444' : '#e2e8f0'}`, fontSize: '0.9rem' }}
                                     />
                                   </div>
@@ -4651,8 +4649,11 @@ export default function SellerDashboard() {
                                     { label: 'BOX BREADTH (CM)', key: 'width' },
                                     { label: 'BOX HEIGHT (CM)', key: 'height' },
                                   ].map(field => (
-                                    <div key={field.key}>
-                                      <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: fieldErrors[`variant_${idx}_${field.key}`] ? '#ef4444' : '#94a3b8' }}>{field.label} <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <div key={field.key} data-field={`variant_${idx}_${field.key}`}>
+                                      <label style={{ display: 'block', fontSize: '0.6rem', fontWeight: 800, marginBottom: '0.6rem', color: fieldErrors[`variant_${idx}_${field.key}`] ? '#ef4444' : '#94a3b8' }}>
+                                        {field.label} <span style={{ color: '#ef4444' }}>*</span>
+                                        {fieldErrors[`variant_${idx}_${field.key}`] && ` — ${fieldErrors[`variant_${idx}_${field.key}`]}`}
+                                      </label>
                                       <input
                                         type="number"
                                         min="1"
@@ -4662,8 +4663,9 @@ export default function SellerDashboard() {
                                           const updated = [...newProduct.variants];
                                           updated[idx][field.key] = e.target.value;
                                           setNewProduct({ ...newProduct, variants: updated });
-                                          setFieldErrors({ ...fieldErrors, [`variant_${idx}_${field.key}`]: null });
+                                          clearFieldError(`variant_${idx}_${field.key}`);
                                         }}
+                                        aria-invalid={!!fieldErrors[`variant_${idx}_${field.key}`]}
                                         className={fieldErrors[`variant_${idx}_${field.key}`] ? 'form-error-input' : ''}
                                         style={{ width: '100%', padding: '0.8rem', borderRadius: '10px', border: `1px solid ${fieldErrors[`variant_${idx}_${field.key}`] ? '#ef4444' : '#e2e8f0'}`, fontSize: '0.9rem' }}
                                       />
@@ -4694,23 +4696,23 @@ export default function SellerDashboard() {
                       {/* Section 4: Imagery & Content */}
                       <div style={{ backgroundColor: 'white', padding: isMobile ? '2rem 1.5rem' : '3rem', borderRadius: '32px', border: '1px solid #edf2ed', boxShadow: '0 4px 30px rgba(0,0,0,0.03)' }}>
                         <h4 style={{ fontSize: '0.85rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: fieldErrors.images ? '1rem' : '2.5rem', color: '#1b2d2a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <Camera size={18} color="#10b981" /> Imagery & Content <span style={{ color: '#ef4444' }}>*</span>
+                          <Camera size={18} color="#10b981" /> Imagery & Content
                         </h4>
                         {fieldErrors.images && (
-                          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.8rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <AlertCircle size={14} /> {fieldErrors.images}
                           </div>
                         )}
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-                          <div>
+                          <div data-field="description">
                             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '1.25rem', color: fieldErrors.description ? '#ef4444' : '#64748b', letterSpacing: '0.05em' }}>Specimen Description <span style={{ color: '#ef4444' }}>*</span> {fieldErrors.description && `— ${fieldErrors.description}`}</label>
-                            <textarea rows="6" value={newProduct.description} onChange={e => { setNewProduct({ ...newProduct, description: e.target.value }); setFieldErrors({ ...fieldErrors, description: null }); }} placeholder="Detail the specimen's health, coloration, and acclimation history..." className={fieldErrors.description ? 'form-error-input' : ''} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', resize: 'none', fontSize: '0.95rem', lineHeight: '1.5', color: '#1b2d2a' }} />
+                            <textarea rows="6" value={newProduct.description} aria-invalid={!!fieldErrors.description} onChange={e => { setNewProduct({ ...newProduct, description: e.target.value }); clearFieldError('description'); }} placeholder="Detail the specimen's health, coloration, and acclimation history..." className={fieldErrors.description ? 'form-error-input' : ''} style={{ width: '100%', padding: '1rem', borderRadius: '14px', border: '1px solid #e2e8f0', resize: 'none', fontSize: '0.95rem', lineHeight: '1.5', color: '#1b2d2a' }} />
                           </div>
 
                           <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                              <label style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', color: spotlight.brand_color || '#E5C48B', letterSpacing: '0.05em' }}>Visual Gallery</label>
+                            <div data-field="images" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                              <label style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', color: fieldErrors.images ? '#ef4444' : (spotlight.brand_color || '#E5C48B'), letterSpacing: '0.05em' }}>Visual Gallery <span style={{ color: '#ef4444' }}>*</span></label>
                               <button
                                 type="button"
                                 onClick={() => setNewProduct(prev => ({ ...prev, images: [...prev.images, { image_url: '', is_primary: false }] }))}

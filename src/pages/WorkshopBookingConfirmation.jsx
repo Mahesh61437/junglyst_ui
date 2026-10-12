@@ -1,13 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { CheckCircle2, CalendarDays, Clock, MapPin, Users, Ticket, Wallet, CalendarPlus, Navigation } from 'lucide-react';
+import { CheckCircle2, XCircle, CalendarDays, Clock, MapPin, Users, Ticket, Wallet, CalendarPlus, Navigation } from 'lucide-react';
 import SEO from '../components/SEO';
+import OrganiserContact from '../components/workshops/OrganiserContact';
 import { useAuth } from '../context/AuthContext';
 import { WorkshopService } from '../services/WorkshopService';
 import { EMAIL_PATTERN, formatDate, formatINR, formatTime, googleCalendarUrl } from '../utils/workshops';
 import './Workshops.css';
 
 const LAST_BOOKING_KEY = 'junglyst_last_workshop_booking';
+
+// Header per booking status. Only live bookings get the calendar button.
+const TICKET_HEADS = {
+  confirmed: { active: true, title: "You're booked!", note: 'A confirmation has been sent to', showEmail: true },
+  attended: { active: true, title: 'Thanks for joining us!', note: 'Hope you enjoyed the workshop. Booking details were sent to', showEmail: true },
+  no_show: { active: false, title: 'We missed you', note: 'This booking was marked as not attended. Contact the organiser below about another session.', showEmail: false },
+  pending_payment: { active: true, title: 'Booking received', note: 'We are confirming your payment. Updates go to', showEmail: true },
+  cancelled: { active: false, title: 'This booking was cancelled', note: 'Your seat is no longer reserved. Refunds go back to your original payment method. Questions? Contact the organiser below.', showEmail: false },
+  payment_failed: { active: false, title: "Payment didn't go through", note: 'No seat was reserved and no money was taken. You can book again from the workshop page.', showEmail: false },
+};
 
 function readCachedBooking(orderNumber) {
   try {
@@ -85,18 +96,18 @@ export default function WorkshopBookingConfirmation() {
     location: [venueLine, venue.address].filter(Boolean).join(' – '),
     details: `Booking ref ${reference}. ${booking.participants} seat(s), ${booking.option_name}.`,
   });
-  const paid = booking.status !== 'pending_payment' && booking.status !== 'payment_failed';
+  const head = TICKET_HEADS[booking.status] || TICKET_HEADS.confirmed;
+  const active = head.active;
 
   return (
     <div className="container ws-page ws-confirm">
-      <SEO title="You're booked! | Junglyst Workshops" description="Your Junglyst workshop booking is confirmed." path={location.pathname} />
+      <SEO title={`${head.title} | Junglyst Workshops`} description="Your Junglyst workshop booking." path={location.pathname} />
       <div className="ws-confirm-card">
-        <div className="ws-confirm-head">
-          <CheckCircle2 size={48} color="#a3e4b8" />
-          <h1>{paid ? "You're booked!" : 'Booking received'}</h1>
-          <p style={{ opacity: 0.8 }}>
-            {paid ? 'A confirmation has been sent to ' : 'We are confirming your payment. Updates go to '}
-            <strong>{booking.attendee_email}</strong>
+        <div className="ws-confirm-head" style={active ? undefined : { background: 'linear-gradient(135deg, #475569, #64748b)' }}>
+          {active ? <CheckCircle2 size={48} color="#a3e4b8" /> : <XCircle size={48} color="#fecaca" />}
+          <h1>{head.title}</h1>
+          <p style={{ opacity: 0.85 }}>
+            {head.note} {head.showEmail && <strong>{booking.attendee_email}</strong>}
           </p>
         </div>
 
@@ -132,6 +143,11 @@ export default function WorkshopBookingConfirmation() {
             <Wallet size={18} />
             <div><div className="ws-fact-label">Paid</div><div style={{ fontWeight: 600 }}>{formatINR(booking.total_amount)}</div></div>
           </div>
+          {booking.organiser_contact && (
+            <div className="ws-ticket-item" style={{ gridColumn: '1 / -1' }}>
+              <OrganiserContact contact={booking.organiser_contact} />
+            </div>
+          )}
           {(venueLine || venue.address) && (
             <div className="ws-ticket-item" style={{ gridColumn: '1 / -1' }}>
               <MapPin size={18} />
@@ -148,7 +164,7 @@ export default function WorkshopBookingConfirmation() {
         </div>
 
         <div className="ws-actions">
-          <a href={calendarUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary"><CalendarPlus size={16} style={{ marginRight: 6 }} /> Add to calendar</a>
+          {active && <a href={calendarUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary"><CalendarPlus size={16} style={{ marginRight: 6 }} /> Add to calendar</a>}
           {user
             ? <Link to="/orders" className="btn btn-outline">My orders</Link>
             : <Link to="/workshops" className="btn btn-outline">More workshops</Link>}

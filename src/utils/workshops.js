@@ -96,22 +96,41 @@ export function bookingTotal(price, participants) {
   return toNumber(price) * Math.max(0, Math.floor(toNumber(participants)));
 }
 
-// Registration state shown on cards / detail page.
+const shortDate = (date) => date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+const dateTime = (date) => `${shortDate(date)}, ${date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`;
+
+// Registration state for cards / detail page. The server decides
+// (`registration_state`: time window + seats left); the clock only matters
+// for working out when it will next change, so an open page can refresh then.
 export function registrationState(workshop, now = new Date()) {
-  if (!workshop) return { open: false, label: '' };
+  if (!workshop) return { state: 'closed', open: false, label: '', badge: null, nextChangeAt: null };
   const opens = workshop.registration_opens_at ? new Date(workshop.registration_opens_at) : null;
   const closes = workshop.registration_closes_at ? new Date(workshop.registration_closes_at) : null;
-  if (opens && now < opens) {
-    return { open: false, label: `Registrations open ${opens.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` };
+  let state = workshop.registration_state;
+  if (!state) { // older payloads: time window only
+    if (opens && now < opens) state = 'opens_later';
+    else if ((closes && now > closes) || workshop.registration_open === false) state = 'closed';
+    else state = 'open';
   }
-  if ((closes && now > closes) || workshop.registration_open === false) {
-    return { open: false, label: 'Registrations closed' };
+  const future = (date) => (date && date > now ? date : null);
+  const nextChangeAt = state === 'opens_later' ? future(opens) : state === 'open' ? future(closes) : null;
+
+  switch (state) {
+    case 'opens_later':
+      return { state, open: false, nextChangeAt, label: opens ? `Registrations open ${dateTime(opens)}` : 'Registrations open soon', badge: opens ? `Opens ${shortDate(opens)}` : 'Opening soon' };
+    case 'sold_out':
+      return { state, open: false, nextChangeAt, label: 'All sessions are full', badge: 'Sold out' };
+    case 'no_dates':
+      return { state, open: false, nextChangeAt, label: 'New dates coming soon', badge: null };
+    case 'closed':
+      return { state, open: false, nextChangeAt, label: 'Registrations closed', badge: 'Closed' };
+    default:
+      return { state: 'open', open: true, nextChangeAt, label: closes ? `Register by ${dateTime(closes)}` : 'Registrations open', badge: null };
   }
-  if (closes) {
-    return { open: true, label: `Register by ${closes.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` };
-  }
-  return { open: true, label: 'Registrations open' };
 }
+
+// Milliseconds until `date`, capped to what setTimeout accepts (~24.8 days).
+export const msUntil = (date, now = Date.now()) => Math.min(Math.max(0, date.getTime() - now), 2 ** 31 - 1);
 
 export const PHONE_PATTERN = /^\+?[0-9 ]{10,15}$/;
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -207,4 +226,21 @@ export const termsSignature = (organisers) => JSON.stringify(
 export function hostNames(workshop) {
   const names = (workshop.organisers?.length ? workshop.organisers : [workshop.organiser]).filter(Boolean).map(o => o.name);
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : (names[0] || '');
+}
+
+// tel: / WhatsApp links for an Indian mobile; a bare 10-digit number gets +91.
+export function phoneLinks(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  const international = digits.length === 10 ? `91${digits}` : digits;
+  return { tel: `tel:+${international}`, whatsapp: `https://wa.me/${international}` };
+}
+
+// True when a session's start (local date + "HH:MM") is not in the future.
+export function isPastSession(isoDate, startTime, now = new Date()) {
+  const day = parseLocalDate(isoDate);
+  if (!day || !startTime) return false;
+  const [h, m] = String(startTime).split(':').map(Number);
+  day.setHours(h || 0, m || 0, 0, 0);
+  return day <= now;
 }

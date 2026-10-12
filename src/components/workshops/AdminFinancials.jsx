@@ -176,7 +176,9 @@ function WorkshopFinancialsDrawer({ row, onClose, onChanged }) {
                     {detail.sessions.map(s => (
                       <tr key={s.id} style={s.is_active ? undefined : { opacity: 0.55 }}>
                         <td>{formatDate(s.date)} · {formatTime(s.start_time)}{s.is_active ? '' : ' (inactive)'}</td>
-                        <td className="num">{s.seats_booked} / {s.capacity}</td>
+                        <td className="num" style={s.seats_booked > s.capacity ? { color: '#b91c1c', fontWeight: 800 } : undefined}>
+                          {s.seats_booked} / {s.capacity}{s.seats_booked > s.capacity ? ' · overbooked' : ''}
+                        </td>
                         <td className="num">{money(s.gross)}</td>
                         <td className="num">{money(s.seller_payout)}</td>
                       </tr>

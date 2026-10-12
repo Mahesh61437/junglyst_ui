@@ -6,6 +6,7 @@ import { useScrollRestoration } from '../utils/useScrollRestoration';
 import Pagination from '../components/Pagination';
 import SocialLinks from '../components/SocialLinks';
 import BookingStatusPill from '../components/workshops/BookingStatusPill';
+import OrganiserContact from '../components/workshops/OrganiserContact';
 import { formatDate, formatTime } from '../utils/workshops';
 
 // Covers both master Order statuses and sub-order SubOrderStatuses
@@ -115,6 +116,9 @@ function WorkshopBookingCard({ booking }) {
           <a href={booking.map_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#105c44', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
             <Navigation size={12} /> Get directions
           </a>
+        )}
+        {booking.organiser_contact && (
+          <div style={{ marginTop: '0.5rem' }}><OrganiserContact contact={booking.organiser_contact} /></div>
         )}
       </div>
     </div>

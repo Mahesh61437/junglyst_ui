@@ -1,28 +1,31 @@
 import { Link } from 'react-router-dom';
 import { CalendarDays, MapPin, Clock, Sparkles, Leaf } from 'lucide-react';
 import { getImageUrl } from '../../utils/imageUtils';
+import FramedImage from './FramedImage';
 import {
-  WORKSHOP_CATEGORIES, formatDate, formatDuration, formatINR, hostNames, labelFor, seatsLabel,
+  WORKSHOP_CATEGORIES, formatDate, formatDuration, formatINR, hostNames, labelFor, registrationState, seatsLabel,
 } from '../../utils/workshops';
 import '../../pages/Workshops.css';
 
 export default function WorkshopCard({ workshop }) {
   const seats = seatsLabel(workshop.seats_left);
   const hasUpcoming = workshop.upcoming_session_count > 0;
+  const registration = registrationState(workshop);
   return (
     <Link to={`/workshops/${workshop.slug}`} className="ws-card">
       <div className="ws-card-media">
         {workshop.cover_image
-          ? <img src={getImageUrl(workshop.cover_image)} alt={workshop.title} loading="lazy" />
+          ? <FramedImage src={getImageUrl(workshop.cover_image)} alt={workshop.title} loading="lazy" />
           : <div className="ws-card-placeholder"><Leaf size={48} strokeWidth={1.2} /></div>}
         <div className="ws-card-badges">
           <span className="ws-badge">{labelFor(WORKSHOP_CATEGORIES, workshop.category)}</span>
-          {hasUpcoming && seats.tone !== 'ok' && (
+          {registration.badge ? (
+            <span className={`ws-badge ws-badge--${registration.state === 'opens_later' ? 'upcoming' : 'soldout'}`}>{registration.badge}</span>
+          ) : hasUpcoming && seats.tone !== 'ok' ? (
             <span className={`ws-badge ws-badge--${seats.tone}`}>{seats.text}</span>
-          )}
-          {hasUpcoming && seats.tone === 'ok' && workshop.is_featured && (
+          ) : hasUpcoming && workshop.is_featured ? (
             <span className="ws-badge ws-badge--gold"><Sparkles size={10} /> Featured</span>
-          )}
+          ) : null}
         </div>
       </div>
       <div className="ws-card-body">

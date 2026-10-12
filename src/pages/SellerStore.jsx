@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { ShieldCheck, MapPin, Package, Star, ArrowLeft, Leaf, Heart, ShoppingCart, Info, Award, Calendar, ExternalLink, Sparkles, CheckCircle2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductService } from '../services/ProductService';
 import ProductCard from '../components/ProductCard';
 import api from '../services/api';
 import { getImageUrl } from '../utils/imageUtils';
+import { PAGE_PARAM, parsePageParam, withPageParam } from '../utils/pageParam';
+import { useScrollRestoration } from '../utils/useScrollRestoration';
 import TrustBadges from '../components/TrustBadges';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const SEARCH_PARAM = 'q';
 
 const isLight = (color) => {
   if (!color) return false;
@@ -23,9 +27,11 @@ export default function SellerStore() {
   const { sellerName } = useParams(); // This is the slug
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
-  const itemsPerPage = 12;
+  // Page and search live in the URL so back navigation returns to the same page
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedPage = parsePageParam(searchParams.get(PAGE_PARAM));
+  const searchQuery = searchParams.get(SEARCH_PARAM) || '';
+  const itemsPerPage = 24;
 
   const [sellerInfo, setSellerInfo] = useState({
     name: '',
@@ -109,6 +115,12 @@ export default function SellerStore() {
   }, [products, searchQuery]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  // A stale ?page= beyond the catalogue (e.g. products sold out) shows the last page
+  const currentPage = Math.min(requestedPage, Math.max(1, totalPages));
+
+  const setCurrentPage = (nextPage) => {
+    setSearchParams(prev => withPageParam(prev, nextPage));
+  };
 
   // Show at most a small window of page numbers: first, last, and the pages
   // around the current one. A seller with 1500 specimens is 127 pages — every
@@ -131,18 +143,31 @@ export default function SellerStore() {
     return filteredProducts.slice(start, start + itemsPerPage);
   }, [filteredProducts, currentPage]);
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1);
+  // Search edits replace the history entry so Back doesn't step through keystrokes
+  const updateSearch = (value) => {
+    setSearchParams(prev => {
+      const next = withPageParam(prev, 1);
+      if (value) next.set(SEARCH_PARAM, value);
+      else next.delete(SEARCH_PARAM);
+      return next;
+    }, { replace: true });
   };
 
-  const productsRef = React.useRef(null);
+  const handleSearch = (e) => updateSearch(e.target.value);
 
+  const productsRef = React.useRef(null);
+  const hasMountedPage = React.useRef(false);
+
+  useScrollRestoration(!loading);
+
+  // Scroll to the grid when the buyer changes page — not on first load, so back
+  // navigation keeps its restored scroll position.
   useEffect(() => {
+    if (!hasMountedPage.current) { hasMountedPage.current = true; return; }
     if (productsRef.current) {
       productsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [currentPage]);
+  }, [requestedPage]);
 
   if (loading) {
     return (
@@ -361,10 +386,7 @@ export default function SellerStore() {
             />
             {searchQuery && (
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setCurrentPage(1);
-                }}
+                onClick={() => updateSearch('')}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -463,7 +485,7 @@ export default function SellerStore() {
                   flexWrap: 'wrap'
                 }}>
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                     style={{
                       padding: '0.75rem 1.5rem',
@@ -488,7 +510,7 @@ export default function SellerStore() {
                   </button>
 
                   <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                     style={{
                       padding: '0.75rem 1.5rem',

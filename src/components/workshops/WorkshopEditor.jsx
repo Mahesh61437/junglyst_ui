@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { WorkshopService } from '../../services/WorkshopService';
 import {
-  SKILL_LEVELS, WORKSHOP_CATEGORIES, evenShares, formatINR, fromLocalInput, linesToList, listToLines,
+  PHONE_PATTERN, SKILL_LEVELS, WORKSHOP_CATEGORIES, evenShares, isPastSession, formatINR, fromLocalInput, linesToList, listToLines,
   sharesTotal, splitAcrossCohosts, termsSignature, toLocalInput,
 } from '../../utils/workshops';
 
@@ -32,7 +32,7 @@ function formFromWorkshop(w) {
   if (!w) {
     return {
       title: '', tagline: '', category: 'terrarium', status: 'draft', is_featured: false,
-      organisers: [emptyOrganiser()],
+      organisers: [emptyOrganiser()], contact_name: '', contact_phone: '',
       description: '', highlightsText: '', whatToBringText: '', images: [],
       registration_opens_at: '', registration_closes_at: '',
       venue_name: '', address: '', city: '', map_url: '',
@@ -75,6 +75,7 @@ function payloadFromForm(form) {
     min_age: form.min_age === '' ? null : Number(form.min_age),
     max_seats_per_booking: Number(form.max_seats_per_booking) || 1,
     cancellation_policy: form.cancellation_policy,
+    contact_name: (form.contact_name || '').trim(), contact_phone: (form.contact_phone || '').trim(),
     // Workshop-level default commission = the lead co-host's rate.
     commission_percent: form.organisers[0]?.commission_percent ?? DEFAULT_COMMISSION,
     options: form.options.map((o, i) => ({ ...strip(o), sort_order: i })),
@@ -179,6 +180,7 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
   const calcOption = activeOptions.find(o => o.key === calcOptionKey) || activeOptions[0];
   const totalCapacity = form.sessions.filter(s => s.is_active).reduce((sum, s) => sum + (Number(s.capacity) || 0), 0);
   const shareTotal = sharesTotal(form.organisers);
+  const hasFutureSession = form.sessions.some(sess => sess.is_active && sess.date && !isPastSession(sess.date, sess.start_time));
   const sellerName = (id) => organisers.find(o => String(o.id) === String(id))?.store_name || 'Choose seller';
   const price = Number(calcOption?.price) || 0;
   const perSeatSplit = splitAcrossCohosts(price, form.organisers);
@@ -238,6 +240,7 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
       next.registration_closes_at = 'Registration must close after it opens.';
     }
     if (form.map_url && !/^https?:\/\//i.test(form.map_url.trim())) next.map_url = 'Paste a full link starting with https://';
+    if (form.contact_phone?.trim() && !PHONE_PATTERN.test(form.contact_phone.trim())) next.contact_phone = 'Enter a valid 10-digit mobile number.';
     return next;
   };
 
@@ -356,6 +359,14 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                   </span>
                 </div>
                 {errors.organisers && <div className="wa-error" role="alert">{errors.organisers}</div>}
+                <div className="wa-grid wa-grid--2" style={{ marginTop: '1rem' }}>
+                  <Field label="Contact person for attendees" error={errors.contact_name} help="e.g. the host running the session. Defaults to the organisers' names.">
+                    <input className="wa-input" value={form.contact_name} maxLength={120} onChange={set('contact_name')} placeholder="Priya (Green Water Aquascapes)" autoComplete="off" />
+                  </Field>
+                  <Field label="Contact mobile number" error={errors.contact_phone} help="Shown only to people who book: on their ticket, My Orders and the confirmation email. Empty = lead organiser's account phone.">
+                    <input className="wa-input" type="tel" inputMode="tel" value={form.contact_phone} maxLength={15} onChange={set('contact_phone')} placeholder="98765 43210" autoComplete="off" />
+                  </Field>
+                </div>
                 {termsChanged && loaded.paidBookings > 0 && (
                   <div className="wa-banner wa-banner--warn" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
                     <AlertCircle size={16} />
@@ -436,6 +447,12 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
               </Section>
 
               <Section icon={<CalendarDays size={16} />} title="Sessions & seats" sub="Each session is one date and time slot with its own seat limit. Booked sessions are deactivated instead of deleted.">
+                {form.sessions.length > 0 && !hasFutureSession && (
+                  <div className="wa-banner wa-banner--warn">
+                    <AlertCircle size={16} />
+                    No upcoming session: this workshop can't be booked and won't appear on the home page until you add a future date.
+                  </div>
+                )}
                 <div className="wa-rows">
                   {form.sessions.map(s => (
                     <div key={s.key} className={`wa-row wa-row--session ${s.is_active ? '' : 'wa-row--inactive'}`}>
@@ -449,9 +466,16 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                         <button type="button" className="wa-icon-btn" aria-label="Duplicate session" title="Duplicate" onClick={() => setForm(prev => ({ ...prev, sessions: [...prev.sessions, emptySession(s)] }))}><Copy size={15} /></button>
                         <button type="button" className="wa-icon-btn wa-icon-btn--danger" aria-label="Remove session" onClick={() => removeRow('sessions', s.key)}><Trash2 size={15} /></button>
                       </div>
+                      {s.is_active && isPastSession(s.date, s.start_time) && (
+                        <div className="wa-row-meta" style={{ color: '#b45309', fontWeight: 700 }}>
+                          This date and time has passed. Buyers can't book it; pick a future date or untick Active.
+                        </div>
+                      )}
                       {s.seats_booked > 0 && (
                         <div className="wa-row-meta">
-                          {s.seats_booked} of {s.capacity} seats booked · seats can't go below {s.seats_booked}
+                          {s.seats_booked > Number(s.capacity)
+                            ? <strong style={{ color: '#b91c1c' }}>Overbooked: {s.seats_booked} paid seats for {s.capacity}. Raise the capacity or move/refund an attendee. </strong>
+                            : `${s.seats_booked} of ${s.capacity} seats booked · seats can't go below ${s.seats_booked}`}
                           {loaded?.timings[s.key] && loaded.timings[s.key] !== timingOf(s) && (
                             <strong style={{ color: '#b45309' }}> · New timing: booked attendees will be emailed when you save.</strong>
                           )}
@@ -466,7 +490,7 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                 </button>
               </Section>
 
-              <Section icon={<CalendarDays size={16} />} title="Registration window" sub="Leave empty to keep registrations open until each session starts.">
+              <Section icon={<CalendarDays size={16} />} title="Registration window" sub="Registrations open and close automatically at these times, and close on their own when every session is full. Leave empty to keep them open until each session starts.">
                 <div className="wa-grid wa-grid--2">
                   <Field label="Registration opens" error={errors.registration_opens_at}>
                     <input className="wa-input" type="datetime-local" value={form.registration_opens_at} onChange={set('registration_opens_at')} />

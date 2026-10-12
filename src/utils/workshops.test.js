@@ -63,19 +63,35 @@ describe('money', () => {
 
 describe('registrationState', () => {
   const now = new Date('2026-10-11T10:00:00Z');
-  test('not yet open', () => {
-    const s = registrationState({ registration_opens_at: '2026-10-20T00:00:00Z' }, now);
+  test('server state wins and drives labels / badges', () => {
+    assert.deepEqual(
+      (({ state, open, badge }) => ({ state, open, badge }))(registrationState({ registration_state: 'sold_out' }, now)),
+      { state: 'sold_out', open: false, badge: 'Sold out' });
+    assert.equal(registrationState({ registration_state: 'no_dates' }, now).label, 'New dates coming soon');
+    assert.equal(registrationState({ registration_state: 'closed' }, now).open, false);
+  });
+  test('opens later: label, badge and the moment it flips', () => {
+    const s = registrationState({ registration_state: 'opens_later', registration_opens_at: '2026-10-20T04:30:00Z' }, now);
     assert.equal(s.open, false);
-    assert.match(s.label, /^Registrations open/);
+    assert.match(s.label, /^Registrations open 20 Oct, /);
+    assert.equal(s.badge, 'Opens 20 Oct');
+    assert.equal(s.nextChangeAt.toISOString(), '2026-10-20T04:30:00.000Z');
   });
-  test('closed by date or by server flag', () => {
-    assert.equal(registrationState({ registration_closes_at: '2026-10-01T00:00:00Z' }, now).label, 'Registrations closed');
-    assert.equal(registrationState({ registration_open: false }, now).open, false);
-  });
-  test('open with deadline', () => {
-    const s = registrationState({ registration_closes_at: '2026-10-30T00:00:00Z', registration_open: true }, now);
+  test('open with deadline flips at the close time', () => {
+    const s = registrationState({ registration_state: 'open', registration_closes_at: '2026-10-30T00:00:00Z' }, now);
     assert.equal(s.open, true);
-    assert.match(s.label, /^Register by/);
+    assert.match(s.label, /^Register by 30 Oct/);
+    assert.equal(s.nextChangeAt.toISOString(), '2026-10-30T00:00:00.000Z');
+  });
+  test('falls back to the time window for older payloads', () => {
+    assert.equal(registrationState({ registration_opens_at: '2026-10-20T00:00:00Z' }, now).state, 'opens_later');
+    assert.equal(registrationState({ registration_closes_at: '2026-10-01T00:00:00Z' }, now).state, 'closed');
+    assert.equal(registrationState({}, now).state, 'open');
+  });
+  test('msUntil is clamped for setTimeout', async () => {
+    const { msUntil } = await import('./workshops.js');
+    assert.equal(msUntil(new Date(1000), 5000), 0);
+    assert.equal(msUntil(new Date(Date.UTC(2030, 0, 1)), 0), 2 ** 31 - 1);
   });
 });
 
@@ -150,4 +166,22 @@ test('hostNames joins co-hosts and falls back to the lead', async () => {
   assert.equal(hostNames({ organisers: [{ name: 'A' }] }), 'A');
   assert.equal(hostNames({ organisers: [{ name: 'A' }, { name: 'B' }, { name: 'C' }] }), 'A, B & C');
   assert.equal(hostNames({ organiser: { name: 'Lead' } }), 'Lead');
+});
+
+test('phoneLinks builds tel and WhatsApp links', async () => {
+  const { phoneLinks } = await import('./workshops.js');
+  assert.deepEqual(phoneLinks('98765 43210'), { tel: 'tel:+919876543210', whatsapp: 'https://wa.me/919876543210' });
+  assert.deepEqual(phoneLinks('+91 98765 43210'), { tel: 'tel:+919876543210', whatsapp: 'https://wa.me/919876543210' });
+  assert.equal(phoneLinks(''), null);
+  assert.equal(phoneLinks('12345'), null);
+});
+
+test('isPastSession compares local date + start time', async () => {
+  const { isPastSession } = await import('./workshops.js');
+  const now = new Date(2026, 9, 12, 14, 0); // 12 Oct 2026, 2:00 PM local
+  assert.equal(isPastSession('2026-10-12', '10:00', now), true);
+  assert.equal(isPastSession('2026-10-12', '15:30', now), false);
+  assert.equal(isPastSession('2026-10-11', '23:00', now), true);
+  assert.equal(isPastSession('2026-10-13', '09:00', now), false);
+  assert.equal(isPastSession('', '10:00', now), false);
 });

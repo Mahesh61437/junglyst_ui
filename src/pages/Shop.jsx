@@ -10,7 +10,10 @@ import Pagination from '../components/Pagination';
 import { ProductService } from '../services/ProductService';
 import { useRegion } from '../context/RegionContext';
 import { withDeliveryArea } from '../utils/deliveryRegion';
+import { PAGE_PARAM, parsePageParam, withPageParam } from '../utils/pageParam';
 import { Search, X, Leaf, SlidersHorizontal, Check, IndianRupee } from 'lucide-react';
+
+const SHOP_PAGE_SIZE = 24; // sent as page_size, so the API and page count always agree
 
 export default function Shop() {
   const { category } = useParams();
@@ -28,14 +31,9 @@ export default function Shop() {
 
   // ── Page lives in the URL (?page=2) so it survives refresh, sharing, and
   //    opening in multiple tabs.  Page 1 is the clean URL (no param).
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const page = parsePageParam(searchParams.get(PAGE_PARAM));
   const setPage = useCallback((newPage) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (newPage <= 1) next.delete('page');
-      else next.set('page', String(newPage));
-      return next;
-    });
+    setSearchParams(prev => withPageParam(prev, newPage));
   }, [setSearchParams]);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -119,7 +117,7 @@ export default function Shop() {
 
   // Build the full params object sent to the API
   const apiParams = useMemo(() => {
-    const p = { page };
+    const p = { page, page_size: SHOP_PAGE_SIZE };
     if (sortParam) p.ordering = sortParam;   // omit entirely for Featured
     if (searchTerm.trim()) p.search = searchTerm.trim();
     if (activeCats.length > 0) p.category = activeCats.join(',');
@@ -143,8 +141,7 @@ export default function Shop() {
   // ── Derived product list & pagination ─────────────────────────────────────
   const products = data?.results || [];
   const totalCount = data?.count ?? 0;
-  const PAGE_SIZE = 20;  // must match backend page_size
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalCount / SHOP_PAGE_SIZE));
 
   const displayedProducts = useMemo(
     () => products.filter(p => p?.is_active !== false),
@@ -733,7 +730,7 @@ export default function Shop() {
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalCount}
-                pageSize={PAGE_SIZE}
+                pageSize={SHOP_PAGE_SIZE}
                 onPageChange={setPage}
               />
 

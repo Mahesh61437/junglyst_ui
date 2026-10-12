@@ -37,7 +37,12 @@ function WorkshopTile({ workshop, onEdit, onDelete }) {
       <div className="wa-ws-body">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'flex-start' }}>
           <div className="wa-ws-title">{workshop.title}</div>
-          <span className="ws-pill" style={{ background: status.bg, color: status.fg }}>{status.label}</span>
+          <span style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {workshop.has_overbooked_session && (
+              <span className="ws-pill" style={{ background: '#fee2e2', color: '#991b1b' }} title="A session has more paid seats than its capacity">Overbooked</span>
+            )}
+            <span className="ws-pill" style={{ background: status.bg, color: status.fg }}>{status.label}</span>
+          </span>
         </div>
         <div className="wa-ws-meta">
           <span>{labelFor(WORKSHOP_CATEGORIES, workshop.category)}</span>
