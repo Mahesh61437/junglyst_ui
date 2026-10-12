@@ -9,7 +9,9 @@ import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageUtils';
 import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
+import HomeWorkshops from '../components/workshops/HomeWorkshops';
 import api from '../services/api';
+import './Home.css';
 import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate, isCompetitionPromoVisible } from '../services/CompetitionService';
 
 function useCompetitionCountdown(target) {
@@ -182,7 +184,7 @@ function TrustStrip() {
 
 // ─── Featured Sellers ─────────────────────────────────────────────────────────
 // Shows up to 3 featured growers as cards — promotes sellers, drives store visits.
-// On mobile: full-width stacked. On tablet+: 3-column grid.
+// Mobile/tablet: swipeable snap carousel. Desktop (≥900px): 3-column grid. Styles in Home.css.
 function FeaturedSellers({ sellers }) {
   const visible = sellers.slice(0, 3);
   if (!visible.length) return null;
@@ -200,64 +202,45 @@ function FeaturedSellers({ sellers }) {
           </Link>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${Math.min(visible.length, 3)}, minmax(0, 1fr))`,
-          gap: '1.25rem',
-          maxWidth: visible.length === 1 ? '420px' : 'none',
-        }}>
-          {visible.map((s, i) => (
-            <motion.div key={s.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-              <Link to={`/store/${s.slug}`} style={{ display: 'block', textDecoration: 'none' }}>
-                <div style={{ borderRadius: '20px', overflow: 'hidden', backgroundColor: 'white', border: '1px solid var(--border-subtle)', transition: 'transform 0.22s, box-shadow 0.22s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-                  onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.1)'; }}
-                  onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}
-                >
-                  {/* Banner */}
-                  <div style={{ position: 'relative', height: '160px', overflow: 'hidden', backgroundColor: s.brand_color || 'var(--bg-deep)' }}>
+        <div className={`fs-track${visible.length === 1 ? ' fs-track--single' : ''}`}>
+          {visible.map((seller, index) => (
+            <motion.div key={seller.id} className="fs-item" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08 }}>
+              <Link to={`/store/${seller.slug}`} className="fs-card">
+                <div className="fs-banner" style={seller.brand_color ? { backgroundColor: seller.brand_color } : undefined}>
+                  <img
+                    src={getImageUrl(seller.banner_url) || '/assets/default-banner.jpg'}
+                    alt=""
+                    loading="lazy"
+                    onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
+                  />
+                  <span className="fs-verified">
+                    <ShieldCheck size={11} aria-hidden="true" /> Verified
+                  </span>
+                </div>
+
+                <div className="fs-body">
+                  <div className="fs-logo">
                     <img
-                      src={getImageUrl(s.banner_url) || '/assets/default-banner.jpg'}
-                      alt={s.store_name}
-                      onError={e => { e.target.src = '/assets/default-banner.jpg'; }}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      src={getImageUrl(seller.icon_url) || '/assets/default-logo.jpg'}
+                      alt=""
+                      loading="lazy"
+                      onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
                     />
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%)' }} />
-
-                    {/* Icon / logo badge */}
-                    <div style={{ position: 'absolute', bottom: '-20px', left: '1.25rem', width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'white', padding: '3px', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', overflow: 'hidden', border: '2px solid white' }}>
-                      <img
-                        src={getImageUrl(s.icon_url) || '/assets/default-logo.jpg'}
-                        alt={s.store_name}
-                        onError={e => { e.target.src = '/assets/default-logo.jpg'; }}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '9px' }}
-                      />
-                    </div>
-
-                    {/* Verified badge */}
-                    <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', backgroundColor: 'rgba(10,31,28,0.75)', backdropFilter: 'blur(6px)', padding: '0.3rem 0.6rem', borderRadius: '100px' }}>
-                      <ShieldCheck size={11} color="var(--brand-gold)" />
-                      <span style={{ fontSize: '0.6rem', color: 'var(--brand-gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Verified</span>
-                    </div>
                   </div>
 
-                  {/* Info */}
-                  <div style={{ padding: '1.75rem 1.25rem 1.25rem' }}>
-                    <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{s.store_name}</h3>
-                    {s.tagline && (
-                      <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {s.tagline}
-                      </p>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      {s.location_city && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                          <MapPin size={11} /> {s.location_city}
-                        </span>
-                      )}
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 700 }}>
-                        Visit <ArrowRight size={12} />
+                  <h3 className="fs-name" title={seller.store_name}>{seller.store_name}</h3>
+                  {seller.tagline && <p className="fs-tagline">{seller.tagline}</p>}
+
+                  <div className="fs-footer">
+                    {seller.location_city && (
+                      <span className="fs-location">
+                        <MapPin size={12} aria-hidden="true" style={{ flexShrink: 0 }} />
+                        <span>{seller.location_city}</span>
                       </span>
-                    </div>
+                    )}
+                    <span className="fs-visit">
+                      Visit <ArrowRight size={12} aria-hidden="true" />
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -358,6 +341,9 @@ export default function Home() {
 
       {/* Platform stats — builds instant trust below the fold */}
       <StatsBar stats={stats} />
+
+      {/* Workshops — hands-on sessions with partner growers, right under the stats */}
+      <HomeWorkshops />
 
       {/* Competition promotion — shown until launch date */}
       <CompetitionPromo />

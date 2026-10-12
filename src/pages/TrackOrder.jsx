@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import WorkshopTrackCard from '../components/workshops/WorkshopTrackCard';
 import { Truck, Package, CheckCircle, Clock, Search, ArrowLeft } from 'lucide-react';
 
 const STATUS_META = {
@@ -239,8 +240,13 @@ export default function TrackOrder() {
         </section>
       </div>
 
+      {/* Workshop orders have no shipment: show the booking instead. */}
+      {searched && orderData?.booking && (
+        <WorkshopTrackCard orderNumber={orderData.order_number} booking={orderData.booking} />
+      )}
+
       {/* Results Section */}
-      {searched && orderData && (
+      {searched && orderData && !orderData.booking && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',

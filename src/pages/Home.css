@@ -1,0 +1,194 @@
+/* ── Featured Sellers ("Featured Sanctuaries") ──
+   Mobile/tablet: swipeable snap carousel with a peek of the next card.
+   Desktop (≥ 900px): 3-column grid. */
+.fs-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min(80%, 300px);
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 1rem;
+  padding: 0.25rem 1rem 1.25rem;
+  margin: 0 -1rem;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.fs-track::-webkit-scrollbar { display: none; }
+
+.fs-item {
+  scroll-snap-align: start;
+  display: flex;
+}
+
+@media (min-width: 900px) {
+  .fs-track {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
+  }
+  .fs-track--single { grid-template-columns: minmax(0, 420px); }
+}
+
+.fs-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 2px 10px rgba(10, 31, 28, 0.05);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.fs-card:focus-visible {
+  outline: 2px solid var(--brand-gold);
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .fs-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 18px 40px rgba(10, 31, 28, 0.12);
+    border-color: transparent;
+  }
+  .fs-card:hover .fs-banner img { transform: scale(1.05); }
+  .fs-card:hover .fs-visit { gap: 0.55rem; }
+}
+
+.fs-banner {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background-color: var(--bg-deep);
+}
+.fs-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s ease;
+}
+.fs-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10, 31, 28, 0.45) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.fs-verified {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 100px;
+  background: rgba(10, 31, 28, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--brand-gold);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.fs-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 2.1rem 1.25rem 1.15rem;
+}
+
+.fs-logo {
+  position: absolute;
+  top: -26px;
+  left: 1.25rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #fff;
+  padding: 4px;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 16px rgba(10, 31, 28, 0.18);
+  overflow: hidden;
+}
+.fs-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 9px;
+  display: block;
+}
+
+.fs-name {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fs-tagline {
+  margin: 0 0 1rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.46rem; /* reserve 2 lines so cards stay equal height */
+}
+
+.fs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(10, 31, 28, 0.06);
+}
+
+.fs-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+.fs-location span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fs-visit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand-gold);
+  transition: gap 0.2s ease;
+}

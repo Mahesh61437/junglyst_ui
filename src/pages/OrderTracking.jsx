@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, Navigate } from 'react-router-dom';
 import { OrderService } from '../services/OrderService';
 import { Package, Truck, CheckCircle, Clock, ArrowLeft, MapPin, ExternalLink, ShieldCheck } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUtils';
@@ -217,6 +217,11 @@ export default function OrderTracking() {
       active: order.status === 'delivered',
     },
   ];
+
+  // Workshop orders have no shipment; their ticket page shows the booking.
+  if (order.order_type === 'workshop') {
+    return <Navigate to={`/workshops/booking/${encodeURIComponent(order.order_number)}`} replace />;
+  }
 
   return (
     <div className="container" style={{ padding: 'clamp(2rem,5vw,4rem) 1rem clamp(5rem,10vw,10rem)' }}>
