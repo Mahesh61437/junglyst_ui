@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import DeliveryRegionsPanel from '../components/DeliveryRegionsPanel';
 import {
   Package, Users, IndianRupee, Truck, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
-  Tag, Layers, Percent, Weight, Trash2, RefreshCw, ExternalLink,
+  Tag, Layers, Percent, Weight, Trash2, RefreshCw, ExternalLink, Calendar,
 } from 'lucide-react';
 
 // ─── payment status presentation ─────────────────────────────────────────────
@@ -525,10 +526,19 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const sellerDeliveryRef = useRef(null);
+
   const saveSellerProfile = async () => {
     setEditSellerSaving(true);
     setEditSellerError('');
     try {
+      // Delivery settings save through their own endpoint; persist pending edits
+      // first and stop if they fail (the panel shows why).
+      const deliverySaved = await sellerDeliveryRef.current?.saveIfChanged();
+      if (deliverySaved === false) {
+        setEditSellerError('Delivery regions could not be saved — check that section.');
+        return;
+      }
       const payload = {
         ...editSellerForm,
         expertise_tags: editSellerForm.expertise_tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -1213,6 +1223,9 @@ export default function SuperAdminDashboard() {
             <button onClick={() => navigate('/super-admin/coupons')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#8b5cf6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               COUPONS
             </button>
+            <button onClick={() => navigate('/super-admin/workshops')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#0f766e', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+              WORKSHOPS
+            </button>
             <button onClick={() => navigate('/super-admin/settings')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#475569', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               SETTINGS
             </button>
@@ -1424,13 +1437,17 @@ export default function SuperAdminDashboard() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
             {[
-              { title: 'Revenue (Paid)', value: `₹${Number(overall_analytics.revenue_this_month || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--brand-gold)' },
-              { title: 'Paid Orders', value: overall_analytics.orders_this_month || 0, icon: <Package size={24} />, color: 'var(--brand-green)' },
-              { title: 'Incomplete Payments', value: `${overall_analytics.unpaid_orders || 0} · ₹${Number(overall_analytics.unpaid_value || 0).toLocaleString()}`, icon: <Clock size={24} />, color: '#f59e0b' },
+              { title: 'Product Revenue (Paid)', value: `₹${Number(overall_analytics.revenue_this_month || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--brand-gold)' },
+              { title: 'Paid Product Orders', value: overall_analytics.orders_this_month || 0, icon: <Package size={24} />, color: 'var(--brand-green)' },
+              { title: 'Incomplete Product Payments', value: `${overall_analytics.unpaid_orders || 0} · ₹${Number(overall_analytics.unpaid_value || 0).toLocaleString()}`, icon: <Clock size={24} />, color: '#f59e0b' },
+              // Workshops are booked through the same checkout but tracked on their own page.
+              { title: 'Workshop Bookings (Paid)', value: `${overall_analytics.workshop_bookings || 0} · ₹${Number(overall_analytics.workshop_revenue || 0).toLocaleString()}`, icon: <Calendar size={24} />, color: '#0f766e', onClick: () => navigate('/super-admin/workshops?tab=revenue') },
               { title: 'Active Sellers', value: overall_analytics.total_sellers || 0, icon: <Store size={24} />, color: '#3b82f6' },
               { title: 'Total Collectors', value: overall_analytics.total_users || 0, icon: <Users size={24} />, color: '#8b5cf6' },
             ].map((stat, idx) => (
-              <div key={idx} style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
+              <div key={idx}
+                {...(stat.onClick ? { role: 'link', tabIndex: 0, onClick: stat.onClick, onKeyDown: e => { if (e.key === 'Enter') stat.onClick(); }, title: 'Open workshop revenue' } : {})}
+                style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '1.5rem', boxShadow: 'var(--shadow-sm)', cursor: stat.onClick ? 'pointer' : 'default' }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: `${stat.color}15`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {stat.icon}
                 </div>
@@ -2651,6 +2668,11 @@ export default function SuperAdminDashboard() {
                 />
                 Price is buyer-final (seller's typed price IS what buyer pays)
               </label>
+            </div>
+
+            {/* Delivery regions, excluded states, category restrictions and regional fees */}
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem' }}>
+              <DeliveryRegionsPanel ref={sellerDeliveryRef} sellerProfileId={editingSeller.id} brandColor="#0A3029" />
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginBottom: '2rem' }}>

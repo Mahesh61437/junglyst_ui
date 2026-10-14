@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Trophy } from 'lucide-react';
-import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate } from '../services/CompetitionService';
+import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate, isCompetitionPromoVisible } from '../services/CompetitionService';
 
 function buildItems(announcementDate) {
   const announcementText = announcementDate
@@ -73,6 +73,7 @@ function TickerItem({ item }) {
 
 export default function CompetitionTicker() {
   const status = useCompetitionStatus();
+  if (!isCompetitionPromoVisible(status)) return null;
   if (Date.now() >= getLaunchDate(status).getTime()) return null;
 
   const items = buildItems(formatAnnouncementDate(status?.result_announcement_date));

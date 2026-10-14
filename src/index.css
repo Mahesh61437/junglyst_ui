@@ -499,3 +499,14 @@ button {
   color: var(--brand-gold, #b8860b);
   text-decoration: underline;
 }
+
+/* ── Form validation: highlight invalid inputs ──
+   !important because dashboard inputs set their border inline. */
+.form-error-input {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+.form-error-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}

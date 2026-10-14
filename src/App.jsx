@@ -30,6 +30,10 @@ import GstManagement from './pages/GstManagement';
 import SuperAdminShippingFees from './pages/SuperAdminShippingFees';
 import SuperAdminSettings from './pages/SuperAdminSettings';
 import SuperAdminCoupons from './pages/SuperAdminCoupons';
+import SuperAdminWorkshops from './pages/SuperAdminWorkshops';
+import Workshops from './pages/Workshops';
+import WorkshopDetail from './pages/WorkshopDetail';
+import WorkshopBookingConfirmation from './pages/WorkshopBookingConfirmation';
 import Success from './pages/Success';
 import Failure from './pages/Failure';
 import MyOrders from './pages/MyOrders';
@@ -47,6 +51,7 @@ import { useLocation } from 'react-router-dom';
 import { trackPageView } from './utils/analytics';
 
 import { CartProvider } from './context/CartContext';
+import { RegionProvider } from './context/RegionContext';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './context/ToastContext';
@@ -79,6 +84,7 @@ function App() {
       <NotificationProvider>
       <WishlistProvider>
         <ToastProvider>
+        <RegionProvider>
         <CartProvider>
         <OrderProvider>
           <BrowserRouter>
@@ -115,6 +121,9 @@ function App() {
                 <Route path="competition/entries" element={<CompetitionEntries />} />
                 <Route path="competition/entries/:id" element={<CompetitionEntryDetail />} />
                 <Route path="competition/winners" element={<CompetitionWinners />} />
+                <Route path="workshops" element={<Workshops />} />
+                <Route path="workshops/booking/:orderNumber" element={<WorkshopBookingConfirmation />} />
+                <Route path="workshops/:slug" element={<WorkshopDetail />} />
                 <Route path="community" element={<FeatureGate flag="community"><Community /></FeatureGate>} />
               </Route>
               
@@ -131,10 +140,12 @@ function App() {
               <Route path="/super-admin/shipping-fees" element={<SuperAdminShippingFees />} />
               <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
               <Route path="/super-admin/coupons" element={<SuperAdminCoupons />} />
+              <Route path="/super-admin/workshops" element={<SuperAdminWorkshops />} />
             </Routes>
           </BrowserRouter>
         </OrderProvider>
         </CartProvider>
+        </RegionProvider>
         </ToastProvider>
       </WishlistProvider>
       </NotificationProvider>

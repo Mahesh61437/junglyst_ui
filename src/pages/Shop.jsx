@@ -8,12 +8,18 @@ import { useQuery } from '@tanstack/react-query';
 import ProductCard from '../components/ProductCard';
 import Pagination from '../components/Pagination';
 import { ProductService } from '../services/ProductService';
+import { useRegion } from '../context/RegionContext';
+import { withDeliveryArea } from '../utils/deliveryRegion';
+import { PAGE_PARAM, parsePageParam, withPageParam } from '../utils/pageParam';
 import { Search, X, Leaf, SlidersHorizontal, Check, IndianRupee } from 'lucide-react';
+
+const SHOP_PAGE_SIZE = 24; // sent as page_size, so the API and page count always agree
 
 export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
   const navigationType = useNavigationType(); // 'POP' = back button, 'PUSH' = forward nav
+  const { deliveryArea, stateName, openPicker: openRegionPicker } = useRegion();
 
   // Restore filter state when user navigates back (POP), otherwise start fresh.
   // Declared here so all useState calls below can reference it.
@@ -25,14 +31,9 @@ export default function Shop() {
 
   // ── Page lives in the URL (?page=2) so it survives refresh, sharing, and
   //    opening in multiple tabs.  Page 1 is the clean URL (no param).
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const page = parsePageParam(searchParams.get(PAGE_PARAM));
   const setPage = useCallback((newPage) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (newPage <= 1) next.delete('page');
-      else next.set('page', String(newPage));
-      return next;
-    });
+    setSearchParams(prev => withPageParam(prev, newPage));
   }, [setSearchParams]);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -116,7 +117,7 @@ export default function Shop() {
 
   // Build the full params object sent to the API
   const apiParams = useMemo(() => {
-    const p = { page };
+    const p = { page, page_size: SHOP_PAGE_SIZE };
     if (sortParam) p.ordering = sortParam;   // omit entirely for Featured
     if (searchTerm.trim()) p.search = searchTerm.trim();
     if (activeCats.length > 0) p.category = activeCats.join(',');
@@ -125,8 +126,8 @@ export default function Shop() {
     if (minPrice) p.min_price = minPrice;
     if (maxPrice) p.max_price = maxPrice;
     if (selectedSubCat) p.sub_category_id = selectedSubCat;
-    return p;
-  }, [page, sortParam, searchTerm, activeCats, activeDiffs, inStock, minPrice, maxPrice, selectedSubCat]);
+    return withDeliveryArea(p, deliveryArea);
+  }, [page, sortParam, searchTerm, activeCats, activeDiffs, inStock, minPrice, maxPrice, selectedSubCat, deliveryArea]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['products', apiParams],
@@ -140,8 +141,7 @@ export default function Shop() {
   // ── Derived product list & pagination ─────────────────────────────────────
   const products = data?.results || [];
   const totalCount = data?.count ?? 0;
-  const PAGE_SIZE = 20;  // must match backend page_size
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalCount / SHOP_PAGE_SIZE));
 
   const displayedProducts = useMemo(
     () => products.filter(p => p?.is_active !== false),
@@ -170,6 +170,14 @@ export default function Shop() {
     if (navigationType === 'POP') return; // back nav: scroll handled by useScrollRestoration
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Changing the delivery state changes the whole product set — restart at page 1.
+  const previousArea = useRef(deliveryArea);
+  useEffect(() => {
+    if (previousArea.current === deliveryArea) return;
+    previousArea.current = deliveryArea;
+    setPage(1);
+  }, [deliveryArea, setPage]);
 
   const handleCategoryChange = (cat) => {
     setCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -657,6 +665,16 @@ export default function Shop() {
                 ? 'Updating…'
                 : `${totalCount} result${totalCount !== 1 ? 's' : ''}${hasActiveFilters ? ' · filtered' : ''}`
               }
+              {stateName && (
+                <>
+                  {' · '}Growers delivering to {stateName}{' '}
+                  <button
+                    type="button"
+                    onClick={openRegionPicker}
+                    style={{ background: 'none', border: 'none', padding: 0, color: '#10b981', fontWeight: 800, textDecoration: 'underline', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit' }}
+                  >Change</button>
+                </>
+              )}
             </p>
             <select
               value={sortBy}
@@ -712,7 +730,7 @@ export default function Shop() {
                 page={page}
                 totalPages={totalPages}
                 totalItems={totalCount}
-                pageSize={PAGE_SIZE}
+                pageSize={SHOP_PAGE_SIZE}
                 onPageChange={setPage}
               />
 
@@ -727,7 +745,9 @@ export default function Shop() {
                     No specimens found
                   </h3>
                   <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                    Try adjusting your filters
+                    {stateName
+                      ? `Try adjusting your filters — we're only showing growers who deliver to ${stateName}.`
+                      : 'Try adjusting your filters'}
                   </p>
                   <button
                     onClick={clearAllFilters}

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useNavigationType } from 'react-router-dom';
 import api from '../services/api';
-import { Package, Truck, CheckCircle, Clock, XCircle, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, XCircle, ChevronDown, ChevronUp, ShoppingBag, MapPin, Eye, CalendarDays, Navigation, Users } from 'lucide-react';
 import { useScrollRestoration } from '../utils/useScrollRestoration';
 import Pagination from '../components/Pagination';
 import SocialLinks from '../components/SocialLinks';
+import BookingStatusPill from '../components/workshops/BookingStatusPill';
+import OrganiserContact from '../components/workshops/OrganiserContact';
+import { formatDate, formatTime } from '../utils/workshops';
 
 // Covers both master Order statuses and sub-order SubOrderStatuses
 const STATUS_META = {
@@ -91,6 +94,37 @@ function SubOrderCard({ so }) {
   );
 }
 
+function WorkshopBookingCard({ booking }) {
+  const venue = [booking.venue_name, booking.city].filter(Boolean).join(', ');
+  return (
+    <div style={{ backgroundColor: '#f8faf8', borderRadius: '14px', padding: '1.25rem 1.5rem', border: '1px solid #edf2ed', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+      {booking.cover_image && <img src={booking.cover_image} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '10px', flexShrink: 0 }} />}
+      <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Link to={`/workshops/${booking.slug}`} style={{ fontWeight: 700, color: '#1b2d2a' }}>{booking.title}</Link>
+          <BookingStatusPill status={booking.status} />
+        </div>
+        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>{booking.option_name}</p>
+        <p style={{ margin: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <CalendarDays size={13} /> {formatDate(booking.session_date)} · {formatTime(booking.session_start)} – {formatTime(booking.session_end)}
+        </p>
+        <p style={{ margin: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Users size={13} /> {booking.participants} seat{booking.participants !== 1 ? 's' : ''} · {booking.attendee_name}
+        </p>
+        {venue && <p style={{ margin: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}><MapPin size={13} /> {venue}</p>}
+        {booking.map_url && (
+          <a href={booking.map_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#105c44', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+            <Navigation size={12} /> Get directions
+          </a>
+        )}
+        {booking.organiser_contact && (
+          <div style={{ marginTop: '0.5rem' }}><OrganiserContact contact={booking.organiser_contact} /></div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MyOrders() {
   const navType = useNavigationType();
   const [orders, setOrders] = useState([]);
@@ -163,6 +197,7 @@ export default function MyOrders() {
             const addr = order.shipping_address || {};
             const city = addr.city || addr.state || '';
             const totalItems = (order.items || []).length;
+            const booking = order.order_type === 'workshop' ? order.booking : null;
 
             return (
               <div key={order.id} style={{ backgroundColor: 'white', borderRadius: '24px', border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
@@ -188,12 +223,20 @@ export default function MyOrders() {
                       </div>
                     </div>
 
-                    {/* Items + destination */}
-                    <div>
-                      <p style={{ margin: '0 0 0.4rem', fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Items</p>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>{totalItems} Specimen{totalItems !== 1 ? 's' : ''}</p>
-                      {city && <p style={{ margin: '0.15rem 0 0', fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} />{city}</p>}
-                    </div>
+                    {/* Items + destination (or the workshop booked) */}
+                    {booking ? (
+                      <div>
+                        <p style={{ margin: '0 0 0.4rem', fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Workshop</p>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>{booking.participants} seat{booking.participants !== 1 ? 's' : ''}</p>
+                        <p style={{ margin: '0.15rem 0 0', fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><CalendarDays size={10} />{formatDate(booking.session_date, { day: 'numeric', month: 'short' })}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p style={{ margin: '0 0 0.4rem', fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Items</p>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>{totalItems} Specimen{totalItems !== 1 ? 's' : ''}</p>
+                        {city && <p style={{ margin: '0.15rem 0 0', fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} />{city}</p>}
+                      </div>
+                    )}
 
                     {/* Amount */}
                     <div style={{ textAlign: 'right' }}>
@@ -205,12 +248,12 @@ export default function MyOrders() {
                   {/* Right side - Action buttons */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
                     <button
-                      onClick={() => navigate(`/orders/${order.id}`)}
+                      onClick={() => navigate(booking ? `/workshops/booking/${order.order_number}` : `/orders/${order.id}`)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, backgroundColor: '#f0f4f0', color: '#1b2d2a', border: '1px solid #d1fae5', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s ease', textTransform: 'uppercase', letterSpacing: '0.05em' }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e1fde0'; e.currentTarget.style.transform = 'scale(1.02)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f0f4f0'; e.currentTarget.style.transform = 'scale(1)'; }}
                     >
-                      <Eye size={14} /> Track
+                      <Eye size={14} /> {booking ? 'Ticket' : 'Track'}
                     </button>
                     <div style={{ color: '#cbd5e1', flexShrink: 0 }}>
                       {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -221,7 +264,9 @@ export default function MyOrders() {
                 {/* Sub-orders expanded */}
                 {isExpanded && (
                   <div style={{ padding: '0 2rem 2rem', borderTop: '1px solid #f1f5f9' }}>
-                    {subOrders.length > 0 ? (
+                    {booking ? (
+                      <div style={{ paddingTop: '1.5rem' }}><WorkshopBookingCard booking={booking} /></div>
+                    ) : subOrders.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '1.5rem' }}>
                         {subOrders.length > 1 && (() => {
                           const shippedCount = subOrders.filter(s => ['shipped','in_transit','out_for_delivery','delivered'].includes(s.status)).length;

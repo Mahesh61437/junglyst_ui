@@ -42,6 +42,7 @@ export default function Footer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <FooterLink to="/shop">All Specimens</FooterLink>
               <FooterLink to="/sellers">Verified Sellers</FooterLink>
+              <FooterLink to="/workshops">Workshops</FooterLink>
               <FooterLink to="/guides">Care Guides</FooterLink>
               <FooterLink to="/about">About Junglyst</FooterLink>
               <FooterLink to="/contact">Contact Us</FooterLink>

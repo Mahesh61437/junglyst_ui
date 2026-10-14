@@ -7,6 +7,12 @@ export default defineConfig(({ mode }) => ({
   define: {
     'process.env': {}
   },
+  server: {
+    // Docker on Windows: file-change events don't reach the container, so poll.
+    watch: process.env.VITE_USE_POLLING === 'true'
+      ? { usePolling: true, interval: 300 }
+      : undefined,
+  },
   build: {
     // Use terser (not esbuild) in production so we get a guaranteed
     // drop_console that strips library + our own console.* calls from the

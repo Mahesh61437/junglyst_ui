@@ -567,7 +567,9 @@ export default function Profile() {
                               {order.order_number || `#ACQ-${order.id.slice(0, 8)}`}
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                              <span>{order.items?.length || 0} {order.items?.length === 1 ? 'specimen' : 'specimens'}</span>
+                              <span>{order.booking
+                                ? `Workshop · ${order.booking.participants} seat${order.booking.participants === 1 ? '' : 's'}`
+                                : `${order.items?.length || 0} ${order.items?.length === 1 ? 'specimen' : 'specimens'}`}</span>
                               <span>·</span>
                               <span>{new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                             </div>
@@ -601,7 +603,7 @@ export default function Profile() {
                           </div>
 
                           <Link
-                            to={`/orders/${order.id}`}
+                            to={order.booking ? `/workshops/booking/${order.order_number}` : `/orders/${order.id}`}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
                               padding: '0.55rem 1.25rem', borderRadius: '100px',

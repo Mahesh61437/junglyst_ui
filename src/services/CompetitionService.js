@@ -51,6 +51,13 @@ export function useCompetitionStatus() {
   return status;
 }
 
+// Backend decides whether site-wide promos (banner, hero slide, ticker) show,
+// driven by `promo_enabled` / `results_banner_days` in competition_settings.
+// Hidden while status is still loading or failed so promos never flash.
+export function isCompetitionPromoVisible(status) {
+  return status?.show_promo === true;
+}
+
 export function getLaunchDate(status) {
   const raw = status?.launch_date;
   if (raw) {

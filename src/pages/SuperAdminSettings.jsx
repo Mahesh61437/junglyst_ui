@@ -16,7 +16,7 @@ const inputStyle = {
 
 // Friendly suggestions surfaced when creating a new config.
 const SUGGESTED_KEYS = [
-  { name: 'competition_settings', example: '{\n  "launch_date": "01-06-2026",\n  "result_announcement_date": "15-06-2026"\n}' },
+  { name: 'competition_settings', example: '{\n  "launch_date": "01-06-2026",\n  "result_announcement_date": "15-06-2026",\n  "promo_enabled": true,\n  "results_banner_days": 7\n}' },
   { name: 'payment_gateway', example: '{\n  "active": "razorpay"\n}' },
   { name: 'shipment_platform', example: '{\n  "active": "shiprocket"\n}' },
 ];
