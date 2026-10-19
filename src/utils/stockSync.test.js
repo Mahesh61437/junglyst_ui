@@ -6,10 +6,13 @@ import {
   buildPreviewPayload,
   buyerPrice,
   importMessage,
+  initialNewProductSelection,
+  isStockEstimated,
   isValidEmail,
   requestErrorMessage,
   selectAll,
   selectedKeys,
+  skippedNotice,
   SYNC_SOURCES,
   syncNotices,
   toPercent,
@@ -20,6 +23,13 @@ test('sources default to a 14% markup for Himadri only', () => {
   assert.equal(byKey.himadri.markup, '14');
   assert.equal(byKey.petkadai.markup, '0');
   assert.equal(byKey.petkadai.seller, '10');
+});
+
+test('every source is pre-filled with a valid seller email', () => {
+  const emails = Object.fromEntries(SYNC_SOURCES.map((s) => [s.key, s.sellerEmail]));
+  assert.equal(emails.petkadai, 'Support@petkadai.com');
+  assert.equal(emails.himadri, 'himadriaquatics@gmail.com');
+  SYNC_SOURCES.forEach((s) => assert.equal(isValidEmail(s.sellerEmail), true, s.key));
 });
 
 test('isValidEmail accepts normal addresses and rejects blanks and junk', () => {
@@ -64,6 +74,25 @@ test('syncNotices shows the delist reason, else incomplete pages, else nothing',
     ['Scrape was incomplete (Fish Food).']);
   const [message] = syncNotices({ delist_skipped: null, scrape_incomplete: ['1 product page(s)'] });
   assert.match(message, /1 product page\(s\)/);
+});
+
+test('new products start unselected so one click cannot import everything', () => {
+  assert.deepEqual(initialNewProductSelection(), {});
+  assert.deepEqual(selectedKeys(initialNewProductSelection()), []);
+});
+
+test('skippedNotice reports products left out for being out of stock, with correct grammar', () => {
+  assert.equal(skippedNotice(null), null);
+  assert.equal(skippedNotice({ skipped_out_of_stock: 0 }), null);
+  assert.equal(skippedNotice({}), null);
+  assert.match(skippedNotice({ skipped_out_of_stock: 1 }), /^1 new product was left out because it is out of stock/);
+  assert.match(skippedNotice({ skipped_out_of_stock: 546 }), /^546 new products were left out because they are out of stock/);
+});
+
+test('isStockEstimated is true only when the source gave no quantity', () => {
+  assert.equal(isStockEstimated({ stock_known: false }), true);
+  assert.equal(isStockEstimated({ stock_known: true }), false);
+  assert.equal(isStockEstimated({}), false); // older previews have no flag
 });
 
 test('apply and import messages flag backend errors', () => {

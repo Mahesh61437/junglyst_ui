@@ -1,8 +1,10 @@
 // Pure helpers for the Stock & Price Sync panel in the super admin dashboard.
 
+// sellerEmail pre-fills the form with each source's seller account. It stays
+// editable, and the backend rejects an email that matches no account.
 export const SYNC_SOURCES = [
-  { key: 'petkadai', label: 'Pet Kadai', defaults: { markup: '0', seller: '10', buyer: '0' } },
-  { key: 'himadri', label: 'Himadri', defaults: { markup: '14', seller: '10', buyer: '0' } },
+  { key: 'petkadai', label: 'Pet Kadai', sellerEmail: 'Support@petkadai.com', defaults: { markup: '0', seller: '10', buyer: '0' } },
+  { key: 'himadri', label: 'Himadri', sellerEmail: 'himadriaquatics@gmail.com', defaults: { markup: '14', seller: '10', buyer: '0' } },
 ];
 
 export const POLL_FIRST_CHECK_MS = 2000;
@@ -51,6 +53,21 @@ export const syncNotices = (result) => {
   }
   return [];
 };
+
+// New products are listed for review but never pre-selected: a single click on
+// "Import" must not bring in hundreds of products nobody looked at.
+export const initialNewProductSelection = () => ({});
+
+// New products that are out of stock at the source are not offered at all.
+export const skippedNotice = (result) => {
+  const count = result?.skipped_out_of_stock || 0;
+  return count > 0
+    ? `${count} new product${count === 1 ? ' was' : 's were'} left out because ${count === 1 ? 'it is' : 'they are'} out of stock at the source.`
+    : null;
+};
+
+// The source showed the product as in stock without a quantity; the stock shown is an estimate.
+export const isStockEstimated = (product) => product.stock_known === false;
 
 export const applyMessage = (response) => ({
   ok: !response.errors?.length,

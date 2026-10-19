@@ -5,12 +5,15 @@ import {
   buildPreviewPayload,
   buyerPrice,
   importMessage,
+  initialNewProductSelection,
+  isStockEstimated,
   isValidEmail,
   POLL_FIRST_CHECK_MS,
   POLL_INTERVAL_MS,
   requestErrorMessage,
   selectAll,
   selectedKeys,
+  skippedNotice,
   SYNC_SOURCES,
   syncNotices,
   toPercent,
@@ -21,7 +24,7 @@ const TOUCH_TARGET = '44px';
 
 const initialCommission = () =>
   Object.fromEntries(SYNC_SOURCES.map(({ key, defaults }) => [key, { ...defaults }]));
-const initialEmails = () => Object.fromEntries(SYNC_SOURCES.map(({ key }) => [key, '']));
+const initialEmails = () => Object.fromEntries(SYNC_SOURCES.map(({ key, sellerEmail }) => [key, sellerEmail]));
 
 const smallButton = {
   fontSize: '0.75rem', fontWeight: 600, padding: '0.3rem 0.75rem', borderRadius: '7px',
@@ -123,7 +126,7 @@ export default function StockPriceSync() {
           setLoading(false);
           setLastSynced((previous) => ({ ...previous, [source]: job.last_synced }));
           setApprovedPrices(selectAll(job.price_changes || [], (change) => change.id));
-          setApprovedNew(selectAll(job.new_products || [], (product) => product.sku));
+          setApprovedNew(initialNewProductSelection());
         } else if (job.status === 'error') {
           setLoading(false);
         } else {
@@ -198,6 +201,7 @@ export default function StockPriceSync() {
   const priceChanges = result?.price_changes || [];
   const newProducts = result?.new_products || [];
   const notices = done ? syncNotices(result) : [];
+  const skipped = done ? skippedNotice(result) : null;
   const noteColor = (note) => (note.ok ? '#166534' : '#b91c1c');
 
   return (
@@ -284,6 +288,8 @@ export default function StockPriceSync() {
         {loading && result?.progress && <Banner tone="info" role="status">{result.progress}</Banner>}
 
         {notices.map((notice) => <Banner key={notice} tone="warning" role="alert">{notice}</Banner>)}
+
+        {skipped && <Banner tone="info" role="status">{skipped}</Banner>}
 
         {done && (
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -414,7 +420,10 @@ export default function StockPriceSync() {
                       <td style={{ padding: '0.6rem 0.75rem', fontWeight: 700, color: 'var(--bg-deep)' }}>
                         ₹{buyerPrice(product.new_base, commission[activeSource]?.seller)}
                       </td>
-                      <td style={{ padding: '0.6rem 0.75rem' }}>{product.new_stock > 0 ? product.new_stock : <span style={{ color: '#ef4444', fontWeight: 600 }}>Out of stock</span>}</td>
+                      <td style={{ padding: '0.6rem 0.75rem', whiteSpace: 'nowrap' }}>
+                        {product.new_stock > 0 ? product.new_stock : <span style={{ color: '#ef4444', fontWeight: 600 }}>Out of stock</span>}
+                        {isStockEstimated(product) && <span title="In stock at the source, but no quantity is shown" style={{ marginLeft: '0.35rem', fontSize: '0.68rem', color: '#92400e', fontWeight: 600 }}>count unknown</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
