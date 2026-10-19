@@ -14,7 +14,8 @@ import { getImageUrl } from '../utils/imageUtils';
 import FramedImage from '../components/workshops/FramedImage';
 import {
   SKILL_LEVELS, WORKSHOP_CATEGORIES, bookingTotal, hostNames, formatDate, formatDuration, formatINR, formatTime,
-  labelFor, msUntil, registrationState, seatsLabel, validateAttendee,
+  chargedUnits, isSharedOption, labelFor, msUntil, normaliseParty, optionUnitLabel,
+  registrationState, seatsLabel, sharedNote, validateAttendee,
 } from '../utils/workshops';
 import './Workshops.css';
 
@@ -23,7 +24,12 @@ const LAST_BOOKING_KEY = 'junglyst_last_workshop_booking';
 function Gallery({ images, title }) {
   const [active, setActive] = useState(0);
   if (!images.length) {
-    return <div className="ws-gallery-main ws-card-placeholder"><Leaf size={64} strokeWidth={1} /></div>;
+    // The frame keeps its 16:10 shape; the placeholder only fills it.
+    return (
+      <div className="ws-gallery-main" role="img" aria-label={`${title}: photos coming soon`}>
+        <div className="ws-card-placeholder ws-fill"><Leaf size={64} strokeWidth={1} /></div>
+      </div>
+    );
   }
   return (
     <div>
@@ -64,6 +70,7 @@ function BookingPanel({ workshop, onBooked }) {
   const [sessionId, setSessionId] = useState(firstOpenSession?.id ?? null);
   const [optionId, setOptionId] = useState(options[0]?.id ?? null);
   const [requestedSeats, setRequestedSeats] = useState(1);
+  const [requestedBuilds, setRequestedBuilds] = useState(1);
   // Prefilled from the account; the panel is keyed on the user so it re-seeds after login.
   const [form, setForm] = useState(() => ({
     attendee_name: user?.full_name || '',
@@ -80,9 +87,13 @@ function BookingPanel({ workshop, onBooked }) {
   const session = sessions.find(s => s.id === sessionId);
   const option = options.find(o => o.id === optionId);
   const maxSeats = Math.max(1, Math.min(workshop.max_seats_per_booking || 1, session?.seats_left || 1));
-  // Switching to a session with fewer seats left caps the count instead of resetting it.
-  const participants = Math.min(requestedSeats, maxSeats);
-  const total = option ? bookingTotal(option.price, participants) : 0;
+  // Derived, not stored: switching session/option re-clamps the party instead
+  // of resetting it (fewer seats left, smaller shared terrarium, ...).
+  const shared = isSharedOption(option);
+  const party = normaliseParty(option, requestedSeats, requestedBuilds, maxSeats);
+  const participants = party.people;
+  const units = chargedUnits(option, party);
+  const total = option ? bookingTotal(option.price, units) : 0;
 
   const setField = (field) => (e) => {
     setForm(prev => ({ ...prev, [field]: e.target.value }));
@@ -129,6 +140,7 @@ function BookingPanel({ workshop, onBooked }) {
         session_id: session.id,
         option_id: option.id,
         participants,
+        ...(shared ? { builds: party.builds } : {}),
         attendee_name: form.attendee_name.trim(),
         attendee_phone: form.attendee_phone.trim(),
         attendee_email: form.attendee_email.trim(),
@@ -232,23 +244,38 @@ function BookingPanel({ workshop, onBooked }) {
           {options.map(o => (
             <button key={o.id} type="button" role="radio" className="ws-choice" aria-checked={o.id === optionId} onClick={() => setOptionId(o.id)}>
               <span>
-                <span className="ws-choice-title">{o.name}</span><br />
-                <span className="ws-choice-sub">{[o.shape, o.size].filter(Boolean).join(' · ') || o.description}</span>
+                <span className="ws-choice-title">{o.name}</span>
+                {isSharedOption(o) && <span className="ws-group-tag"><Users size={11} /> Group</span>}<br />
+                <span className="ws-choice-sub">{sharedNote(o) || [o.shape, o.size].filter(Boolean).join(' · ') || o.description}</span>
               </span>
-              <span className="ws-choice-side" style={{ fontSize: '0.95rem', color: 'var(--bg-deep)' }}>{formatINR(o.price)}</span>
+              <span className="ws-choice-side" style={{ fontSize: '0.95rem', color: 'var(--bg-deep)' }}>
+                {formatINR(o.price)}<br />
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64748b' }}>{optionUnitLabel(o)}</span>
+              </span>
             </button>
           ))}
         </div>
 
-        <span className="ws-step-label">3 · How many people?</span>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-          <div className="ws-stepper">
-            <button type="button" aria-label="Fewer people" disabled={participants <= 1} onClick={() => setRequestedSeats(participants - 1)}><Minus size={16} /></button>
-            <output aria-live="polite">{participants}</output>
-            <button type="button" aria-label="More people" disabled={participants >= maxSeats} onClick={() => setRequestedSeats(participants + 1)}><Plus size={16} /></button>
+        <span className="ws-step-label">{shared ? '3 · How many group slots?' : '3 · How many slots?'}</span>
+        {shared ? (
+          <div className="ws-party-row">
+            <span className="ws-party-label">No. of group slots<small>Up to {option.max_people_per_build} people each · max {maxSeats}</small></span>
+            <div className="ws-stepper">
+              <button type="button" aria-label="Fewer group slots" disabled={party.builds <= 1} onClick={() => setRequestedBuilds(party.builds - 1)}><Minus size={16} /></button>
+              <output aria-live="polite">{party.builds}</output>
+              <button type="button" aria-label="More group slots" disabled={party.builds >= party.maxBuilds} onClick={() => setRequestedBuilds(party.builds + 1)}><Plus size={16} /></button>
+            </div>
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Max {maxSeats} per booking</span>
-        </div>
+        ) : (
+          <div className="ws-party-row">
+            <span className="ws-party-label">No. of slots<small>Max {maxSeats} per booking</small></span>
+            <div className="ws-stepper">
+              <button type="button" aria-label="Fewer slots" disabled={participants <= party.minPeople} onClick={() => setRequestedSeats(participants - 1)}><Minus size={16} /></button>
+              <output aria-live="polite">{participants}</output>
+              <button type="button" aria-label="More slots" disabled={participants >= party.maxPeople} onClick={() => setRequestedSeats(participants + 1)}><Plus size={16} /></button>
+            </div>
+          </div>
+        )}
 
         <span className="ws-step-label">4 · Your details</span>
         {[
@@ -274,7 +301,10 @@ function BookingPanel({ workshop, onBooked }) {
         <div className="ws-summary" aria-live="polite">
           {option && (
             <div className="ws-summary-row">
-              <span>{option.name} × {participants}</span>
+              <span>
+                {option.name} × {units} {shared ? `group slot${units === 1 ? '' : 's'}` : `slot${units === 1 ? '' : 's'}`}
+                {shared && <><br /><span style={{ fontSize: '0.75rem', color: '#64748b' }}>Up to {participants} people</span></>}
+              </span>
               <span>{formatINR(total)}</span>
             </div>
           )}

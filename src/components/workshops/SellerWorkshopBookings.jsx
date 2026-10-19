@@ -95,7 +95,8 @@ export default function SellerWorkshopBookings() {
                       <div className="wa-muted">Co-hosted · your share {Number(b.share_percent)}% · {Number(b.commission_percent)}% commission</div>
                     )}
                   </td>
-                  <td className="num wa-strong"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Users size={12} />{b.participants}</span></td>
+                  <td className="num wa-strong"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Users size={12} />{b.participants}</span>
+                    {b.builds < b.participants && <div className="wa-muted">{b.builds} shared terrarium{b.builds === 1 ? '' : 's'}</div>}</td>
                   <td className="num"><div className="wa-strong">{money(b.seller_payout)}</div><div className="wa-muted">of {money(b.gross_share ?? b.total_amount)}</div></td>
                   <td><BookingStatusPill status={b.status} /></td>
                 </tr>

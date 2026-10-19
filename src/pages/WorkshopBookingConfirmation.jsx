@@ -5,7 +5,7 @@ import SEO from '../components/SEO';
 import OrganiserContact from '../components/workshops/OrganiserContact';
 import { useAuth } from '../context/AuthContext';
 import { WorkshopService } from '../services/WorkshopService';
-import { EMAIL_PATTERN, formatDate, formatINR, formatTime, googleCalendarUrl } from '../utils/workshops';
+import { EMAIL_PATTERN, partyLabel, formatDate, formatINR, formatTime, googleCalendarUrl } from '../utils/workshops';
 import './Workshops.css';
 
 const LAST_BOOKING_KEY = 'junglyst_last_workshop_booking';
@@ -94,7 +94,7 @@ export default function WorkshopBookingConfirmation() {
     title: `Junglyst workshop: ${booking.workshop_title}`,
     date: booking.session_date, start: booking.session_start, end: booking.session_end,
     location: [venueLine, venue.address].filter(Boolean).join(' – '),
-    details: `Booking ref ${reference}. ${booking.participants} seat(s), ${booking.option_name}.`,
+    details: `Booking ref ${reference}. ${partyLabel(booking)}, ${booking.option_name}.`,
   });
   const head = TICKET_HEADS[booking.status] || TICKET_HEADS.confirmed;
   const active = head.active;
@@ -137,7 +137,7 @@ export default function WorkshopBookingConfirmation() {
           </div>
           <div className="ws-ticket-item">
             <Users size={18} />
-            <div><div className="ws-fact-label">Seats</div><div style={{ fontWeight: 600 }}>{booking.participants} · {booking.attendee_name}</div></div>
+            <div><div className="ws-fact-label">Your group</div><div style={{ fontWeight: 600 }}>{partyLabel(booking)} · {booking.attendee_name}</div></div>
           </div>
           <div className="ws-ticket-item">
             <Wallet size={18} />
