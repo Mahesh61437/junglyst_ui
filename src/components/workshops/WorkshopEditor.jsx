@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { WorkshopService } from '../../services/WorkshopService';
 import {
-  PHONE_PATTERN, SKILL_LEVELS, WORKSHOP_CATEGORIES, evenShares, isPastSession, formatINR, fromLocalInput, linesToList, listToLines,
+  PHONE_PATTERN, SKILL_LEVELS, WORKSHOP_CATEGORIES, evenShares, isPastSession, isSharedOption, formatINR, fromLocalInput, linesToList, listToLines,
   sharesTotal, splitAcrossCohosts, termsSignature, toLocalInput,
 } from '../../utils/workshops';
 
@@ -17,7 +17,11 @@ const DEFAULT_COMMISSION = '20';
 const emptyOrganiser = (share = '100') => ({ key: crypto.randomUUID(), seller: '', share_percent: share, commission_percent: DEFAULT_COMMISSION });
 const timingOf = (session) => `${session.date}|${session.start_time?.slice(0, 5)}|${session.end_time?.slice(0, 5)}`;
 
-const emptyOption = () => ({ key: crypto.randomUUID(), name: '', shape: '', size: '', price: '', is_active: true });
+const emptyOption = () => ({
+  key: crypto.randomUUID(), name: '', shape: '', size: '', price: '', is_active: true,
+  pricing: 'per_person', max_people_per_build: 1,
+});
+const DEFAULT_GROUP_SIZE = 4;
 const emptySession = (copyFrom) => ({
   key: crypto.randomUUID(),
   date: copyFrom?.date || '',
@@ -183,8 +187,14 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
   const hasFutureSession = form.sessions.some(sess => sess.is_active && sess.date && !isPastSession(sess.date, sess.start_time));
   const sellerName = (id) => organisers.find(o => String(o.id) === String(id))?.store_name || 'Choose seller';
   const price = Number(calcOption?.price) || 0;
+  const calcShared = isSharedOption(calcOption);
+  const unitWord = calcShared ? 'terrarium' : 'seat';
+  // A full house of a shared option is fewer terrariums than seats.
+  const fullHouseUnits = calcShared
+    ? Math.ceil(totalCapacity / Math.max(1, Number(calcOption.max_people_per_build) || 1))
+    : totalCapacity;
   const perSeatSplit = splitAcrossCohosts(price, form.organisers);
-  const fullSplit = splitAcrossCohosts(price * totalCapacity, form.organisers);
+  const fullSplit = splitAcrossCohosts(price * fullHouseUnits, form.organisers);
   const sumOf = (rows, key) => rows.reduce((total, row) => total + row[key], 0);
   const termsChanged = Boolean(loaded) && termsSignature(form.organisers) !== loaded.termsSignature;
 
@@ -234,6 +244,9 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
       next.organisers = 'Commission must be between 0% and 100%.';
     }
     if (form.options.some(o => !o.name.trim() || !(Number(o.price) > 0))) next.options = 'Every option needs a name and a price.';
+    else if (form.options.some(o => isSharedOption(o) && !(Number(o.max_people_per_build) >= 2 && Number(o.max_people_per_build) <= 20))) {
+      next.options = 'A shared terrarium needs room for 2 to 20 people.';
+    }
     if (form.sessions.some(s => !s.date || !s.start_time || !s.end_time || !(Number(s.capacity) > 0))) next.session_inputs = 'Every session needs a date, times and seats.';
     else if (form.sessions.some(s => s.end_time <= s.start_time)) next.session_inputs = 'Session end time must be after the start time.';
     if (form.registration_opens_at && form.registration_closes_at && form.registration_closes_at <= form.registration_opens_at) {
@@ -425,7 +438,7 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                 {errors.images && <div className="wa-error">{errors.images}</div>}
               </Section>
 
-              <Section icon={<IndianRupee size={16} />} title="Options & prices" sub="Sizes / shapes attendees can choose. Price is per person and includes taxes.">
+              <Section icon={<IndianRupee size={16} />} title="Options & prices" sub="Sizes / shapes attendees can choose. Price per person, or per shared terrarium for group bookings (a family or friends building one together). Prices include taxes.">
                 <div className="wa-rows">
                   {form.options.map(o => (
                     <div key={o.key} className={`wa-row wa-row--option ${o.is_active ? '' : 'wa-row--inactive'}`}>
@@ -436,6 +449,23 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                       <label className="wa-check"><input type="checkbox" checked={o.is_active} onChange={e => updateRow('options', o.key, 'is_active', e.target.checked)} /> Active</label>
                       <div className="wa-row-actions">
                         <button type="button" className="wa-icon-btn wa-icon-btn--danger" aria-label="Remove option" onClick={() => removeRow('options', o.key)} disabled={form.options.length === 1}><Trash2 size={15} /></button>
+                      </div>
+                      <div className="wa-option-pricing">
+                        <Field label="Price per">
+                          <select className="wa-input" value={o.pricing || 'per_person'} onChange={e => {
+                            const pricing = e.target.value;
+                            updateRow('options', o.key, 'pricing', pricing);
+                            if (pricing === 'per_build' && Number(o.max_people_per_build) < 2) updateRow('options', o.key, 'max_people_per_build', DEFAULT_GROUP_SIZE);
+                          }}>
+                            <option value="per_person">Person (everyone builds their own)</option>
+                            <option value="per_build">Shared terrarium (group builds one)</option>
+                          </select>
+                        </Field>
+                        {isSharedOption(o) && (
+                          <Field label="People per terrarium" help="Each person still takes one seat.">
+                            <input className="wa-input" type="number" inputMode="numeric" min="2" max="20" value={o.max_people_per_build} onChange={e => updateRow('options', o.key, 'max_people_per_build', e.target.value)} />
+                          </Field>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -525,7 +555,8 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                     <div className="wa-table-wrap">
                       <table className="wa-table" style={{ minWidth: 520, background: 'transparent' }}>
                         <thead>
-                          <tr><th>Co-host</th><th className="num">Share of a seat</th><th className="num">Junglyst</th><th className="num">Payout / seat</th><th className="num">Payout, all {totalCapacity} seats</th></tr>
+                          <tr><th>Co-host</th><th className="num">Share of a {unitWord}</th><th className="num">Junglyst</th><th className="num">Payout / {unitWord}</th>
+                            <th className="num">Payout, all {totalCapacity} seats{calcShared ? ` (${fullHouseUnits} terrariums)` : ''}</th></tr>
                         </thead>
                         <tbody>
                           {form.organisers.map((o, i) => (
@@ -542,7 +573,7 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                             <td className="num wa-strong">{formatINR(price, { decimals: 2 })}</td>
                             <td className="num wa-strong">{formatINR(sumOf(perSeatSplit, 'commission'), { decimals: 2 })}</td>
                             <td className="num wa-strong">{formatINR(sumOf(perSeatSplit, 'payout'), { decimals: 2 })}</td>
-                            <td className="num wa-strong">{formatINR(price * totalCapacity)} gross · Junglyst {formatINR(sumOf(fullSplit, 'commission'))}</td>
+                            <td className="num wa-strong">{formatINR(price * fullHouseUnits)} gross · Junglyst {formatINR(sumOf(fullSplit, 'commission'))}</td>
                           </tr>
                         </tbody>
                       </table>

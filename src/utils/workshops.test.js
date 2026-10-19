@@ -185,3 +185,35 @@ test('isPastSession compares local date + start time', async () => {
   assert.equal(isPastSession('2026-10-13', '09:00', now), false);
   assert.equal(isPastSession('', '10:00', now), false);
 });
+
+describe('group booking', async () => {
+  const { isSharedOption, optionUnitLabel, sharedNote, normaliseParty, chargedUnits, partyLabel } = await import('./workshops.js');
+  const solo = { pricing: 'per_person', max_people_per_build: 1 };
+  const family = { pricing: 'per_build', max_people_per_build: 4 };
+
+  test('labels', () => {
+    assert.equal(isSharedOption(family), true);
+    assert.equal(isSharedOption(solo), false);
+    assert.equal(optionUnitLabel(family), 'per terrarium');
+    assert.equal(optionUnitLabel(solo), 'per person');
+    assert.equal(sharedNote(family), 'Up to 4 people share one terrarium');
+    assert.equal(sharedNote(solo), '');
+  });
+  test('per-person party: one terrarium each, capped by seats', () => {
+    assert.deepEqual(normaliseParty(solo, 9, 1, 6), { people: 6, builds: 6, minPeople: 1, maxPeople: 6, maxBuilds: 6 });
+    assert.equal(chargedUnits(solo, normaliseParty(solo, 3, 1, 6)), 3);
+  });
+  test('shared party: each group slot is one seat for up to a group', () => {
+    assert.deepEqual(normaliseParty(family, 1, 1, 6), { people: 4, builds: 1, minPeople: 4, maxPeople: 4, maxBuilds: 6 });
+    assert.equal(normaliseParty(family, 1, 2, 6).people, 8, 'two slots, up to 8 people');
+    assert.equal(normaliseParty(family, 1, 9, 6).builds, 6, 'capped by seats, not people');
+    assert.equal(normaliseParty(family, 1, 1, 1).builds, 1, 'one seat left still fits a group');
+    assert.equal(chargedUnits(family, normaliseParty(family, 1, 2, 6)), 2);
+  });
+  test('partyLabel', () => {
+    assert.equal(partyLabel({ participants: 3, builds: 1 }), '3 people · 1 shared terrarium');
+    assert.equal(partyLabel({ participants: 6, builds: 2 }), '6 people · 2 shared terrariums');
+    assert.equal(partyLabel({ participants: 2, builds: 2 }), '2 people');
+    assert.equal(partyLabel({ participants: 1, builds: 1 }), '1 person');
+  });
+});

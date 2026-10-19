@@ -143,3 +143,8 @@
 .wa-empty { text-align: center; padding: 3rem 1rem; color: #64748b; }
 .wa-empty h3 { color: #0f172a; font-size: 1.1rem; margin: 0.75rem 0 0.35rem; font-family: var(--font-sans); }
 .wa-pager { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-top: 1px solid #f1f5f9; font-size: 0.78rem; color: #64748b; }
+
+/* Option pricing sub-row (per person / shared terrarium) spans the whole option row. */
+.wa-option-pricing { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
+@media (min-width: 700px) { .wa-option-pricing { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
+.wa-option-pricing > * { min-width: 0; }
