@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { CalendarDays, Clock, MapPin, Users, Ticket, Navigation } from 'lucide-react';
 import BookingStatusPill from './BookingStatusPill';
-import { formatDate, formatTime } from '../../utils/workshops';
+import { formatDate, formatTime, partyLabel } from '../../utils/workshops';
 import '../../pages/Workshops.css';
 
 // Public order tracking for a workshop order. The API sends a public-safe
@@ -22,7 +22,7 @@ export default function WorkshopTrackCard({ orderNumber, booking }) {
       <div className="ws-ticket">
         <div className="ws-ticket-item"><CalendarDays size={18} /><div><div className="ws-fact-label">Date</div><div style={{ fontWeight: 600 }}>{formatDate(booking.session_date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div></div></div>
         <div className="ws-ticket-item"><Clock size={18} /><div><div className="ws-fact-label">Time</div><div style={{ fontWeight: 600 }}>{formatTime(booking.session_start)} – {formatTime(booking.session_end)}</div></div></div>
-        <div className="ws-ticket-item"><Users size={18} /><div><div className="ws-fact-label">Seats</div><div style={{ fontWeight: 600 }}>{booking.participants}</div></div></div>
+        <div className="ws-ticket-item"><Users size={18} /><div><div className="ws-fact-label">Group</div><div style={{ fontWeight: 600 }}>{partyLabel(booking)}</div></div></div>
         {venue && (
           <div className="ws-ticket-item">
             <MapPin size={18} />

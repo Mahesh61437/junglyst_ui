@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
+import { partyLabel } from '../utils/workshops';
 
 export default function Profile() {
   const { user, logout, updateUser } = useAuth();
@@ -568,7 +569,7 @@ export default function Profile() {
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                               <span>{order.booking
-                                ? `Workshop · ${order.booking.participants} seat${order.booking.participants === 1 ? '' : 's'}`
+                                ? `Workshop · ${partyLabel(order.booking)}`
                                 : `${order.items?.length || 0} ${order.items?.length === 1 ? 'specimen' : 'specimens'}`}</span>
                               <span>·</span>
                               <span>{new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>

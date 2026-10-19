@@ -7,7 +7,7 @@ import Pagination from '../components/Pagination';
 import SocialLinks from '../components/SocialLinks';
 import BookingStatusPill from '../components/workshops/BookingStatusPill';
 import OrganiserContact from '../components/workshops/OrganiserContact';
-import { formatDate, formatTime } from '../utils/workshops';
+import { formatDate, formatTime, partyLabel } from '../utils/workshops';
 
 // Covers both master Order statuses and sub-order SubOrderStatuses
 const STATUS_META = {
@@ -109,7 +109,7 @@ function WorkshopBookingCard({ booking }) {
           <CalendarDays size={13} /> {formatDate(booking.session_date)} · {formatTime(booking.session_start)} – {formatTime(booking.session_end)}
         </p>
         <p style={{ margin: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <Users size={13} /> {booking.participants} seat{booking.participants !== 1 ? 's' : ''} · {booking.attendee_name}
+          <Users size={13} /> {partyLabel(booking)} · {booking.attendee_name}
         </p>
         {venue && <p style={{ margin: 0, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}><MapPin size={13} /> {venue}</p>}
         {booking.map_url && (
@@ -227,7 +227,7 @@ export default function MyOrders() {
                     {booking ? (
                       <div>
                         <p style={{ margin: '0 0 0.4rem', fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Workshop</p>
-                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>{booking.participants} seat{booking.participants !== 1 ? 's' : ''}</p>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.8rem' }}>{partyLabel(booking)}</p>
                         <p style={{ margin: '0.15rem 0 0', fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><CalendarDays size={10} />{formatDate(booking.session_date, { day: 'numeric', month: 'short' })}</p>
                       </div>
                     ) : (

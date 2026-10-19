@@ -244,3 +244,36 @@ export function isPastSession(isoDate, startTime, now = new Date()) {
   day.setHours(h || 0, m || 0, 0, 0);
   return day <= now;
 }
+
+// ── Group booking (shared terrarium) ────────────────────────────────────────
+export const isSharedOption = (option) => option?.pricing === 'per_build';
+
+export const optionUnitLabel = (option) => (isSharedOption(option) ? 'per terrarium' : 'per person');
+
+// "Up to 4 people share one terrarium" for shared options, '' otherwise.
+export const sharedNote = (option) => (isSharedOption(option)
+  ? `Up to ${option.max_people_per_build} people share one terrarium` : '');
+
+// Clamp the party to what the option and session allow. Per-person: one
+// terrarium each. Shared: 1+ terrariums, each with 1..max_people_per_build people.
+export function normaliseParty(option, people, builds, maxSeats) {
+  const cap = Math.max(1, Math.floor(toNumber(maxSeats)) || 1);
+  if (!isSharedOption(option)) {
+    const p = Math.min(Math.max(1, Math.floor(toNumber(people)) || 1), cap);
+    return { people: p, builds: p, minPeople: 1, maxPeople: cap, maxBuilds: cap };
+  }
+  // A group slot is one shared terrarium on one seat; its group is up to perBuild people.
+  const perBuild = Math.max(1, Math.floor(toNumber(option.max_people_per_build)) || 1);
+  const b = Math.min(Math.max(1, Math.floor(toNumber(builds)) || 1), cap);
+  return { people: b * perBuild, builds: b, minPeople: b * perBuild, maxPeople: b * perBuild, maxBuilds: cap };
+}
+
+// What the unit price is charged on: terrariums for shared options, people otherwise.
+export const chargedUnits = (option, party) => (isSharedOption(option) ? party.builds : party.people);
+
+// "3 people · 1 shared terrarium" / "2 people"
+export function partyLabel({ participants, builds }) {
+  const people = `${participants} ${participants === 1 ? 'person' : 'people'}`;
+  if (!builds || builds >= participants) return people;
+  return `${people} · ${builds} shared terrarium${builds === 1 ? '' : 's'}`;
+}

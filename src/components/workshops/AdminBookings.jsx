@@ -33,6 +33,7 @@ const CSV_COLUMNS = [
   { label: 'Phone', value: b => b.attendee_phone },
   { label: 'Email', value: b => b.attendee_email },
   { label: 'Seats', value: b => b.participants },
+  { label: 'Terrariums', value: b => b.builds },
   { label: 'Organiser', value: b => b.organiser_name },
   { label: 'Amount', value: b => b.total_amount },
   { label: 'Commission', value: b => b.commission_amount },
@@ -180,7 +181,10 @@ export default function AdminBookings({ workshops }) {
                     <div style={{ fontSize: '0.75rem', marginTop: 2 }}>{formatDate(b.session_date)} · {formatTime(b.session_start)}–{formatTime(b.session_end)}</div>
                   </td>
                   <td>{b.organiser_name}</td>
-                  <td className="num wa-strong">{b.participants}</td>
+                  <td className="num">
+                    <div className="wa-strong">{b.participants}</div>
+                    {b.builds < b.participants && <div className="wa-muted">{b.builds} shared</div>}
+                  </td>
                   <td className="num">
                     <div className="wa-strong">{formatINR(b.total_amount, { decimals: 2 })}</div>
                     <div className="wa-muted">Org {formatINR(b.seller_payout, { decimals: 2 })}</div>
