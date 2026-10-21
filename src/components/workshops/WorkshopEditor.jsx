@@ -1,17 +1,35 @@
 import { cloneElement, useEffect, useId, useMemo, useState } from 'react';
 import {
-  X, Plus, Trash2, Copy, ImagePlus, ArrowLeft, ArrowRight, CheckCircle2, CalendarDays,
-  MapPin, ListChecks, Image as ImageIcon, IndianRupee, Settings2, Loader2, AlertCircle, Users, Scale,
+  X, Plus, Trash2, Copy, ImagePlus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, CheckCircle2, CalendarDays, FileText,
+  MapPin, Megaphone, ListChecks, Image as ImageIcon, IndianRupee, Settings2, Loader2, AlertCircle, Users, Scale,
 } from 'lucide-react';
 import { WorkshopService } from '../../services/WorkshopService';
+import WorkshopNotice from './WorkshopNotice';
 import {
-  PHONE_PATTERN, SKILL_LEVELS, WORKSHOP_CATEGORIES, evenShares, isPastSession, isSharedOption, formatINR, fromLocalInput, linesToList, listToLines,
+  MAX_CUSTOM_SECTIONS, MAX_NOTICE_LENGTH, NOTICE_TONES, photoLibrary, MAX_SECTION_BODY_LENGTH, MAX_SECTION_TITLE_LENGTH, PHONE_PATTERN, SECTION_SUGGESTIONS, SKILL_LEVELS,
+  cleanSections, sectionsError, WORKSHOP_CATEGORIES, evenShares, isPastSession, isSharedOption, formatINR, fromLocalInput, linesToList, listToLines,
   sharesTotal, splitAcrossCohosts, termsSignature, toLocalInput,
 } from '../../utils/workshops';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES = 12;
+const MAX_OPTION_IMAGES = 6;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Checks then uploads picked files; resolves to their URLs or rejects with a
+// message to show next to the uploader.
+async function uploadImageFiles(files, alreadyHave, max) {
+  if (files.some(f => !ACCEPTED_IMAGE_TYPES.includes(f.type) || f.size > MAX_IMAGE_BYTES)) {
+    throw new Error('Use JPG, PNG or WebP images under 5 MB.');
+  }
+  if (alreadyHave + files.length > max) throw new Error(`Up to ${max} images.`);
+  try {
+    const uploaded = await Promise.all(files.map(f => WorkshopService.admin.uploadImage(f)));
+    return uploaded.map(u => u.url);
+  } catch {
+    throw new Error('Image upload failed. Please try again.');
+  }
+}
 
 const DEFAULT_COMMISSION = '20';
 const emptyOrganiser = (share = '100') => ({ key: crypto.randomUUID(), seller: '', share_percent: share, commission_percent: DEFAULT_COMMISSION });
@@ -19,9 +37,10 @@ const timingOf = (session) => `${session.date}|${session.start_time?.slice(0, 5)
 
 const emptyOption = () => ({
   key: crypto.randomUUID(), name: '', shape: '', size: '', price: '', is_active: true,
-  pricing: 'per_person', max_people_per_build: 1,
+  pricing: 'per_person', max_people_per_build: 1, images: [],
 });
 const DEFAULT_GROUP_SIZE = 4;
+const emptySection = (title = '') => ({ key: crypto.randomUUID(), title, body: '' });
 const emptySession = (copyFrom) => ({
   key: crypto.randomUUID(),
   date: copyFrom?.date || '',
@@ -37,7 +56,8 @@ function formFromWorkshop(w) {
     return {
       title: '', tagline: '', category: 'terrarium', status: 'draft', is_featured: false,
       organisers: [emptyOrganiser()], contact_name: '', contact_phone: '',
-      description: '', highlightsText: '', whatToBringText: '', images: [],
+      description: '', highlightsText: '', whatToBringText: '', images: [], custom_sections: [],
+      notice: '', notice_tone: 'info',
       registration_opens_at: '', registration_closes_at: '',
       venue_name: '', address: '', city: '', map_url: '',
       duration_minutes: 120, skill_level: 'all_levels', min_age: '', max_seats_per_booking: 6,
@@ -54,10 +74,11 @@ function formFromWorkshop(w) {
     })),
     highlightsText: listToLines(w.highlights),
     whatToBringText: listToLines(w.what_to_bring),
+    custom_sections: (w.custom_sections || []).map(s => ({ ...s, key: crypto.randomUUID() })),
     registration_opens_at: toLocalInput(w.registration_opens_at),
     registration_closes_at: toLocalInput(w.registration_closes_at),
     min_age: w.min_age ?? '',
-    options: (w.options || []).map(o => ({ ...o, key: String(o.id) })),
+    options: (w.options || []).map(o => ({ ...o, images: o.images || [], key: String(o.id) })),
     sessions: (w.sessions || []).map(s => ({
       ...s, key: String(s.id), start_time: s.start_time?.slice(0, 5), end_time: s.end_time?.slice(0, 5),
     })),
@@ -71,6 +92,8 @@ function payloadFromForm(form) {
     organisers: form.organisers.map(({ seller, share_percent, commission_percent }) => ({ seller, share_percent, commission_percent })),
     status: form.status, is_featured: form.is_featured, description: form.description,
     highlights: linesToList(form.highlightsText), what_to_bring: linesToList(form.whatToBringText),
+    custom_sections: cleanSections(form.custom_sections),
+    notice: (form.notice || '').trim(), notice_tone: form.notice_tone || 'info',
     images: form.images,
     registration_opens_at: fromLocalInput(form.registration_opens_at),
     registration_closes_at: fromLocalInput(form.registration_closes_at),
@@ -176,9 +199,18 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
   const updateRow = (listKey, key, field, value) => setForm(prev => ({
     ...prev, [listKey]: prev[listKey].map(row => (row.key === key ? { ...row, [field]: value } : row)),
   }));
+  const moveRow = (listKey, index, delta) => setForm(prev => {
+    const rows = [...prev[listKey]];
+    const target = index + delta;
+    if (target < 0 || target >= rows.length) return prev;
+    [rows[index], rows[target]] = [rows[target], rows[index]];
+    return { ...prev, [listKey]: rows };
+  });
+  const addSection = (title) => setForm(prev => ({ ...prev, custom_sections: [...prev.custom_sections, emptySection(title)] }));
   const removeRow = (listKey, key) => setForm(prev => ({ ...prev, [listKey]: prev[listKey].filter(r => r.key !== key) }));
 
   const highlights = useMemo(() => linesToList(form.highlightsText), [form.highlightsText]);
+  const library = photoLibrary(form.images, form.options);
   const activeOptions = form.options.filter(o => o.is_active && Number(o.price) > 0);
   const [calcOptionKey, setCalcOptionKey] = useState('');
   const calcOption = activeOptions.find(o => o.key === calcOptionKey) || activeOptions[0];
@@ -207,23 +239,31 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
     return { ...prev, organisers: prev.organisers.map((o, i) => ({ ...o, share_percent: String(shares[i]) })) };
   });
 
-  const handleImages = async (fileList) => {
+  // errorKey: where to show problems; addUrls: puts the uploaded URLs into the form.
+  const handleUpload = async (fileList, { alreadyHave, max, errorKey, addUrls }) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
-    const invalid = files.find(f => !ACCEPTED_IMAGE_TYPES.includes(f.type) || f.size > MAX_IMAGE_BYTES);
-    if (invalid) { setErrors(prev => ({ ...prev, images: 'Use JPG, PNG or WebP images under 5 MB.' })); return; }
-    if (form.images.length + files.length > MAX_IMAGES) { setErrors(prev => ({ ...prev, images: `Up to ${MAX_IMAGES} images.` })); return; }
     setUploading(true);
-    setErrors(prev => ({ ...prev, images: undefined }));
+    setErrors(prev => ({ ...prev, [errorKey]: undefined }));
     try {
-      const uploaded = await Promise.all(files.map(f => WorkshopService.admin.uploadImage(f)));
-      setForm(prev => ({ ...prev, images: [...prev.images, ...uploaded.map(u => u.url)] }));
-    } catch {
-      setErrors(prev => ({ ...prev, images: 'Image upload failed. Please try again.' }));
+      addUrls(await uploadImageFiles(files, alreadyHave, max));
+    } catch (err) {
+      setErrors(prev => ({ ...prev, [errorKey]: err.message }));
     } finally {
       setUploading(false);
     }
   };
+  const handleImages = (fileList) => handleUpload(fileList, {
+    alreadyHave: form.images.length, max: MAX_IMAGES, errorKey: 'images',
+    addUrls: urls => setForm(prev => ({ ...prev, images: [...prev.images, ...urls] })),
+  });
+  const setOptionImages = (key, update) => setForm(prev => ({
+    ...prev, options: prev.options.map(o => (o.key === key ? { ...o, images: update(o.images || []) } : o)),
+  }));
+  const handleOptionImages = (option, fileList) => handleUpload(fileList, {
+    alreadyHave: (option.images || []).length, max: MAX_OPTION_IMAGES, errorKey: `option-images-${option.key}`,
+    addUrls: urls => setOptionImages(option.key, images => [...images, ...urls]),
+  });
   const moveImage = (index, delta) => setForm(prev => {
     const images = [...prev.images];
     const target = index + delta;
@@ -254,6 +294,8 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
     }
     if (form.map_url && !/^https?:\/\//i.test(form.map_url.trim())) next.map_url = 'Paste a full link starting with https://';
     if (form.contact_phone?.trim() && !PHONE_PATTERN.test(form.contact_phone.trim())) next.contact_phone = 'Enter a valid 10-digit mobile number.';
+    const sectionProblem = sectionsError(form.custom_sections);
+    if (sectionProblem) next.custom_sections = sectionProblem;
     return next;
   };
 
@@ -341,6 +383,26 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                 </div>
               </Section>
 
+              <Section icon={<Megaphone size={16} />} title="Highlight notice" sub="Optional banner at the top of the workshop page and in the booking form, e.g. Venue not finalised yet. Clear the text to hide it.">
+                <div className="wa-grid wa-grid--2">
+                  <Field label="Message" error={errors.notice} className="wa-span-all" help={`${(form.notice || '').length}/${MAX_NOTICE_LENGTH}`}>
+                    <textarea className="wa-input" rows={2} maxLength={MAX_NOTICE_LENGTH} value={form.notice || ''} onChange={set('notice')}
+                      placeholder="Venue not finalised yet. We'll share the exact location by email a week before the session." />
+                  </Field>
+                  <Field label="Style" error={errors.notice_tone}>
+                    <select className="wa-input" value={form.notice_tone || 'info'} onChange={set('notice_tone')}>
+                      {NOTICE_TONES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </select>
+                  </Field>
+                  <div>
+                    <span className="wa-label">Preview</span>
+                    {(form.notice || '').trim()
+                      ? <WorkshopNotice text={form.notice} tone={form.notice_tone} compact />
+                      : <p className="wa-help">No notice shown.</p>}
+                  </div>
+                </div>
+              </Section>
+
               <Section icon={<Users size={16} />} title="Organisers & commission" sub="Sellers co-hosting this workshop. Each booking is split by revenue share; Junglyst keeps each seller's commission % of their share.">
                 <div className="wa-rows">
                   {form.organisers.map((o, index) => (
@@ -413,6 +475,39 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                 </div>
               </Section>
 
+              <Section icon={<FileText size={16} />} title="More sections" sub="Extra headings shown on the workshop page in this order, e.g. Terms & conditions, Notes or What you'll make. Plain text; line breaks are kept.">
+                {form.custom_sections.length > 0 && (
+                  <div className="wa-rows">
+                    {form.custom_sections.map((section, i) => (
+                      <div key={section.key} className="wa-row wa-row--section">
+                        <Field label="Heading">
+                          <input className="wa-input" value={section.title} maxLength={MAX_SECTION_TITLE_LENGTH} placeholder="Terms & conditions"
+                            onChange={e => updateRow('custom_sections', section.key, 'title', e.target.value)} />
+                        </Field>
+                        <div className="wa-row-actions">
+                          <button type="button" className="wa-icon-btn" aria-label={`Move ${section.title || 'section'} up`} disabled={i === 0} onClick={() => moveRow('custom_sections', i, -1)}><ArrowUp size={15} /></button>
+                          <button type="button" className="wa-icon-btn" aria-label={`Move ${section.title || 'section'} down`} disabled={i === form.custom_sections.length - 1} onClick={() => moveRow('custom_sections', i, 1)}><ArrowDown size={15} /></button>
+                          <button type="button" className="wa-icon-btn wa-icon-btn--danger" aria-label={`Remove ${section.title || 'section'}`} onClick={() => removeRow('custom_sections', section.key)}><Trash2 size={15} /></button>
+                        </div>
+                        <Field label="Description" className="wa-span-all">
+                          <textarea className="wa-input" rows={4} value={section.body} maxLength={MAX_SECTION_BODY_LENGTH} placeholder="Write the details attendees should read before booking."
+                            onChange={e => updateRow('custom_sections', section.key, 'body', e.target.value)} />
+                        </Field>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors.custom_sections && <div className="wa-error">{errors.custom_sections}</div>}
+                {form.custom_sections.length < MAX_CUSTOM_SECTIONS && (
+                  <div className="wa-section-adders">
+                    <button type="button" className="wa-btn wa-btn--ghost wa-btn--sm" onClick={() => addSection()}><Plus size={14} /> Add section</button>
+                    {SECTION_SUGGESTIONS.filter(t => !form.custom_sections.some(s => s.title.trim() === t)).map(t => (
+                      <button key={t} type="button" className="wa-chip" onClick={() => addSection(t)}><Plus size={12} /> {t}</button>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
               <Section icon={<ImageIcon size={16} />} title="Images" sub="First image is the cover. JPG, PNG or WebP, up to 5 MB each.">
                 <div className="wa-images">
                   {form.images.map((url, i) => (
@@ -462,10 +557,51 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                           </select>
                         </Field>
                         {isSharedOption(o) && (
-                          <Field label="People per terrarium" help="Each person still takes one seat.">
+                          <Field label="People per terrarium" help="One terrarium takes one seat, however many share it.">
                             <input className="wa-input" type="number" inputMode="numeric" min="2" max="20" value={o.max_people_per_build} onChange={e => updateRow('options', o.key, 'max_people_per_build', e.target.value)} />
                           </Field>
                         )}
+                      </div>
+                      <div className="wa-option-images">
+                        <span className="wa-label">Photos of this option <small>Shown when a booker picks it; otherwise the workshop images.</small></span>
+                        <div className="wa-images">
+                          {(o.images || []).map((url, i) => (
+                            <div className="wa-image wa-image--sm" key={url}>
+                              <img src={url} alt={`${o.name || 'Option'} photo ${i + 1}`} />
+                              <div className="wa-image-tools">
+                                <button type="button" onClick={() => setOptionImages(o.key, images => images.filter(u => u !== url))} aria-label={`Remove ${o.name || 'option'} photo ${i + 1}`}><Trash2 size={13} color="#b91c1c" /></button>
+                              </div>
+                            </div>
+                          ))}
+                          {(o.images || []).length < MAX_OPTION_IMAGES && (
+                            <label className="wa-upload wa-image--sm">
+                              {uploading ? <Loader2 size={16} /> : <ImagePlus size={16} />}
+                              {uploading ? 'Uploading…' : 'Add photos'}
+                              <input type="file" accept={ACCEPTED_IMAGE_TYPES.join(',')} multiple hidden disabled={uploading}
+                                onChange={e => { handleOptionImages(o, e.target.files); e.target.value = ''; }} />
+                            </label>
+                          )}
+                        </div>
+                        {(() => {
+                          const reusable = library.filter(url => !(o.images || []).includes(url));
+                          if (!reusable.length || (o.images || []).length >= MAX_OPTION_IMAGES) return null;
+                          return (
+                            <details className="wa-reuse">
+                              <summary>Reuse a photo already uploaded ({reusable.length})</summary>
+                              <div className="wa-images">
+                                {reusable.map(url => (
+                                  <button key={url} type="button" className="wa-image wa-image--sm wa-image--pick"
+                                    aria-label={`Use this photo for ${o.name || 'this option'}`}
+                                    onClick={() => setOptionImages(o.key, images => (images.length < MAX_OPTION_IMAGES && !images.includes(url) ? [...images, url] : images))}>
+                                    <img src={url} alt="" />
+                                    <span className="wa-image-add"><Plus size={14} /></span>
+                                  </button>
+                                ))}
+                              </div>
+                            </details>
+                          );
+                        })()}
+                        {errors[`option-images-${o.key}`] && <div className="wa-error">{errors[`option-images-${o.key}`]}</div>}
                       </div>
                     </div>
                   ))}
