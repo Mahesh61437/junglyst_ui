@@ -248,7 +248,42 @@ export function isPastSession(isoDate, startTime, now = new Date()) {
 // ── Group booking (shared terrarium) ────────────────────────────────────────
 export const isSharedOption = (option) => option?.pricing === 'per_build';
 
-export const optionUnitLabel = (option) => (isSharedOption(option) ? 'per terrarium' : 'per person');
+// ── Custom sections (Terms & conditions, Notes, What you'll make, ...) ──
+export const MAX_CUSTOM_SECTIONS = 10;
+export const MAX_SECTION_TITLE_LENGTH = 120;
+export const MAX_SECTION_BODY_LENGTH = 4000;
+export const SECTION_SUGGESTIONS = ['Terms & conditions', 'Notes', "What you'll make"];
+
+// Trimmed {title, body} rows for the API; rows left completely blank are dropped.
+export const cleanSections = (rows) => (rows || [])
+  .map(r => ({ title: (r.title || '').trim(), body: (r.body || '').trim() }))
+  .filter(r => r.title || r.body); 
+
+export function sectionsError(rows) {
+  const sections = cleanSections(rows);
+  if (sections.length > MAX_CUSTOM_SECTIONS) return `Add at most ${MAX_CUSTOM_SECTIONS} sections.`;
+  if (sections.some(s => !s.title || !s.body)) return 'Each section needs both a heading and a description.';
+  return null;
+}
+
+export const NOTICE_TONES = [
+  { id: 'info', label: 'Info' },
+  { id: 'warning', label: 'Important' },
+  { id: 'success', label: 'Good news' },
+];
+export const MAX_NOTICE_LENGTH = 300;
+
+// Every photo already uploaded to a workshop (gallery first, then options), once each.
+export const photoLibrary = (workshopImages, options) => [
+  ...new Set([...(workshopImages || []), ...(options || []).flatMap(o => o.images || [])]),
+];
+
+// Photos for the chosen option (e.g. the 6 inch bowl), else the workshop's own.
+export const galleryImages = (workshop, option) => (
+  option?.images?.length ? option.images : (workshop?.images || [])
+);
+
+export const optionUnitLabel = (option) => (isSharedOption(option) ? 'per group' : 'per person');
 
 // "Up to 4 people share one terrarium" for shared options, '' otherwise.
 export const sharedNote = (option) => (isSharedOption(option)

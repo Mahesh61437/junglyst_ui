@@ -11,10 +11,11 @@ import { WorkshopService } from '../services/WorkshopService';
 import { launchGatewayPayment } from '../utils/paymentGateway';
 import { trackEvent } from '../utils/analytics';
 import { getImageUrl } from '../utils/imageUtils';
+import WorkshopNotice from '../components/workshops/WorkshopNotice';
 import FramedImage from '../components/workshops/FramedImage';
 import {
   SKILL_LEVELS, WORKSHOP_CATEGORIES, bookingTotal, hostNames, formatDate, formatDuration, formatINR, formatTime,
-  chargedUnits, isSharedOption, labelFor, msUntil, normaliseParty, optionUnitLabel,
+  chargedUnits, isSharedOption, labelFor, msUntil, normaliseParty, galleryImages, optionUnitLabel,
   registrationState, seatsLabel, sharedNote, validateAttendee,
 } from '../utils/workshops';
 import './Workshops.css';
@@ -49,6 +50,29 @@ function Gallery({ images, title }) {
   );
 }
 
+const TOP_PICKER_ID = 'ws-build-picker';
+
+function OptionPicker({ options, optionId, onChange, labelId }) {
+  return (
+    <div className="ws-choice-list" role="radiogroup" aria-labelledby={labelId}>
+      {options.map(o => (
+        <button key={o.id} type="button" role="radio" className="ws-choice" aria-checked={o.id === optionId} onClick={() => onChange(o.id)}>
+          {o.images?.[0] && <img className="ws-choice-thumb" src={getImageUrl(o.images[0])} alt="" loading="lazy" />}
+          <span className="ws-choice-main">
+            <span className="ws-choice-title">{o.name}</span>
+            {isSharedOption(o) && <span className="ws-group-tag"><Users size={11} /> Group</span>}<br />
+            <span className="ws-choice-sub">{sharedNote(o) || [o.shape, o.size].filter(Boolean).join(' · ') || o.description}</span>
+          </span>
+          <span className="ws-choice-side" style={{ fontSize: '0.95rem', color: 'var(--bg-deep)' }}>
+            {formatINR(o.price)}<br />
+            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64748b' }}>{optionUnitLabel(o)}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Fact({ icon, label, value }) {
   if (!value) return null;
   return (
@@ -62,13 +86,12 @@ function Fact({ icon, label, value }) {
   );
 }
 
-function BookingPanel({ workshop, onBooked }) {
+function BookingPanel({ workshop, optionId, onOptionChange, onBooked }) {
   const { user } = useAuth();
   const sessions = workshop.sessions || [];
   const options = workshop.options || [];
   const firstOpenSession = sessions.find(s => s.seats_left > 0);
   const [sessionId, setSessionId] = useState(firstOpenSession?.id ?? null);
-  const [optionId, setOptionId] = useState(options[0]?.id ?? null);
   const [requestedSeats, setRequestedSeats] = useState(1);
   const [requestedBuilds, setRequestedBuilds] = useState(1);
   // Prefilled from the account; the panel is keyed on the user so it re-seeds after login.
@@ -218,6 +241,7 @@ function BookingPanel({ workshop, onBooked }) {
       <form onSubmit={handleSubmit} noValidate>
         <h2>Reserve your seat</h2>
         <p style={{ fontSize: '0.8rem', color: '#64748b' }}>{registration.label}</p>
+        <div style={{ marginTop: '0.75rem' }}><WorkshopNotice text={workshop.notice} tone={workshop.notice_tone} compact /></div>
 
         <span className="ws-step-label" id="ws-date-label">1 · Choose a date</span>
         <div className="ws-choice-list" role="radiogroup" aria-labelledby="ws-date-label">
@@ -239,22 +263,26 @@ function BookingPanel({ workshop, onBooked }) {
           })}
         </div>
 
-        <span className="ws-step-label" id="ws-option-label">2 · Pick your build</span>
-        <div className="ws-choice-list" role="radiogroup" aria-labelledby="ws-option-label">
-          {options.map(o => (
-            <button key={o.id} type="button" role="radio" className="ws-choice" aria-checked={o.id === optionId} onClick={() => setOptionId(o.id)}>
-              <span>
-                <span className="ws-choice-title">{o.name}</span>
-                {isSharedOption(o) && <span className="ws-group-tag"><Users size={11} /> Group</span>}<br />
-                <span className="ws-choice-sub">{sharedNote(o) || [o.shape, o.size].filter(Boolean).join(' · ') || o.description}</span>
-              </span>
-              <span className="ws-choice-side" style={{ fontSize: '0.95rem', color: 'var(--bg-deep)' }}>
-                {formatINR(o.price)}<br />
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64748b' }}>{optionUnitLabel(o)}</span>
-              </span>
-            </button>
-          ))}
+        <span className="ws-step-label" id="ws-option-label">2 · {options.length > 1 ? 'Pick your build' : 'Your build'}</span>
+        {/* Wide screens pick here, beside the gallery. Single-column screens pick
+            under the photos (TOP_PICKER_ID) and see a summary here. */}
+        <div className="ws-wide-only">
+          <OptionPicker options={options} optionId={optionId} onChange={onOptionChange} labelId="ws-option-label" />
         </div>
+        {option && (
+          <div className="ws-narrow-only ws-build-summary">
+            {option.images?.[0] && <img className="ws-choice-thumb" src={getImageUrl(option.images[0])} alt="" loading="lazy" />}
+            <span className="ws-choice-main">
+              <span className="ws-choice-title">{option.name}</span><br />
+              <span className="ws-choice-sub">{formatINR(option.price)} {optionUnitLabel(option)}</span>
+            </span>
+            {options.length > 1 && (
+              <button type="button" className="ws-link-btn" onClick={() => document.getElementById(TOP_PICKER_ID)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+                Change
+              </button>
+            )}
+          </div>
+        )}
 
         <span className="ws-step-label">{shared ? '3 · How many group slots?' : '3 · How many slots?'}</span>
         {shared ? (
@@ -333,6 +361,8 @@ export default function WorkshopDetail() {
   const bookRef = useRef(null);
   // The mobile "Book a seat" bar is redundant once the booking panel is on screen.
   const [panelInView, setPanelInView] = useState(false);
+  // Shared by the gallery and the booking panel: picking an option shows its photos.
+  const [pickedOptionId, setPickedOptionId] = useState(null);
   const { data: workshop, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['workshop', slug],
     queryFn: () => WorkshopService.get(slug),
@@ -388,6 +418,8 @@ export default function WorkshopDetail() {
   }
 
   const nextSession = workshop.sessions?.[0];
+  const options = workshop.options || [];
+  const selectedOption = options.find(o => o.id === pickedOptionId) || options[0];
   const venueLine = [workshop.venue_name, workshop.city].filter(Boolean).join(', ');
   const hosts = (workshop.organisers?.length ? workshop.organisers : [workshop.organiser]).filter(Boolean);
   const hostLine = hostNames(workshop);
@@ -415,7 +447,15 @@ export default function WorkshopDetail() {
 
       <div className="ws-detail">
         <main>
-          <Gallery images={workshop.images || []} title={workshop.title} />
+          <WorkshopNotice text={workshop.notice} tone={workshop.notice_tone} />
+          <Gallery key={selectedOption?.id ?? 'workshop'} images={galleryImages(workshop, selectedOption)}
+            title={selectedOption?.images?.length ? `${workshop.title} – ${selectedOption.name}` : workshop.title} />
+          {options.length > 1 && (
+            <div className="ws-narrow-only ws-top-picker" id={TOP_PICKER_ID}>
+              <span className="ws-step-label" id="ws-option-label-top">Pick your build</span>
+              <OptionPicker options={options} optionId={selectedOption?.id} onChange={setPickedOptionId} labelId="ws-option-label-top" />
+            </div>
+          )}
 
           <span className="ws-eyebrow" style={{ marginTop: '1.5rem', color: 'var(--brand-green)' }}>
             {labelFor(WORKSHOP_CATEGORIES, workshop.category)} workshop
@@ -491,6 +531,13 @@ export default function WorkshopDetail() {
             </div>
           </section>
 
+          {(workshop.custom_sections || []).map((section, i) => (
+            <section key={`${i}-${section.title}`} className="ws-section" aria-labelledby={`ws-custom-${i}`}>
+              <h2 id={`ws-custom-${i}`}>{section.title}</h2>
+              <p className="ws-description" style={{ fontSize: '0.9rem' }}>{section.body}</p>
+            </section>
+          ))}
+
           {workshop.cancellation_policy && (
             <section className="ws-section" aria-labelledby="ws-policy">
               <h2 id="ws-policy">Cancellation policy</h2>
@@ -503,6 +550,8 @@ export default function WorkshopDetail() {
           <BookingPanel
             key={user?.id || 'guest'}
             workshop={workshop}
+            optionId={selectedOption?.id ?? null}
+            onOptionChange={setPickedOptionId}
             onBooked={(booking) => navigate(`/workshops/booking/${booking.order_number}`, { state: { booking } })}
           />
         </div>
@@ -510,8 +559,18 @@ export default function WorkshopDetail() {
 
       <div className="ws-mobile-cta" hidden={panelInView}>
         <div>
-          <div className="ws-price-label">From</div>
-          <div className="ws-price">{priceFrom != null ? formatINR(priceFrom) : '—'}</div>
+          {/* Before a pick, the cheapest option; after, the build the buyer chose. */}
+          {pickedOptionId != null && selectedOption ? (
+            <>
+              <div className="ws-price-label">{selectedOption.name}</div>
+              <div className="ws-price">{formatINR(selectedOption.price)} <small className="ws-price-unit">{optionUnitLabel(selectedOption)}</small></div>
+            </>
+          ) : (
+            <>
+              <div className="ws-price-label">From</div>
+              <div className="ws-price">{priceFrom != null ? formatINR(priceFrom) : '—'}</div>
+            </>
+          )}
         </div>
         <button type="button" className="btn btn-primary" style={{ minHeight: 48 }} onClick={() => document.getElementById('book')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
           Book a seat

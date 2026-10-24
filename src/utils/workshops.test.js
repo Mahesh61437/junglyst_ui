@@ -186,15 +186,53 @@ test('isPastSession compares local date + start time', async () => {
   assert.equal(isPastSession('', '10:00', now), false);
 });
 
+describe('photoLibrary', async () => {
+  const { photoLibrary } = await import('./workshops.js');
+  test('gallery then option photos, without duplicates', () => {
+    assert.deepEqual(photoLibrary(['cover.jpg', 'bowl8.jpg'], [
+      { images: ['bowl6.jpg'] }, { images: ['bowl8.jpg'] }, {},
+    ]), ['cover.jpg', 'bowl8.jpg', 'bowl6.jpg']);
+    assert.deepEqual(photoLibrary(undefined, undefined), []);
+  });
+});
+
+describe('custom sections', async () => {
+  const { cleanSections, sectionsError, MAX_CUSTOM_SECTIONS } = await import('./workshops.js');
+
+  test('cleanSections trims, drops blank rows and editor keys', () => {
+    assert.deepEqual(cleanSections([
+      { key: 'a', title: ' Notes ', body: ' Arrive early. ' },
+      { key: 'b', title: '', body: '   ' },
+    ]), [{ title: 'Notes', body: 'Arrive early.' }]);
+    assert.deepEqual(cleanSections(undefined), []);
+  });
+
+  test('sectionsError', () => {
+    assert.equal(sectionsError([{ title: 'Notes', body: 'x' }, { title: '', body: '' }]), null);
+    assert.match(sectionsError([{ title: 'Notes', body: '' }]), /heading and a description/);
+    assert.match(sectionsError([{ title: '', body: 'Text' }]), /heading and a description/);
+    const tooMany = Array.from({ length: MAX_CUSTOM_SECTIONS + 1 }, (_, i) => ({ title: `S${i}`, body: 'x' }));
+    assert.match(sectionsError(tooMany), /at most/);
+  });
+});
+
 describe('group booking', async () => {
-  const { isSharedOption, optionUnitLabel, sharedNote, normaliseParty, chargedUnits, partyLabel } = await import('./workshops.js');
+  const { isSharedOption, optionUnitLabel, sharedNote, normaliseParty, chargedUnits, partyLabel, galleryImages } = await import('./workshops.js');
   const solo = { pricing: 'per_person', max_people_per_build: 1 };
   const family = { pricing: 'per_build', max_people_per_build: 4 };
+
+  test('galleryImages: option photos first, workshop photos as fallback', () => {
+    const workshop = { images: ['w1.jpg', 'w2.jpg'] };
+    assert.deepEqual(galleryImages(workshop, { images: ['bowl6.jpg'] }), ['bowl6.jpg']);
+    assert.deepEqual(galleryImages(workshop, { images: [] }), ['w1.jpg', 'w2.jpg']);
+    assert.deepEqual(galleryImages(workshop, undefined), ['w1.jpg', 'w2.jpg']);
+    assert.deepEqual(galleryImages({}, null), []);
+  });
 
   test('labels', () => {
     assert.equal(isSharedOption(family), true);
     assert.equal(isSharedOption(solo), false);
-    assert.equal(optionUnitLabel(family), 'per terrarium');
+    assert.equal(optionUnitLabel(family), 'per group');
     assert.equal(optionUnitLabel(solo), 'per person');
     assert.equal(sharedNote(family), 'Up to 4 people share one terrarium');
     assert.equal(sharedNote(solo), '');
