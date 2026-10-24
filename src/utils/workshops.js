@@ -257,7 +257,7 @@ export const SECTION_SUGGESTIONS = ['Terms & conditions', 'Notes', "What you'll 
 // Trimmed {title, body} rows for the API; rows left completely blank are dropped.
 export const cleanSections = (rows) => (rows || [])
   .map(r => ({ title: (r.title || '').trim(), body: (r.body || '').trim() }))
-  .filter(r => r.title || r.body);
+  .filter(r => r.title || r.body); 
 
 export function sectionsError(rows) {
   const sections = cleanSections(rows);
