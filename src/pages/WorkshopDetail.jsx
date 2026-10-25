@@ -420,6 +420,8 @@ export default function WorkshopDetail() {
   const nextSession = workshop.sessions?.[0];
   const options = workshop.options || [];
   const selectedOption = options.find(o => o.id === pickedOptionId) || options[0];
+  // Nothing to book (closed, sold out, not open yet): the booking panel explains why.
+  const canBook = registrationState(workshop).open;
   const venueLine = [workshop.venue_name, workshop.city].filter(Boolean).join(', ');
   const hosts = (workshop.organisers?.length ? workshop.organisers : [workshop.organiser]).filter(Boolean);
   const hostLine = hostNames(workshop);
@@ -513,6 +515,28 @@ export default function WorkshopDetail() {
             </section>
           )}
 
+          {workshop.build_steps?.length > 0 && (
+            <section className="ws-section" aria-labelledby="ws-steps">
+              <h2 id="ws-steps">Step by step</h2>
+              <ol className="ws-steps">
+                {workshop.build_steps.map((step, i) => (
+                  <li key={`${i}-${step.title}`} className={`ws-step${step.image ? '' : ' ws-step--text-only'}`}>
+                    {step.image && (
+                      <div className="ws-step-media">
+                        <FramedImage src={getImageUrl(step.image)} alt={`Step ${i + 1}: ${step.title}`} loading="lazy" />
+                      </div>
+                    )}
+                    <div className="ws-step-text">
+                      <span className="ws-step-num">Step {i + 1}</span>
+                      <h3>{step.title}</h3>
+                      <p className="ws-description">{step.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           <section className="ws-section" aria-labelledby="ws-host">
             <h2 id="ws-host">{hosts.length > 1 ? 'Your hosts' : 'Your host'}</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -557,7 +581,7 @@ export default function WorkshopDetail() {
         </div>
       </div>
 
-      <div className="ws-mobile-cta" hidden={panelInView}>
+      <div className="ws-mobile-cta" hidden={panelInView || !canBook}>
         <div>
           {/* Before a pick, the cheapest option; after, the build the buyer chose. */}
           {pickedOptionId != null && selectedOption ? (
