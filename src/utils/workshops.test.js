@@ -186,6 +186,29 @@ test('isPastSession compares local date + start time', async () => {
   assert.equal(isPastSession('', '10:00', now), false);
 });
 
+describe('build steps', async () => {
+  const { cleanSteps, stepsError, MAX_BUILD_STEPS } = await import('./workshops.js');
+
+  test('cleanSteps trims, keeps the photo, drops blank steps', () => {
+    assert.deepEqual(cleanSteps([
+      { key: 'a', title: ' Pebbles ', body: ' Add a layer. ', image: ' https://cdn.test/1.jpg ' },
+      { key: 'b', title: '', body: '', image: '' },
+      { key: 'c', title: 'Moss', body: 'Press it in.' },
+    ]), [
+      { title: 'Pebbles', body: 'Add a layer.', image: 'https://cdn.test/1.jpg' },
+      { title: 'Moss', body: 'Press it in.', image: '' },
+    ]);
+  });
+
+  test('stepsError', () => {
+    assert.equal(stepsError([{ title: 'Soil', body: 'x' }]), null);
+    assert.match(stepsError([{ title: 'Soil', body: '' }]), /name and a description/);
+    assert.match(stepsError([{ title: '', body: '', image: 'https://cdn.test/1.jpg' }]), /name and a description/);
+    const tooMany = Array.from({ length: MAX_BUILD_STEPS + 1 }, (_, i) => ({ title: `S${i}`, body: 'x' }));
+    assert.match(stepsError(tooMany), /at most/);
+  });
+});
+
 describe('photoLibrary', async () => {
   const { photoLibrary } = await import('./workshops.js');
   test('gallery then option photos, without duplicates', () => {
