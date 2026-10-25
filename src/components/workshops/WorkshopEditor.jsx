@@ -7,7 +7,7 @@ import { WorkshopService } from '../../services/WorkshopService';
 import WorkshopNotice from './WorkshopNotice';
 import {
   MAX_CUSTOM_SECTIONS, MAX_NOTICE_LENGTH, NOTICE_TONES, photoLibrary, MAX_SECTION_BODY_LENGTH, MAX_SECTION_TITLE_LENGTH, PHONE_PATTERN, SECTION_SUGGESTIONS, SKILL_LEVELS,
-  cleanSections, sectionsError, WORKSHOP_CATEGORIES, evenShares, isPastSession, isSharedOption, formatINR, fromLocalInput, linesToList, listToLines,
+  cleanSections, sectionsError, cleanSteps, stepsError, MAX_BUILD_STEPS, MAX_STEP_BODY_LENGTH, WORKSHOP_CATEGORIES, evenShares, isPastSession, isSharedOption, formatINR, fromLocalInput, linesToList, listToLines,
   sharesTotal, splitAcrossCohosts, termsSignature, toLocalInput,
 } from '../../utils/workshops';
 
@@ -41,6 +41,7 @@ const emptyOption = () => ({
 });
 const DEFAULT_GROUP_SIZE = 4;
 const emptySection = (title = '') => ({ key: crypto.randomUUID(), title, body: '' });
+const emptyStep = () => ({ key: crypto.randomUUID(), title: '', body: '', image: '' });
 const emptySession = (copyFrom) => ({
   key: crypto.randomUUID(),
   date: copyFrom?.date || '',
@@ -56,7 +57,7 @@ function formFromWorkshop(w) {
     return {
       title: '', tagline: '', category: 'terrarium', status: 'draft', is_featured: false,
       organisers: [emptyOrganiser()], contact_name: '', contact_phone: '',
-      description: '', highlightsText: '', whatToBringText: '', images: [], custom_sections: [],
+      description: '', highlightsText: '', whatToBringText: '', images: [], custom_sections: [], build_steps: [],
       notice: '', notice_tone: 'info',
       registration_opens_at: '', registration_closes_at: '',
       venue_name: '', address: '', city: '', map_url: '',
@@ -75,6 +76,7 @@ function formFromWorkshop(w) {
     highlightsText: listToLines(w.highlights),
     whatToBringText: listToLines(w.what_to_bring),
     custom_sections: (w.custom_sections || []).map(s => ({ ...s, key: crypto.randomUUID() })),
+    build_steps: (w.build_steps || []).map(s => ({ ...s, key: crypto.randomUUID() })),
     registration_opens_at: toLocalInput(w.registration_opens_at),
     registration_closes_at: toLocalInput(w.registration_closes_at),
     min_age: w.min_age ?? '',
@@ -93,6 +95,7 @@ function payloadFromForm(form) {
     status: form.status, is_featured: form.is_featured, description: form.description,
     highlights: linesToList(form.highlightsText), what_to_bring: linesToList(form.whatToBringText),
     custom_sections: cleanSections(form.custom_sections),
+    build_steps: cleanSteps(form.build_steps),
     notice: (form.notice || '').trim(), notice_tone: form.notice_tone || 'info',
     images: form.images,
     registration_opens_at: fromLocalInput(form.registration_opens_at),
@@ -210,7 +213,12 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
   const removeRow = (listKey, key) => setForm(prev => ({ ...prev, [listKey]: prev[listKey].filter(r => r.key !== key) }));
 
   const highlights = useMemo(() => linesToList(form.highlightsText), [form.highlightsText]);
-  const library = photoLibrary(form.images, form.options);
+  // Step photos join the library so one upload can be reused anywhere in the workshop.
+  const library = photoLibrary(form.images, [...form.options, ...form.build_steps.map(s => ({ images: s.image ? [s.image] : [] }))]);
+  const handleStepImage = (step, fileList) => handleUpload(fileList, {
+    alreadyHave: 0, max: 1, errorKey: `step-image-${step.key}`,
+    addUrls: urls => updateRow('build_steps', step.key, 'image', urls[0]),
+  });
   const activeOptions = form.options.filter(o => o.is_active && Number(o.price) > 0);
   const [calcOptionKey, setCalcOptionKey] = useState('');
   const calcOption = activeOptions.find(o => o.key === calcOptionKey) || activeOptions[0];
@@ -296,6 +304,8 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
     if (form.contact_phone?.trim() && !PHONE_PATTERN.test(form.contact_phone.trim())) next.contact_phone = 'Enter a valid 10-digit mobile number.';
     const sectionProblem = sectionsError(form.custom_sections);
     if (sectionProblem) next.custom_sections = sectionProblem;
+    const stepProblem = stepsError(form.build_steps);
+    if (stepProblem) next.build_steps = stepProblem;
     return next;
   };
 
@@ -473,6 +483,74 @@ export default function WorkshopEditor({ workshopId, organisers, onClose, onSave
                     <textarea className="wa-input" rows={3} value={form.cancellation_policy} onChange={set('cancellation_policy')} />
                   </Field>
                 </div>
+              </Section>
+
+              <Section icon={<ListChecks size={16} />} title="Step by step" sub="How attendees will build it. Each step gets a photo, a name and a description. On desktop the steps alternate photo right / photo left.">
+                {form.build_steps.length > 0 && (
+                  <div className="wa-rows">
+                    {form.build_steps.map((step, i) => (
+                      <div key={step.key} className="wa-row wa-row--step">
+                        <div className="wa-step-photo">
+                          <span className="wa-label">Step {i + 1} photo</span>
+                          {step.image ? (
+                            <div className="wa-image">
+                              <img src={step.image} alt={`Step ${i + 1}: ${step.title || 'photo'}`} />
+                              <div className="wa-image-tools">
+                                <button type="button" onClick={() => updateRow('build_steps', step.key, 'image', '')} aria-label={`Remove photo from step ${i + 1}`}><Trash2 size={13} color="#b91c1c" /></button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <label className="wa-upload">
+                                {uploading ? <Loader2 size={18} /> : <ImagePlus size={18} />}
+                                {uploading ? 'Uploading…' : 'Add photo'}
+                                <input type="file" accept={ACCEPTED_IMAGE_TYPES.join(',')} hidden disabled={uploading}
+                                  onChange={e => { handleStepImage(step, e.target.files); e.target.value = ''; }} />
+                              </label>
+                              {library.length > 0 && (
+                                <details className="wa-reuse">
+                                  <summary>Reuse a photo ({library.length})</summary>
+                                  <div className="wa-images">
+                                    {library.map(url => (
+                                      <button key={url} type="button" className="wa-image wa-image--sm wa-image--pick"
+                                        aria-label={`Use this photo for step ${i + 1}`} onClick={() => updateRow('build_steps', step.key, 'image', url)}>
+                                        <img src={url} alt="" />
+                                        <span className="wa-image-add"><Plus size={14} /></span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </details>
+                              )}
+                            </>
+                          )}
+                          {errors[`step-image-${step.key}`] && <div className="wa-error">{errors[`step-image-${step.key}`]}</div>}
+                        </div>
+                        <div className="wa-step-fields">
+                          <Field label="Step name">
+                            <input className="wa-input" value={step.title} maxLength={MAX_SECTION_TITLE_LENGTH} placeholder="Add the drainage layer"
+                              onChange={e => updateRow('build_steps', step.key, 'title', e.target.value)} />
+                          </Field>
+                          <Field label="Description">
+                            <textarea className="wa-input" rows={3} value={step.body} maxLength={MAX_STEP_BODY_LENGTH} placeholder="Pour a 2 cm layer of pebbles so extra water can drain away from the roots."
+                              onChange={e => updateRow('build_steps', step.key, 'body', e.target.value)} />
+                          </Field>
+                        </div>
+                        <div className="wa-row-actions">
+                          <button type="button" className="wa-icon-btn" aria-label={`Move step ${i + 1} up`} disabled={i === 0} onClick={() => moveRow('build_steps', i, -1)}><ArrowUp size={15} /></button>
+                          <button type="button" className="wa-icon-btn" aria-label={`Move step ${i + 1} down`} disabled={i === form.build_steps.length - 1} onClick={() => moveRow('build_steps', i, 1)}><ArrowDown size={15} /></button>
+                          <button type="button" className="wa-icon-btn wa-icon-btn--danger" aria-label={`Remove step ${i + 1}`} onClick={() => removeRow('build_steps', step.key)}><Trash2 size={15} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors.build_steps && <div className="wa-error">{errors.build_steps}</div>}
+                {form.build_steps.length < MAX_BUILD_STEPS && (
+                  <button type="button" className="wa-btn wa-btn--ghost wa-btn--sm" style={{ marginTop: '0.6rem' }}
+                    onClick={() => setForm(prev => ({ ...prev, build_steps: [...prev.build_steps, emptyStep()] }))}>
+                    <Plus size={14} /> Add step
+                  </button>
+                )}
               </Section>
 
               <Section icon={<FileText size={16} />} title="More sections" sub="Extra headings shown on the workshop page in this order, e.g. Terms & conditions, Notes or What you'll make. Plain text; line breaks are kept.">

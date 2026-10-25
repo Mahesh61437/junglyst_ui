@@ -266,6 +266,21 @@ export function sectionsError(rows) {
   return null;
 }
 
+// ── Step-by-step guide (name, description, optional photo) ──
+export const MAX_BUILD_STEPS = 12;
+export const MAX_STEP_BODY_LENGTH = 1500;
+
+export const cleanSteps = (rows) => (rows || [])
+  .map(r => ({ title: (r.title || '').trim(), body: (r.body || '').trim(), image: (r.image || '').trim() }))
+  .filter(r => r.title || r.body || r.image);
+
+export function stepsError(rows) {
+  const steps = cleanSteps(rows);
+  if (steps.length > MAX_BUILD_STEPS) return `Add at most ${MAX_BUILD_STEPS} steps.`;
+  if (steps.some(s => !s.title || !s.body)) return 'Each step needs both a name and a description.';
+  return null;
+}
+
 export const NOTICE_TONES = [
   { id: 'info', label: 'Info' },
   { id: 'warning', label: 'Important' },
