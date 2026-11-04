@@ -392,3 +392,6 @@
   .svh-feature-body .svh-steps small { display: none; }
   .svh-feature-body .svh-steps strong { flex-direction: column; gap: 0.15rem; font-size: 0.72rem; line-height: 1.2; }
 }
+
+/* Customer cancel link on the quote card */
+.sv-cancel-link { color: #b91c1c; font-weight: 600; font-size: 0.8rem; justify-self: start; text-decoration: underline; text-underline-offset: 3px; }

@@ -25,6 +25,7 @@ function RequestRow({ item, showSeller, onOpen }) {
         <span className="sv-rq-ref">{item.reference}</span>
         <span className="sv-rq-time">{time}</span>
         <QuoteStatusPill status={item.status} />
+        {item.cancel_requested_at && <span className="sv-pill" style={{ background: '#fee2e2', color: '#b91c1c' }}>Cancel requested</span>}
         <span className="sv-rq-open">Open <ChevronRight size={15} aria-hidden="true" /></span>
       </div>
       <div className="sv-rq-body">

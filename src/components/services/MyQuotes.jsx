@@ -6,6 +6,7 @@ import { formatINR } from '../../utils/workshops';
 import { QUOTE_STATUS, SUPPORT_PHONE, payByInfo } from '../../utils/serviceQuotes';
 import { launchGatewayPayment } from '../../utils/paymentGateway';
 import PayAddressModal from './PayAddressModal';
+import CancelOrderModal from './CancelOrderModal';
 import '../../pages/Services.css';
 
 const money = (value) => formatINR(value, { decimals: 2 });
@@ -55,7 +56,7 @@ function PayByNote({ payBy }) {
   );
 }
 
-function QuoteCard({ request, onPay, payingChargeId, onPayCharge }) {
+function QuoteCard({ request, onPay, payingChargeId, onPayCharge, onCancel }) {
   const { quote } = request;
   return (
     <article className="sv-quote" aria-label={`Custom order ${request.reference}`}>
@@ -103,6 +104,16 @@ function QuoteCard({ request, onPay, payingChargeId, onPayCharge }) {
         </p>
       )}
       <ChargeList request={request} payingId={payingChargeId} onPayCharge={onPayCharge} />
+      {request.cancel_requested_at && (
+        <p className="sv-quote-note sv-quote-note--warn">
+          You asked to cancel this order. Our team will look at it and contact you soon.
+        </p>
+      )}
+      {request.can_cancel && (
+        <button type="button" className="sv-link-btn sv-cancel-link" onClick={() => onCancel(request)}>
+          {request.status === 'paid' ? 'Request cancellation' : 'Cancel this request'}
+        </button>
+      )}
       {request.status === 'delivered' && (
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#3730a3' }}>
           Delivered{request.order_number ? ` · Order ${request.order_number}` : ''}. We hope you love it!
@@ -115,7 +126,7 @@ function QuoteCard({ request, onPay, payingChargeId, onPayCharge }) {
       )}
       {request.status === 'cancelled' && (
         <p className="sv-quote-note sv-quote-note--warn">
-          This order was cancelled{request.cancel_reason ? `: ${request.cancel_reason}` : '.'} If you paid, the money will be refunded to your original payment method.
+          This order was cancelled{request.cancel_reason ? `: ${request.cancel_reason}` : '.'}{request.paid_at ? ' Your payment will be refunded to your original payment method.' : ''}
         </p>
       )}
       {request.status === 'declined' && <p style={{ margin: 0, fontSize: '0.85rem', color: '#991b1b' }}>We could not take this request on. Please call us if you would like to adjust it.</p>}
@@ -130,6 +141,7 @@ export default function MyQuotes({ onPaid }) {
   const [requests, setRequests] = useState([]);
   const [paying, setPaying] = useState(null);
   const [payingChargeId, setPayingChargeId] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
 
   const load = useCallback(() => {
     ServiceQuoteService.my.list()
@@ -175,8 +187,19 @@ export default function MyQuotes({ onPaid }) {
         <h2 id="my-quotes-title">Custom order quotes</h2>
       </div>
       {requests.map(request => (
-        <QuoteCard key={request.id} request={request} onPay={setPaying} payingChargeId={payingChargeId} onPayCharge={handlePayCharge} />
+        <QuoteCard key={request.id} request={request} onPay={setPaying} payingChargeId={payingChargeId} onPayCharge={handlePayCharge} onCancel={setCancelling} />
       ))}
+      {cancelling && (
+        <CancelOrderModal
+          request={cancelling}
+          onClose={() => setCancelling(null)}
+          onDone={(outcome) => {
+            setCancelling(null);
+            showToast(outcome === 'requested' ? 'Cancellation request sent. We will contact you.' : 'Your request was cancelled.', 'success');
+            load();
+          }}
+        />
+      )}
       {paying && <PayAddressModal quote={paying} onClose={() => setPaying(null)} onPaid={handlePaid} />}
     </section>
   );

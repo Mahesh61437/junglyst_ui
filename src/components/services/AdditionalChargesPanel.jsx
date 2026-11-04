@@ -26,7 +26,7 @@ function validate(description, amount) {
  * customer for more (an upgrade, extra plants...). `onRequest` / `onCancel`
  * call the caller's own endpoint and resolve with the refreshed request.
  */
-export default function AdditionalChargesPanel({ request, onRequest, onCancel }) {
+export default function AdditionalChargesPanel({ request, onRequest, onCancel, onPayoutDone }) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState(null);
@@ -74,6 +74,18 @@ export default function AdditionalChargesPanel({ request, onRequest, onCancel })
               <strong>{charge.description}</strong>
               {money(charge.amount)} · <span className="sv-pill" style={{ background: style.bg, color: style.fg }}>{charge.status_label}</span>
             </div>
+            {charge.payout_status === 'manual_due' && (
+              <div className="sv-banner sv-banner--error" style={{ flexBasis: '100%' }} role="note">
+                <span>The seller was already paid out. Pay them {money(charge.seller_payout)} yourself, then record it.</span>
+                {onPayoutDone && (
+                  <button type="button" className="wa-btn wa-btn--primary wa-btn--sm" style={{ minHeight: 44, marginLeft: 'auto' }} disabled={busy}
+                    onClick={() => window.confirm(`Mark the ${money(charge.seller_payout)} seller payout as paid?`) && run(() => onPayoutDone(charge.id))}>
+                    Mark seller paid
+                  </button>
+                )}
+              </div>
+            )}
+            {charge.payout_status === 'manual_done' && <span className="sv-help" style={{ flexBasis: '100%' }}>Seller payout of {money(charge.seller_payout)} recorded.</span>}
             {charge.status === 'requested' && (
               <button type="button" className="wa-btn wa-btn--danger wa-btn--sm" style={{ minHeight: 44 }} disabled={busy}
                 onClick={() => window.confirm(`Cancel the request for ${money(charge.amount)}?`) && run(() => onCancel(charge.id))}>

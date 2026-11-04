@@ -19,6 +19,7 @@ export const ServiceQuoteService = {
   my: {
     list: () => unwrap(api.get('/services/my-requests/')),
     pay: (reference, address) => unwrap(api.post(`/services/my-requests/${encode(reference)}/pay/`, address)),
+    cancel: (reference, reason) => unwrap(api.post(`/services/my-requests/${encode(reference)}/cancel/`, { reason })),
     payCharge: (reference, chargeId) => unwrap(api.post(`/services/my-requests/${encode(reference)}/charges/${chargeId}/pay/`)),
   },
 
@@ -51,6 +52,8 @@ export const ServiceQuoteService = {
     sendPayRequest: (id) => unwrap(api.post(`/services/admin/requests/${id}/send-pay-request/`)),
     decline: (id, reason) => unwrap(api.post(`/services/admin/requests/${id}/decline/`, { reason })),
     markDelivered: (id) => unwrap(api.post(`/services/admin/requests/${id}/mark-delivered/`)),
+    dismissCancel: (id) => unwrap(api.post(`/services/admin/requests/${id}/dismiss-cancel/`)),
+    extraPayoutDone: (id, chargeId) => unwrap(api.post(`/services/admin/requests/${id}/charges/${chargeId}/payout-done/`)),
     renew: (id) => unwrap(api.post(`/services/admin/requests/${id}/renew/`)),
     cancel: (id, reason) => unwrap(api.post(`/services/admin/requests/${id}/cancel/`, { reason })),
     requestCharge: (id, payload) => unwrap(api.post(`/services/admin/requests/${id}/charges/`, payload)),

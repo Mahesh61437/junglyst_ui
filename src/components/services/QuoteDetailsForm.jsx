@@ -108,6 +108,9 @@ export default function QuoteDetailsForm({ request, editable, isAdmin, onSave, b
         {budgetMax && <div className="sv-figure"><span>Their budget up to</span><strong>{formatINR(budgetMax)}</strong></div>}
       </div>
       {overBudget && <div className="sv-banner sv-banner--error" role="status">This total is above the customer's maximum budget.</div>}
+      {request.status === 'awaiting_payment' && editable && (
+        <div className="sv-banner sv-banner--ok" role="note">This quote was already sent. If you change the price, the customer is told and gets 3 fresh days to pay.</div>
+      )}
 
       <div className="sv-row sv-row--2">
         <div className="sv-field">
