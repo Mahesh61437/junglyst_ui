@@ -55,6 +55,8 @@ const payloadFrom = (form, isAdmin) => ({
  * super admin and by the assigned seller. `onSave(payload)` returns the saved request.
  */
 export default function QuoteDetailsForm({ request, editable, isAdmin, onSave, budgetMax }) {
+  // Once paid, the figure that matters is what was actually paid (quote plus paid extras).
+  const paidTotal = request.final_amount ? Number(request.final_amount) : null;
   const [form, setForm] = useState(() => toForm(request));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -104,7 +106,7 @@ export default function QuoteDetailsForm({ request, editable, isAdmin, onSave, b
         </div>
       </div>
       <div className="sv-figures">
-        <div className="sv-figure"><span>Customer pays</span><strong>{total ? formatINR(total, { decimals: 2 }) : '—'}</strong></div>
+        <div className="sv-figure"><span>{paidTotal ? 'Total paid' : 'Customer pays'}</span><strong>{paidTotal || total ? formatINR(paidTotal || total, { decimals: 2 }) : '—'}</strong></div>
         {budgetMax && <div className="sv-figure"><span>Their budget up to</span><strong>{formatINR(budgetMax)}</strong></div>}
       </div>
       {overBudget && <div className="sv-banner sv-banner--error" role="status">This total is above the customer's maximum budget.</div>}

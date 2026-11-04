@@ -31,7 +31,9 @@ function RequestRow({ item, showSeller, onOpen }) {
         <Cell label="Service" hint={item.group_name}>{item.offering_name}</Cell>
         <Cell label="Customer" hint={[item.contact_phone, item.state].filter(Boolean).join(' · ')}>{item.contact_name}</Cell>
         <Cell label="Budget">{formatINR(item.budget_min)} – {formatINR(item.budget_max)}</Cell>
-        <Cell label="Quote">{item.total_amount ? formatINR(item.total_amount, { decimals: 2 }) : <em className="sv-rq-muted">Not set</em>}</Cell>
+        {item.final_amount
+          ? <Cell label="Total paid" hint="Final amount">{formatINR(item.final_amount, { decimals: 2 })}</Cell>
+          : <Cell label="Quote">{item.total_amount ? formatINR(item.total_amount, { decimals: 2 }) : <em className="sv-rq-muted">Not set</em>}</Cell>}
         {showSeller && <Cell label="Seller">{item.assigned_seller?.store_name || <em className="sv-rq-muted">Not assigned</em>}</Cell>}
       </div>
     </button>

@@ -100,7 +100,7 @@ function QuoteCard({ request, onPay, payingChargeId, onPayCharge, onCancel }) {
 
       {request.status === 'paid' && (
         <p style={{ margin: 0, fontSize: '0.85rem', color: '#166534' }}>
-          Paid{request.order_number ? ` · Order ${request.order_number}` : ''}. Your seller is preparing it. Track it in the orders below.
+          Paid{request.final_amount ? ` ${money(request.final_amount)}` : ''}{request.order_number ? ` · Order ${request.order_number}` : ''}. Your seller is preparing it. Track it in the orders below.
         </p>
       )}
       <ChargeList request={request} payingId={payingChargeId} onPayCharge={onPayCharge} />
