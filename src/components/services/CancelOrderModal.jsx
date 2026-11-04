@@ -5,9 +5,8 @@ import '../../pages/Services.css';
 
 const REASON_LIMIT = 500;
 
-// Before paying a customer can cancel straight away; after paying they send a request the team decides on.
+// A customer can cancel their own request before paying. Paid orders are cancelled by the team.
 export default function CancelOrderModal({ request, onClose, onDone }) {
-  const paid = request.status === 'paid';
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -25,8 +24,8 @@ export default function CancelOrderModal({ request, onClose, onDone }) {
     setBusy(true);
     setError(null);
     try {
-      const { outcome } = await ServiceQuoteService.my.cancel(request.reference, reason.trim());
-      onDone(outcome);
+      await ServiceQuoteService.my.cancel(request.reference, reason.trim());
+      onDone();
     } catch (err) {
       setError(err.response?.data?.error || err.userMessage || 'Could not send this. Please try again.');
       setBusy(false);
@@ -37,14 +36,12 @@ export default function CancelOrderModal({ request, onClose, onDone }) {
     <div className="sv-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
       <form className="sv-modal" role="dialog" aria-modal="true" aria-labelledby="co-title" tabIndex={-1} ref={dialogRef} onSubmit={submit}>
         <div className="sv-modal-head">
-          <h2 id="co-title">{paid ? 'Request cancellation' : 'Cancel this request?'}</h2>
+          <h2 id="co-title">Cancel this request?</h2>
           <button type="button" className="sv-close" aria-label="Close" onClick={onClose} disabled={busy}>×</button>
         </div>
         <p className="sv-form-sub" style={{ margin: 0 }}>{request.offering_name} · {request.reference}</p>
         <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem', lineHeight: 1.55 }}>
-          {paid
-            ? 'You have already paid, so our team has to approve this. If it is approved, your payment is refunded to your original payment method.'
-            : 'No payment has been taken. You can send a new request any time.'}
+          No payment has been taken. You can send a new request any time.
         </p>
         {error && <div className="sv-banner sv-banner--error" role="alert"><AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />{error}</div>}
         <div className="sv-field">
@@ -54,7 +51,7 @@ export default function CancelOrderModal({ request, onClose, onDone }) {
         <div className="sv-wizard-nav">
           <button type="button" className="svh-btn svh-btn--outline" onClick={onClose} disabled={busy}>Keep it</button>
           <button type="submit" className="sv-submit" style={{ background: '#b91c1c', color: '#fff' }} disabled={busy}>
-            {busy ? 'Sending…' : (paid ? 'Send request' : 'Cancel request')}
+            {busy ? 'Cancelling…' : 'Cancel request'}
           </button>
         </div>
       </form>

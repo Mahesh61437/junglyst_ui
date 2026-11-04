@@ -52,7 +52,6 @@ export const ServiceQuoteService = {
     sendPayRequest: (id) => unwrap(api.post(`/services/admin/requests/${id}/send-pay-request/`)),
     decline: (id, reason) => unwrap(api.post(`/services/admin/requests/${id}/decline/`, { reason })),
     markDelivered: (id) => unwrap(api.post(`/services/admin/requests/${id}/mark-delivered/`)),
-    dismissCancel: (id) => unwrap(api.post(`/services/admin/requests/${id}/dismiss-cancel/`)),
     extraPayoutDone: (id, chargeId) => unwrap(api.post(`/services/admin/requests/${id}/charges/${chargeId}/payout-done/`)),
     renew: (id) => unwrap(api.post(`/services/admin/requests/${id}/renew/`)),
     cancel: (id, reason) => unwrap(api.post(`/services/admin/requests/${id}/cancel/`, { reason })),

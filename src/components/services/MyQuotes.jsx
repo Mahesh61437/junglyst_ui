@@ -104,14 +104,9 @@ function QuoteCard({ request, onPay, payingChargeId, onPayCharge, onCancel }) {
         </p>
       )}
       <ChargeList request={request} payingId={payingChargeId} onPayCharge={onPayCharge} />
-      {request.cancel_requested_at && (
-        <p className="sv-quote-note sv-quote-note--warn">
-          You asked to cancel this order. Our team will look at it and contact you soon.
-        </p>
-      )}
       {request.can_cancel && (
         <button type="button" className="sv-link-btn sv-cancel-link" onClick={() => onCancel(request)}>
-          {request.status === 'paid' ? 'Request cancellation' : 'Cancel this request'}
+          Cancel this request
         </button>
       )}
       {request.status === 'delivered' && (
@@ -193,9 +188,9 @@ export default function MyQuotes({ onPaid }) {
         <CancelOrderModal
           request={cancelling}
           onClose={() => setCancelling(null)}
-          onDone={(outcome) => {
+          onDone={() => {
             setCancelling(null);
-            showToast(outcome === 'requested' ? 'Cancellation request sent. We will contact you.' : 'Your request was cancelled.', 'success');
+            showToast('Your request was cancelled.', 'success');
             load();
           }}
         />

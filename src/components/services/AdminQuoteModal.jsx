@@ -16,8 +16,8 @@ const ACTION_LABELS = {
   additional_requested: 'requested an additional payment', additional_cancelled: 'cancelled an additional payment',
   additional_paid: 'additional payment received', delivered: 'marked delivered',
   expired: 'payment window expired', pay_request_renewed: 'renewed the pay request (3 more days)', cancelled: 'cancelled the order',
-  cancelled_by_customer: 'cancelled before paying', cancellation_requested: 'asked to cancel the order',
-  cancellation_dismissed: 'kept the order (cancellation request dismissed)', pay_by_reminder: 'reminder sent (quote expires soon)',
+  cancelled_by_customer: 'cancelled before paying',
+  pay_by_reminder: 'reminder sent (quote expires soon)',
   refund_needed: 'money arrived that must be refunded', extra_payout_recorded: 'recorded a separate seller payout',
 };
 
@@ -98,15 +98,6 @@ export default function AdminQuoteModal({ requestId, sellers, onClose, onChanged
           <div className="sv-detail-grid">
             <div style={{ display: 'grid', gap: '1rem', alignContent: 'start' }}>
               <div><QuoteStatusPill status={request.status} /> {request.order_number && <span className="sv-help">Order {request.order_number}</span>}</div>
-              {request.cancel_requested_at && (
-                <div className="sv-banner sv-banner--error" role="alert" style={{ display: 'grid', gap: '0.5rem' }}>
-                  <strong>The customer asked to cancel this paid order.</strong>
-                  <span>{request.cancel_request_reason || 'No reason given.'}</span>
-                  <span className="sv-help">Use Cancel order to approve it (you refund the customer yourself), or keep the order.</span>
-                  <button type="button" className="wa-btn wa-btn--ghost" style={{ minHeight: 44, justifySelf: 'start' }} disabled={busy}
-                    onClick={() => run(() => ServiceQuoteService.admin.dismissCancel(requestId))}>Keep the order</button>
-                </div>
-              )}
               <dl className="sv-kv">
                 <dt>Customer</dt><dd>{request.contact_name}</dd>
                 <dt>Phone</dt><dd><a href={`tel:${request.contact_phone}`}><Phone size={12} aria-hidden="true" /> {request.contact_phone}</a></dd>

@@ -5,10 +5,9 @@ const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 // Banner at the top of the super admin dashboard. Silent when nothing is waiting.
 export default function ServiceRequestsAlert({ summary }) {
-  if (!summary || (!summary.new_requests && !summary.in_review && !summary.cancel_requests)) return null;
-  const urgent = summary.new_requests > 0 || summary.cancel_requests > 0;
+  if (!summary || (!summary.new_requests && !summary.in_review)) return null;
+  const urgent = summary.new_requests > 0;
   const parts = [
-    summary.cancel_requests > 0 && `${plural(summary.cancel_requests, 'cancellation request')} to decide`,
     summary.new_requests > 0 && `${plural(summary.new_requests, 'new quote request')} waiting`,
     summary.in_review > 0 && `${summary.in_review} in review`,
   ].filter(Boolean);
