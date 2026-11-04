@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import DeliveryRegionsPanel from '../components/DeliveryRegionsPanel';
 import ServiceRequestsAlert from '../components/services/ServiceRequestsAlert';
 import { useServiceRequestSummary } from '../components/services/useServiceRequestSummary';
+import StockPriceSync from '../components/StockPriceSync';
 import {
   Package, Users, IndianRupee, Truck, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
@@ -1294,6 +1295,8 @@ export default function SuperAdminDashboard() {
       <main style={{ maxWidth: '1400px', margin: '2rem auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
 
         {activePage === 'overview' && <>
+
+        <StockPriceSync />
 
         {/* Grower Access Management */}
         <section>
