@@ -6,6 +6,7 @@ import { useScrollRestoration } from '../utils/useScrollRestoration';
 import Pagination from '../components/Pagination';
 import SocialLinks from '../components/SocialLinks';
 import BookingStatusPill from '../components/workshops/BookingStatusPill';
+import MyQuotes from '../components/services/MyQuotes';
 import OrganiserContact from '../components/workshops/OrganiserContact';
 import { formatDate, formatTime, partyLabel } from '../utils/workshops';
 
@@ -125,12 +126,16 @@ function WorkshopBookingCard({ booking }) {
   );
 }
 
+// A custom order awaiting payment is paid from its quote card above, so it is not listed twice.
+const isUnpaidServiceOrder = (order) => order.order_type === 'service' && order.status === 'pending';
+
 export default function MyOrders() {
   const navType = useNavigationType();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [totalItems, setTotalItems] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0); // bumped after a custom-order payment
   const navigate = useNavigate();
 
   // Restore page number when coming back via browser back button
@@ -163,7 +168,7 @@ export default function MyOrders() {
       .catch(err => { if (err.name !== 'CanceledError') console.error('Failed to load orders:', err); })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [page]);
+  }, [page, reloadKey]);
 
   if (loading) {
     return (
@@ -180,6 +185,8 @@ export default function MyOrders() {
         <p style={{ color: '#64748b', fontSize: '1rem' }}>Tracking your orders.</p>
       </div>
 
+      <MyQuotes onPaid={() => setReloadKey(key => key + 1)} />
+
       {orders.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '6rem 0', backgroundColor: 'white', borderRadius: '32px', border: '1px solid #f1f5f9' }}>
           <div style={{ color: '#e2e8f0', marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}>
@@ -191,7 +198,7 @@ export default function MyOrders() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {orders.map(order => {
+          {orders.filter(order => !isUnpaidServiceOrder(order)).map(order => {
             const isExpanded = expandedId === order.id;
             const subOrders = order.sub_orders || [];
             const addr = order.shipping_address || {};
