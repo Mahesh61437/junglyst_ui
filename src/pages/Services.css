@@ -348,3 +348,47 @@
 .sv-photo-add:hover { border-color: #105c44; background: #f0fdf4; }
 .sv-photo-add:focus-visible { outline: 3px solid var(--brand-gold); outline-offset: 2px; }
 .sv-photo-add:disabled { opacity: 0.6; cursor: wait; }
+
+/* Single-service group: one feature banner, one button */
+.svh--single { padding: clamp(1.5rem, 5vw, 3rem) 0; }
+.svh-feature { display: grid; grid-template-columns: 1fr; background: #fff; border: 1px solid #dfe7e2; border-radius: 28px; overflow: hidden; box-shadow: 0 20px 50px rgba(10, 48, 41, 0.12); }
+@media (min-width: 900px) { .svh-feature { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+.svh-feature-media { position: relative; min-height: 200px; display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, 0.85); background-size: cover; background-position: center;
+  background-image: radial-gradient(circle at 20% 25%, rgba(212, 175, 55, 0.35) 0, transparent 38%), radial-gradient(circle at 80% 70%, rgba(134, 239, 172, 0.35) 0, transparent 42%), linear-gradient(140deg, #0a3029 0%, #1d6b52 55%, #3f8f6f 100%); }
+@media (min-width: 900px) { .svh-feature-media { min-height: 100%; } }
+.svh-feature-badge { position: absolute; top: 0.9rem; left: 0.9rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; border-radius: 999px; background: rgba(255, 255, 255, 0.95); color: #0a3029; font-size: 0.72rem; font-weight: 800; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); }
+.svh-feature-body { padding: clamp(1.25rem, 4vw, 2.25rem); display: grid; gap: 0.85rem; align-content: center; }
+.svh-feature-body .svh-eyebrow { justify-self: start; background: #ecf4ef; border-color: #cfe0d6; color: #105c44; }
+.svh-feature-body h2 { margin: 0; font-size: clamp(1.7rem, 4.5vw, 2.5rem); line-height: 1.1; color: #12241f; text-transform: capitalize; }
+.svh-feature-body .svh-lead { color: #475569; margin: 0; max-width: 56ch; }
+.svh-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.svh-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: #f1f6f3; border: 1px solid #dbe7e0; color: #0a3029; font-size: 0.78rem; font-weight: 700; }
+.svh-chip svg { color: #105c44; }
+.svh-chip--price { background: #fff8dc; border-color: #f1dc8c; color: #7a5b00; font-size: 0.85rem; }
+.svh-feature-body .svh-steps { background: #f8fbf9; border: 1px solid #e3ece7; margin: 0; }
+.svh-feature-body .svh-steps strong { color: #0f172a; }
+.svh-feature-body .svh-steps small { color: #64748b; }
+.svh-feature-body .svh-steps li:not(:last-child) { padding-bottom: 0; }
+@media (min-width: 560px) { .svh-feature-body .svh-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.svh-btn--wide { width: 100%; }
+@media (min-width: 560px) { .svh-btn--wide { width: auto; justify-self: start; min-width: 260px; } }
+
+/* Multi-service band on phones: tighter intro so the cards come first into view */
+@media (max-width: 639px) {
+  .svh-intro { padding: 1.25rem; border-radius: 22px; }
+  .svh-intro .svh-promises { display: none; }
+  .svh-intro .svh-steps { grid-template-columns: 1fr; padding: 0.75rem; gap: 0.55rem; }
+  .svh-feature { border-radius: 22px; }
+  .svh-feature-body .svh-steps { padding: 0.75rem; gap: 0.55rem; }
+}
+
+/* Phone: keep the single-service banner short */
+@media (max-width: 559px) {
+  .svh-feature-media { min-height: 150px; }
+  .svh-feature-body { padding: 1.1rem; gap: 0.7rem; }
+  .svh-chip { font-size: 0.72rem; padding: 0.3rem 0.6rem; }
+  .svh-feature-body .svh-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; padding: 0.7rem 0.5rem; }
+  .svh-feature-body .svh-steps li { flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; }
+  .svh-feature-body .svh-steps small { display: none; }
+  .svh-feature-body .svh-steps strong { flex-direction: column; gap: 0.15rem; font-size: 0.72rem; line-height: 1.2; }
+}

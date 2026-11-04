@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, BadgeCheck, MessageSquareText, PackageCheck, ReceiptText, Wallet } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Leaf, MapPin, MessageSquareText, PackageCheck, ReceiptText, Wallet } from 'lucide-react';
 import { ServiceQuoteService } from '../../services/ServiceQuoteService';
+import { formatINR } from '../../utils/workshops';
+import { deliveryAreaText } from '../../utils/serviceQuotes';
 import OfferingCard from './OfferingCard';
 import '../../pages/Services.css';
 
@@ -19,10 +21,56 @@ const STEPS = [
   { icon: PackageCheck, title: 'We build & deliver', text: 'Ready to display' },
 ];
 
+function Steps() {
+  return (
+    <ol className="svh-steps" aria-label="How it works">
+      {STEPS.map((step, index) => (
+        <li key={step.title}>
+          <span className="svh-step-num" aria-hidden="true">{index + 1}</span>
+          <span><strong><step.icon size={14} aria-hidden="true" /> {step.title}</strong><small>{step.text}</small></span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// A group with one service is a single feature banner with one button, so there is only
+// one place to click (the old layout showed the same service twice).
+function SingleServiceBand({ group, offering }) {
+  const area = deliveryAreaText(offering.delivery_state_names);
+  return (
+    <section className="svh svh--single" aria-labelledby={`home-service-${group.slug}`}>
+      <div className="container">
+        <div className="svh-feature">
+          <div className="svh-feature-media" style={offering.image_url ? { backgroundImage: `url("${offering.image_url}")` } : undefined}>
+            {!offering.image_url && <Leaf size={52} strokeWidth={1.1} aria-hidden="true" />}
+            <span className="svh-feature-badge"><BadgeCheck size={13} aria-hidden="true" /> Free quote</span>
+          </div>
+          <div className="svh-feature-body">
+            <span className="svh-eyebrow">{group.name} · Made to order</span>
+            <h2 id={`home-service-${group.slug}`}>{offering.name}</h2>
+            {(offering.description || group.description) && <p className="svh-lead">{offering.description || group.description}</p>}
+            <ul className="svh-chips">
+              {offering.suggested_min_budget && <li className="svh-chip svh-chip--price">From {formatINR(offering.suggested_min_budget)}</li>}
+              {PROMISES.map(promise => (
+                <li key={promise.text} className="svh-chip"><promise.icon size={14} aria-hidden="true" /> {promise.text}</li>
+              ))}
+              {area && <li className="svh-chip"><MapPin size={14} aria-hidden="true" /> Delivers to {area}</li>}
+            </ul>
+            <Steps />
+            <Link to={`/services/${group.slug}/${offering.slug}`} className="svh-btn svh-btn--gold svh-btn--wide">
+              Get a free quote <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function GroupBand({ group }) {
+  if (group.offerings.length === 1) return <SingleServiceBand group={group} offering={group.offerings[0]} />;
   const offerings = group.offerings.slice(0, HOME_OFFERINGS_PER_GROUP);
-  const first = group.offerings[0];
-  const quoteLink = group.offerings.length === 1 && first ? `/services/${group.slug}/${first.slug}` : `/services/${group.slug}`;
 
   return (
     <section className="svh" aria-labelledby={`home-service-${group.slug}`}>
@@ -36,22 +84,14 @@ function GroupBand({ group }) {
               <li key={promise.text}><promise.icon size={17} aria-hidden="true" /> {promise.text}</li>
             ))}
           </ul>
-          <ol className="svh-steps" aria-label="How it works">
-            {STEPS.map((step, index) => (
-              <li key={step.title}>
-                <span className="svh-step-num" aria-hidden="true">{index + 1}</span>
-                <span><strong><step.icon size={14} aria-hidden="true" /> {step.title}</strong><small>{step.text}</small></span>
-              </li>
-            ))}
-          </ol>
+          <Steps />
           <div className="svh-actions">
-            <Link to={quoteLink} className="svh-btn svh-btn--gold">Get a free quote <ArrowRight size={16} aria-hidden="true" /></Link>
-            {group.offerings.length > 1 && (
-              <Link to={`/services/${group.slug}`} className="svh-btn svh-btn--ghost">See all {group.offerings.length}</Link>
-            )}
+            <Link to={`/services/${group.slug}`} className="svh-btn svh-btn--gold">
+              See all {group.offerings.length} services <ArrowRight size={16} aria-hidden="true" />
+            </Link>
           </div>
         </div>
-        <div className={`svh-cards${offerings.length === 1 ? ' svh-cards--single' : ''}`} role="list" aria-label={`${group.name} services`}>
+        <div className="svh-cards" role="list" aria-label={`${group.name} services`}>
           {offerings.map(offering => (
             <div role="listitem" key={offering.slug} className="svh-card-slot"><OfferingCard offering={offering} /></div>
           ))}
