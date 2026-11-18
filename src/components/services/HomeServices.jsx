@@ -42,7 +42,7 @@ function SingleServiceBand({ group, offering }) {
     <section className="svh svh--single" aria-labelledby={`home-service-${group.slug}`}>
       <div className="container">
         <div className="svh-feature">
-          <div className="svh-feature-media" style={offering.image_url ? { backgroundImage: `url("${offering.image_url}")` } : undefined}>
+          <div className="svh-feature-media" style={offering.image_url ? { backgroundImage: `url("${offering.image_url}")`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundColor: '#e8f1ec', minHeight: 240 } : undefined}>
             {!offering.image_url && <Leaf size={52} strokeWidth={1.1} aria-hidden="true" />}
             <span className="svh-feature-badge"><BadgeCheck size={13} aria-hidden="true" /> Free quote</span>
           </div>
