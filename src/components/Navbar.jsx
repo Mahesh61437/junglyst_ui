@@ -173,6 +173,7 @@ export default function Navbar() {
     { name: 'Plants', path: '/shop/Aquatic Plants' },
     { name: 'Hardscape', path: '/shop/Hardscape' },
     { name: 'Workshops', path: '/workshops' },
+    { name: 'Custom Orders', path: '/services' },
     { name: 'Verified Sellers', path: '/sellers' },
     { name: 'Care Guides', path: '/guides' },
     { name: 'FAQ', path: '/faq' },

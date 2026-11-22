@@ -31,6 +31,9 @@ import SuperAdminShippingFees from './pages/SuperAdminShippingFees';
 import SuperAdminSettings from './pages/SuperAdminSettings';
 import SuperAdminCoupons from './pages/SuperAdminCoupons';
 import SuperAdminWorkshops from './pages/SuperAdminWorkshops';
+import Services from './pages/Services';
+import ServiceOffering from './pages/ServiceOffering';
+import SuperAdminServices from './pages/SuperAdminServices';
 import Workshops from './pages/Workshops';
 import WorkshopDetail from './pages/WorkshopDetail';
 import WorkshopBookingConfirmation from './pages/WorkshopBookingConfirmation';
@@ -124,6 +127,9 @@ function App() {
                 <Route path="workshops" element={<Workshops />} />
                 <Route path="workshops/booking/:orderNumber" element={<WorkshopBookingConfirmation />} />
                 <Route path="workshops/:slug" element={<WorkshopDetail />} />
+                <Route path="services" element={<Services />} />
+                <Route path="services/:groupSlug" element={<Services />} />
+                <Route path="services/:groupSlug/:offeringSlug" element={<ServiceOffering />} />
                 <Route path="community" element={<FeatureGate flag="community"><Community /></FeatureGate>} />
               </Route>
               
@@ -141,6 +147,7 @@ function App() {
               <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
               <Route path="/super-admin/coupons" element={<SuperAdminCoupons />} />
               <Route path="/super-admin/workshops" element={<SuperAdminWorkshops />} />
+              <Route path="/super-admin/services" element={<SuperAdminServices />} />
             </Routes>
           </BrowserRouter>
         </OrderProvider>

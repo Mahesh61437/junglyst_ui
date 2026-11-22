@@ -10,6 +10,7 @@ import { getImageUrl } from '../utils/imageUtils';
 import { ShieldCheck, ArrowRight, Leaf, Award, Truck, MapPin, Trophy } from 'lucide-react';
 import HeroCarousel from '../components/HeroCarousel';
 import HomeWorkshops from '../components/workshops/HomeWorkshops';
+import HomeServices from '../components/services/HomeServices';
 import api from '../services/api';
 import './Home.css';
 import { useCompetitionStatus, getLaunchDate, formatAnnouncementDate, isCompetitionPromoVisible } from '../services/CompetitionService';
@@ -344,6 +345,9 @@ export default function Home() {
 
       {/* Workshops — hands-on sessions with partner growers, right under the stats */}
       <HomeWorkshops />
+
+      {/* Made-to-order service groups configured by the super admin */}
+      <HomeServices />
 
       {/* Competition promotion — shown until launch date */}
       <CompetitionPromo />

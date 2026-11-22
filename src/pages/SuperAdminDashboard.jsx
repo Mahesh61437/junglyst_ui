@@ -3,12 +3,15 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import DeliveryRegionsPanel from '../components/DeliveryRegionsPanel';
+import ServiceRequestsAlert from '../components/services/ServiceRequestsAlert';
+import { useServiceRequestSummary } from '../components/services/useServiceRequestSummary';
 import StockPriceSync from '../components/StockPriceSync';
 import {
   Package, Users, IndianRupee, Truck, Clock,
   LayoutDashboard, Store, Mail, Phone, ChevronDown, ChevronUp,
   User, Search, Star, Edit2, X, Plus, Image, Copy,
   Tag, Layers, Percent, Weight, Trash2, RefreshCw, ExternalLink, Calendar,
+  Sparkles,
 } from 'lucide-react';
 
 // ─── payment status presentation ─────────────────────────────────────────────
@@ -289,9 +292,19 @@ function CatField({ label, value, onChange, type = 'text', placeholder = '' }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
+// Marks a quote-based custom order in the regular order lists.
+function CustomOrderTag() {
+  return (
+    <span title="Custom order (quote)" style={{ padding: '0.1rem 0.45rem', borderRadius: '999px', background: '#fef3c7', color: '#92400e', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+      Custom
+    </span>
+  );
+}
+
 export default function SuperAdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const serviceSummary = useServiceRequestSummary(Boolean(user?.is_superuser));
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1227,6 +1240,12 @@ export default function SuperAdminDashboard() {
             <button onClick={() => navigate('/super-admin/workshops')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#0f766e', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               WORKSHOPS
             </button>
+            <button onClick={() => navigate('/super-admin/services')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#b45309', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              CUSTOM ORDERS
+              {serviceSummary?.new_requests > 0 && (
+                <span aria-label={`${serviceSummary.new_requests} new requests`} style={{ background: '#dc2626', color: 'white', borderRadius: '999px', minWidth: '1.4rem', height: '1.4rem', padding: '0 0.4rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>{serviceSummary.new_requests}</span>
+              )}
+            </button>
             <button onClick={() => navigate('/super-admin/settings')} style={{ padding: '0.5rem 1rem', borderRadius: '8px', backgroundColor: '#475569', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               SETTINGS
             </button>
@@ -1247,6 +1266,8 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
       </header>
+
+      <ServiceRequestsAlert summary={serviceSummary} />
 
       {/* ── Tab Nav ── */}
       <nav style={{ backgroundColor: 'white', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: '73px', zIndex: 9 }}>
@@ -1444,6 +1465,7 @@ export default function SuperAdminDashboard() {
               { title: 'Paid Product Orders', value: overall_analytics.orders_this_month || 0, icon: <Package size={24} />, color: 'var(--brand-green)' },
               { title: 'Incomplete Product Payments', value: `${overall_analytics.unpaid_orders || 0} · ₹${Number(overall_analytics.unpaid_value || 0).toLocaleString()}`, icon: <Clock size={24} />, color: '#f59e0b' },
               // Workshops are booked through the same checkout but tracked on their own page.
+              { title: 'Custom Orders (Paid)', value: `${overall_analytics.custom_orders || 0} · ₹${Number(overall_analytics.custom_order_revenue || 0).toLocaleString()}`, icon: <Sparkles size={24} />, color: '#b45309', onClick: () => navigate('/super-admin/services') },
               { title: 'Workshop Bookings (Paid)', value: `${overall_analytics.workshop_bookings || 0} · ₹${Number(overall_analytics.workshop_revenue || 0).toLocaleString()}`, icon: <Calendar size={24} />, color: '#0f766e', onClick: () => navigate('/super-admin/workshops?tab=revenue') },
               { title: 'Active Sellers', value: overall_analytics.total_sellers || 0, icon: <Store size={24} />, color: '#3b82f6' },
               { title: 'Total Collectors', value: overall_analytics.total_users || 0, icon: <Users size={24} />, color: '#8b5cf6' },
@@ -1813,6 +1835,7 @@ export default function SuperAdminDashboard() {
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>#{order.order_number}</div>
+                              {order.order_type === 'service' && <CustomOrderTag />}
                               <Link
                                 to={`/orders/${order.id}`}
                                 target="_blank"
@@ -1908,6 +1931,7 @@ export default function SuperAdminDashboard() {
                                   title="Open order (right-click or ⌘/Ctrl-click to open in a new tab)"
                                   style={{ color: 'var(--text-primary)', textDecoration: 'none' }}
                                 >#{order.order_number}</Link>
+                                {order.order_type === 'service' && <CustomOrderTag />}
                                 <Link
                                   to={`/orders/${order.id}`}
                                   target="_blank"
@@ -1988,6 +2012,7 @@ export default function SuperAdminDashboard() {
                         <td style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <Link to={`/orders/${order.id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>#{order.order_number}</Link>
+                            {order.order_type === 'service' && <CustomOrderTag />}
                             <Link
                               to={`/orders/${order.id}`}
                               target="_blank"

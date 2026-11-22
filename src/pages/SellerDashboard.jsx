@@ -9,7 +9,7 @@ import {
   ChevronRight, Menu, ExternalLink, Store, ShieldCheck,
   Save, Info, Image as ImageIcon, Palette, Upload, Loader2,
   Leaf, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, ArrowLeft, Download, ChevronDown, ChevronUp, FileText, Calendar, IndianRupee,
-  Truck, CheckSquare, Square, ImagePlus, Eye, RefreshCw, AlertTriangle
+  Truck, CheckSquare, Square, ImagePlus, Eye, RefreshCw, AlertTriangle, ClipboardList
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -20,6 +20,7 @@ import { Link, useNavigate, Navigate } from 'react-router-dom';
 import NaturalLogo from '../components/NaturalLogo';
 import ItemizedInvoiceModal from '../components/ItemizedInvoiceModal';
 import SellerWorkshopBookings from '../components/workshops/SellerWorkshopBookings';
+import SellerServiceRequests from '../components/services/SellerServiceRequests';
 import WorkshopBookingsNotice from '../components/workshops/WorkshopBookingsNotice';
 import { ProductService } from '../services/ProductService';
 import { OrderService } from '../services/OrderService';
@@ -1379,6 +1380,7 @@ export default function SellerDashboard() {
     { id: 'products', label: 'Collection', icon: <Package size={20} /> },
     { id: 'orders', label: 'Fulfillment', icon: <ShoppingBag size={20} /> },
     { id: 'workshops', label: 'Workshops', icon: <Calendar size={20} /> },
+    { id: 'custom-orders', label: 'Custom Orders', icon: <ClipboardList size={20} /> },
     { id: 'bulk-upload', label: 'Bulk Upload', icon: <Upload size={20} /> },
     { id: 'gst', label: 'GST Invoices', icon: <FileText size={20} /> },
     { id: 'spotlight', label: 'Studio Identity', icon: <Palette size={20} /> },
@@ -1592,6 +1594,7 @@ export default function SellerDashboard() {
           ) : (
             <div>
               {activeTab === 'workshops' && <SellerWorkshopBookings />}
+              {activeTab === 'custom-orders' && <SellerServiceRequests />}
               {activeTab === 'gst' && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
